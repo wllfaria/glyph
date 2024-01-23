@@ -2,12 +2,13 @@ mod buffer;
 mod editor;
 mod event_handler;
 mod pane;
+mod state;
 mod window;
 
 use editor::Editor;
 
 fn main() -> std::io::Result<()> {
-    let mut editor = Editor::new();
+    let mut editor = Editor::new()?;
     editor.start()?;
     Ok(())
 }
