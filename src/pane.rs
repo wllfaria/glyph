@@ -1,13 +1,19 @@
 use std::{
-    io::{stdout, Result, Stdout, Write},
+    io::{stdout, Result, Stdout},
     sync::{Arc, Mutex},
 };
 
 use crossterm::{
     cursor,
     style::{Color, Print, Stylize},
-    terminal, QueueableCommand,
+    QueueableCommand,
 };
+
+#[derive(Debug)]
+pub struct CursorPosition {
+    pub x: u16,
+    pub y: u16,
+}
 
 use crate::buffer::Buffer;
 
