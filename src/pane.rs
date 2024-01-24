@@ -1,5 +1,5 @@
 use std::{
-    io::{stdout, Result, Stdout},
+    io::{stdout, Result, Stdout, Write},
     sync::{Arc, Mutex},
 };
 
@@ -48,12 +48,12 @@ impl Pane {
     }
 
     fn render_empty_lines(&mut self) -> Result<()> {
-        self.stdout
-            .queue(terminal::Clear(terminal::ClearType::All))?;
         for row in 0..self.height {
             self.stdout
                 .queue(cursor::MoveTo(self.col, self.row + row))?
-                .queue(Print("~".with(Color::DarkGrey)))?;
+                .queue(Print(
+                    format!("{}-{}", self.col, self.width).with(Color::DarkGrey),
+                ))?;
         }
         self.stdout.queue(cursor::MoveTo(self.col, self.row))?;
         Ok(())
