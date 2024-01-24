@@ -1,8 +1,10 @@
 #[derive(Debug)]
-pub struct Buffer {}
+pub struct Buffer {
+    pub lines: Vec<String>,
+}
 
 impl Buffer {
     pub fn new() -> Self {
-        Buffer {}
+        Buffer { lines: Vec::new() }
     }
 }

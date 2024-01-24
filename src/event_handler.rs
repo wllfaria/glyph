@@ -11,12 +11,12 @@ impl EventHandler {
 
     pub fn poll_events(&mut self) -> std::io::Result<()> {
         let event = event::read()?;
-        match event {
-            event::Event::Key(event::KeyEvent {
-                code: event::KeyCode::Char('q'),
-                ..
-            }) => self.is_quitting = true,
-            _ => (),
+        if let event::Event::Key(event::KeyEvent {
+            code: event::KeyCode::Char('q'),
+            ..
+        }) = event
+        {
+            self.is_quitting = true
         };
         Ok(())
     }

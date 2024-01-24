@@ -50,7 +50,7 @@ impl Editor {
     pub fn start(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
 
-        while self.event_handler.is_quitting == false {
+        while !self.event_handler.is_quitting {
             self.state.borrow().active_window.borrow_mut().render()?;
             self.event_handler.poll_events()?;
         }

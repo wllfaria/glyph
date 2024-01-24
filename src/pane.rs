@@ -49,19 +49,35 @@ impl Pane {
     }
 
     pub fn render(&mut self) -> Result<()> {
-        self.render_empty_lines()?;
+        let total_lines = self.render_lines()?;
+        self.render_empty_lines(total_lines)?;
+        self.stdout.queue(cursor::MoveTo(5, self.row))?;
         Ok(())
     }
 
-    fn render_empty_lines(&mut self) -> Result<()> {
-        for row in 0..self.height {
+    fn render_lines(&mut self) -> Result<u16> {
+        let buffer_lock = self.buffer.lock().unwrap();
+        let total_lines = usize::min(self.height as usize, buffer_lock.lines.len());
+        for i in 0..total_lines {
+            let start = match i {
+                r if r >= 9 => 2,
+                _ => 3,
+            };
             self.stdout
-                .queue(cursor::MoveTo(self.col, self.row + row))?
-                .queue(Print(
-                    format!("{}-{}", self.col, self.width).with(Color::DarkGrey),
-                ))?;
+                .queue(cursor::MoveTo(start, i as u16))?
+                .queue(Print(format!("{}", i + 1).with(Color::DarkGrey)))?
+                .queue(cursor::MoveTo(5, i as u16))?
+                .queue(Print(buffer_lock.lines.get(i).unwrap()))?;
         }
-        self.stdout.queue(cursor::MoveTo(self.col, self.row))?;
+        Ok(total_lines as u16)
+    }
+
+    fn render_empty_lines(&mut self, start_row: u16) -> Result<()> {
+        for row in start_row..self.height {
+            self.stdout
+                .queue(cursor::MoveTo(3, self.row + row))?
+                .queue(Print("~".with(Color::DarkGrey)))?;
+        }
         Ok(())
     }
 }
