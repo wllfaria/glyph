@@ -1,6 +1,7 @@
 mod buffer;
+mod commands;
 mod editor;
-mod event_handler;
+mod keyboard;
 mod pane;
 mod state;
 mod window;
@@ -8,7 +9,9 @@ mod window;
 use editor::Editor;
 
 fn main() -> std::io::Result<()> {
-    let mut editor = Editor::new()?;
+    let mut args = std::env::args();
+    let filename = args.nth(1);
+    let mut editor = Editor::new(filename)?;
     editor.start()?;
     Ok(())
 }

@@ -15,7 +15,7 @@ pub struct CursorPosition {
     pub y: u16,
 }
 
-use crate::buffer::Buffer;
+use crate::{buffer::Buffer, commands::Directions};
 
 #[derive(Debug)]
 pub struct Pane {
@@ -25,6 +25,7 @@ pub struct Pane {
     pub col: u16,
     pub height: u16,
     pub width: u16,
+    pub cursor: CursorPosition,
     stdout: Stdout,
 }
 
@@ -37,6 +38,7 @@ impl Pane {
             height: 0,
             width: 0,
             buffer,
+            cursor: CursorPosition { x: 5, y: 0 },
             stdout: stdout(),
         }
     }
@@ -51,7 +53,8 @@ impl Pane {
     pub fn render(&mut self) -> Result<()> {
         let total_lines = self.render_lines()?;
         self.render_empty_lines(total_lines)?;
-        self.stdout.queue(cursor::MoveTo(5, self.row))?;
+        self.stdout
+            .queue(cursor::MoveTo(self.cursor.x, self.cursor.y))?;
         Ok(())
     }
 
@@ -70,6 +73,29 @@ impl Pane {
                 .queue(Print(buffer_lock.lines.get(i).unwrap()))?;
         }
         Ok(total_lines as u16)
+    }
+
+    pub fn move_cursor(&mut self, direction: &Directions) {
+        match direction {
+            Directions::Up => {
+                self.cursor.y = self.cursor.y.saturating_sub(1);
+            }
+            Directions::Down => {
+                if self.cursor.y < self.height - 1 {
+                    self.cursor.y += 1;
+                }
+            }
+            Directions::Left => {
+                if self.cursor.x > 5 {
+                    self.cursor.x -= 1;
+                }
+            }
+            Directions::Right => {
+                if self.cursor.x < self.width {
+                    self.cursor.x += 1;
+                }
+            }
+        }
     }
 
     fn render_empty_lines(&mut self, start_row: u16) -> Result<()> {
