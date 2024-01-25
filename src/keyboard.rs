@@ -59,7 +59,38 @@ impl Keyboard {
                 .get(&EditorCommands::MoveRight)
                 .unwrap()
                 .execute(),
-            _ => (),
+            event::Event::Key(event::KeyEvent {
+                code: event::KeyCode::Char('o'),
+                ..
+            }) => self
+                .commands
+                .get(&EditorCommands::InsertLineBelow)
+                .unwrap()
+                .execute(),
+            event::Event::Key(event::KeyEvent {
+                code: event::KeyCode::Char('O'),
+                modifiers: event::KeyModifiers::SHIFT,
+                ..
+            }) => self
+                .commands
+                .get(&EditorCommands::InsertLineAbove)
+                .unwrap()
+                .execute(),
+            _ => {
+                // extract the char from the event
+                let char = match event {
+                    event::Event::Key(event::KeyEvent { code, .. }) => match code {
+                        event::KeyCode::Char(c) => c,
+                        _ => ' ',
+                    },
+                    _ => ' ',
+                };
+                self.state
+                    .borrow()
+                    .active_pane
+                    .borrow_mut()
+                    .insert_char(char);
+            }
         }
         Ok(())
     }

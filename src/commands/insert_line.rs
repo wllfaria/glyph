@@ -1,26 +1,25 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{
-    commands::{Command, Directions},
-    state::State,
-};
+use crate::{commands::Command, state::State};
 
-pub struct MoveCommand {
-    pub state: Rc<RefCell<State>>,
-    pub direction: Directions,
+use super::Directions;
+
+pub struct InsertLineCommand {
+    state: Rc<RefCell<State>>,
+    direction: Directions,
 }
 
-impl Command for MoveCommand {
+impl Command for InsertLineCommand {
     fn execute(&self) {
         self.state
             .borrow_mut()
             .active_pane
             .borrow_mut()
-            .move_cursor(&self.direction);
+            .insert_line(&self.direction);
     }
 }
 
-impl MoveCommand {
+impl InsertLineCommand {
     pub fn new(state: Rc<RefCell<State>>, direction: Directions) -> Self {
         Self { state, direction }
     }

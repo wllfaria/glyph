@@ -67,29 +67,6 @@ impl Pane {
         Ok(())
     }
 
-    fn render_lines(&mut self) -> Result<u16> {
-        let buffer_lock = self.buffer.lock().unwrap();
-        let total_lines = usize::min(self.height as usize, buffer_lock.lines.len());
-        for i in 0..total_lines {
-            let normalized_line = i + 1 as usize;
-            let line_col = normalized_line.to_string().len() as u16 - 1;
-            let line_number = format!("{}", normalized_line).with(Color::DarkGrey);
-            if i == self.cursor.y as usize {
-                self.stdout
-                    .queue(cursor::MoveTo(self.col_render_offset - 2, i as u16))?
-                    .queue(Print(line_number.with(Color::DarkGreen)))?;
-            } else {
-                self.stdout
-                    .queue(cursor::MoveTo(self.col_render_offset - line_col, i as u16))?
-                    .queue(Print(line_number))?;
-            }
-            self.stdout
-                .queue(cursor::MoveTo(self.col_render_offset + 2, i as u16))?
-                .queue(Print(buffer_lock.lines.get(i).unwrap()))?;
-        }
-        Ok(total_lines as u16)
-    }
-
     pub fn move_cursor(&mut self, direction: &Directions) {
         match direction {
             Directions::Up => {
@@ -111,6 +88,51 @@ impl Pane {
                 }
             }
         }
+    }
+
+    pub fn insert_line(&mut self, direction: &Directions) {
+        let mut buffer_lock = self.buffer.lock().unwrap();
+        match direction {
+            Directions::Up => buffer_lock.new_line(self.cursor.y as usize),
+            Directions::Down => {
+                buffer_lock.new_line(self.cursor.y as usize + 1);
+                self.cursor.y += 1;
+            }
+            _ => (),
+        }
+    }
+
+    pub fn insert_char(&mut self, c: char) {
+        let mut buffer_lock = self.buffer.lock().unwrap();
+        buffer_lock.insert_char(
+            self.cursor.y as usize,
+            self.cursor.x as usize - self.cursor_left_limit as usize,
+            c,
+        );
+        self.cursor.x += 1;
+    }
+
+    fn render_lines(&mut self) -> Result<u16> {
+        let buffer_lock = self.buffer.lock().unwrap();
+        let total_lines = usize::min(self.height as usize, buffer_lock.lines.len());
+        for i in 0..total_lines {
+            let normalized_line = i + 1 as usize;
+            let line_col = normalized_line.to_string().len() as u16 - 1;
+            let line_number = format!("{}", normalized_line).with(Color::DarkGrey);
+            if i == self.cursor.y as usize {
+                self.stdout
+                    .queue(cursor::MoveTo(self.col_render_offset - 2, i as u16))?
+                    .queue(Print(line_number.with(Color::DarkGreen)))?;
+            } else {
+                self.stdout
+                    .queue(cursor::MoveTo(self.col_render_offset - line_col, i as u16))?
+                    .queue(Print(line_number))?;
+            }
+            self.stdout
+                .queue(cursor::MoveTo(self.col_render_offset + 2, i as u16))?
+                .queue(Print(buffer_lock.lines.get(i).unwrap()))?;
+        }
+        Ok(total_lines as u16)
     }
 
     fn render_empty_lines(&mut self, start_row: u16) -> Result<()> {
