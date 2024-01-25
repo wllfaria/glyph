@@ -15,7 +15,7 @@ pub struct CursorPosition {
     pub y: u16,
 }
 
-use crate::{buffer::Buffer, commands::Directions};
+use crate::{buffer::Buffer, commands::Directions, editor::EditorModes};
 
 #[derive(Debug)]
 pub struct Pane {
@@ -26,6 +26,7 @@ pub struct Pane {
     pub height: u16,
     pub width: u16,
     pub cursor: CursorPosition,
+    pub mode: EditorModes,
     cursor_left_limit: u16,
     col_render_offset: u16,
     stdout: Stdout,
@@ -49,6 +50,7 @@ impl Pane {
             cursor_left_limit,
             col_render_offset,
             stdout: stdout(),
+            mode: EditorModes::Normal,
         }
     }
 
@@ -93,10 +95,14 @@ impl Pane {
     pub fn insert_line(&mut self, direction: &Directions) {
         let mut buffer_lock = self.buffer.lock().unwrap();
         match direction {
-            Directions::Up => buffer_lock.new_line(self.cursor.y as usize),
+            Directions::Up => {
+                buffer_lock.new_line(self.cursor.y as usize);
+                self.mode = EditorModes::Insert;
+            }
             Directions::Down => {
                 buffer_lock.new_line(self.cursor.y as usize + 1);
                 self.cursor.y += 1;
+                self.mode = EditorModes::Insert;
             }
             _ => (),
         }

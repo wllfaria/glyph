@@ -20,6 +20,13 @@ pub struct Editor {
     pub state: Rc<RefCell<State>>,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum EditorModes {
+    Normal,
+    Insert,
+    Command,
+}
+
 impl Editor {
     pub fn new(filename: Option<String>) -> Result<Self> {
         let mut buffers = HashMap::new();
