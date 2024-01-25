@@ -26,6 +26,16 @@ impl Buffer {
         self.lines[line].insert(col, c);
     }
 
+    pub fn delete_char(&mut self, line: usize, col: usize) {
+        if col >= self.lines[line].len() {
+            self.lines[line].pop();
+            return;
+        }
+        let left = self.lines[line][..col].to_string();
+        let right = self.lines[line][col + 1..].to_string();
+        self.lines[line] = left + &right;
+    }
+
     pub fn split_line(&mut self, line: usize, col: usize) {
         let first = self.lines[line][..col].to_string();
         let second = self.lines[line][col..].to_string();
@@ -38,6 +48,13 @@ impl Buffer {
         let next = self.lines[line + 1].to_string();
         self.lines[line].push_str(&next);
         self.lines.remove(line + 1);
+    }
+
+    pub fn get_line_len(&self, line: usize) -> usize {
+        if line >= self.lines.len() {
+            return 0;
+        }
+        self.lines[line].len()
     }
 }
 

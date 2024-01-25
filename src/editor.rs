@@ -1,7 +1,7 @@
-use crossterm::terminal;
+use crossterm::{terminal, QueueableCommand};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io::Result;
+use std::io::{Result, Write};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -18,13 +18,6 @@ pub struct Editor {
     pub panes: HashMap<u16, Rc<RefCell<Pane>>>,
     pub windows: HashMap<u16, Rc<RefCell<Window>>>,
     pub state: Rc<RefCell<State>>,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum EditorModes {
-    Normal,
-    Insert,
-    Command,
 }
 
 impl Editor {
@@ -64,6 +57,11 @@ impl Editor {
             self.event_handler.poll_events()?;
         }
 
+        std::io::stdout().queue(crossterm::cursor::MoveTo(0, 0))?;
+        for window in self.windows.values() {
+            window.borrow_mut().clear()?;
+        }
+        std::io::stdout().flush()?;
         terminal::disable_raw_mode()?;
         Ok(())
     }

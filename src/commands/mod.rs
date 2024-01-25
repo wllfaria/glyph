@@ -1,11 +1,13 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+pub use backspace_command::BackspaceCommand;
 pub use insert_line::InsertLineCommand;
 pub use move_command::MoveCommand;
 pub use quit_command::QuitCommand;
 
 use crate::state::State;
 
+mod backspace_command;
 mod insert_line;
 mod move_command;
 mod quit_command;
@@ -27,6 +29,7 @@ pub enum EditorCommands {
     MoveRight,
     InsertLineAbove,
     InsertLineBelow,
+    Backspace,
 }
 
 pub trait Command {
@@ -58,6 +61,10 @@ impl Commands {
         command_map.insert(
             EditorCommands::InsertLineBelow,
             Box::new(InsertLineCommand::new(Rc::clone(&state), Directions::Down)),
+        );
+        command_map.insert(
+            EditorCommands::Backspace,
+            Box::new(BackspaceCommand::new(Rc::clone(&state))),
         );
     }
 

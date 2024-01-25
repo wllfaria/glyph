@@ -1,8 +1,7 @@
-use crossterm::event;
+use crossterm::event::{self, KeyModifiers};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::commands::{Command, EditorCommands};
-use crate::editor::EditorModes;
 use crate::state::State;
 
 pub struct Keyboard {
@@ -23,79 +22,58 @@ impl Keyboard {
 
     pub fn poll_events(&mut self) -> std::io::Result<()> {
         let event = event::read()?;
-        match event {
-            // TODO: we should have user defined keybindings
-            event::Event::Key(event::KeyEvent { code, .. }) => match code {
-                event::KeyCode::Esc => {
-                    self.state.borrow().active_pane.borrow_mut().mode = EditorModes::Normal;
+        if let event::Event::Key(event::KeyEvent {
+            code, modifiers, ..
+        }) = event
+        {
+            match code {
+                c if c == event::KeyCode::Char('q') && modifiers == KeyModifiers::CONTROL => {
+                    self.commands.get(&EditorCommands::Quit).unwrap().execute();
                 }
-                event::KeyCode::Char(char) => match char {
-                    c if c == 'q'
-                        && self.state.borrow().active_pane.borrow().mode == EditorModes::Normal =>
-                    {
-                        self.commands.get(&EditorCommands::Quit).unwrap().execute();
-                    }
-                    c if c == 'h'
-                        && self.state.borrow().active_pane.borrow().mode == EditorModes::Normal =>
-                    {
-                        self.commands
-                            .get(&EditorCommands::MoveLeft)
-                            .unwrap()
-                            .execute();
-                    }
-                    c if c == 'j'
-                        && self.state.borrow().active_pane.borrow().mode == EditorModes::Normal =>
-                    {
-                        self.commands
-                            .get(&EditorCommands::MoveDown)
-                            .unwrap()
-                            .execute();
-                    }
-                    c if c == 'k'
-                        && self.state.borrow().active_pane.borrow().mode == EditorModes::Normal =>
-                    {
-                        self.commands
-                            .get(&EditorCommands::MoveUp)
-                            .unwrap()
-                            .execute();
-                    }
-                    c if c == 'l'
-                        && self.state.borrow().active_pane.borrow().mode == EditorModes::Normal =>
-                    {
-                        self.commands
-                            .get(&EditorCommands::MoveRight)
-                            .unwrap()
-                            .execute();
-                    }
-                    c if c == 'i'
-                        && self.state.borrow().active_pane.borrow().mode == EditorModes::Normal =>
-                    {
-                        self.state.borrow().active_pane.borrow_mut().mode = EditorModes::Insert;
-                    }
-                    c if c == 'o'
-                        && self.state.borrow().active_pane.borrow().mode == EditorModes::Normal =>
-                    {
-                        self.commands
-                            .get(&EditorCommands::InsertLineBelow)
-                            .unwrap()
-                            .execute();
-                    }
-                    c if c == 'O'
-                        && self.state.borrow().active_pane.borrow().mode == EditorModes::Normal =>
-                    {
-                        self.commands
-                            .get(&EditorCommands::InsertLineAbove)
-                            .unwrap()
-                            .execute();
-                    }
-                    c if self.state.borrow().active_pane.borrow().mode == EditorModes::Insert => {
-                        self.state.borrow().active_pane.borrow_mut().insert_char(c);
-                    }
-                    _ => (),
-                },
+                event::KeyCode::Enter => {
+                    self.commands
+                        .get(&EditorCommands::InsertLineBelow)
+                        .unwrap()
+                        .execute();
+                }
+                event::KeyCode::Backspace => {
+                    self.commands
+                        .get(&EditorCommands::Backspace)
+                        .unwrap()
+                        .execute();
+                }
+                event::KeyCode::Left => {
+                    self.commands
+                        .get(&EditorCommands::MoveLeft)
+                        .unwrap()
+                        .execute();
+                }
+                event::KeyCode::Down => {
+                    self.commands
+                        .get(&EditorCommands::MoveDown)
+                        .unwrap()
+                        .execute();
+                }
+                event::KeyCode::Up => {
+                    self.commands
+                        .get(&EditorCommands::MoveUp)
+                        .unwrap()
+                        .execute();
+                }
+                event::KeyCode::Right => {
+                    self.commands
+                        .get(&EditorCommands::MoveRight)
+                        .unwrap()
+                        .execute();
+                }
+                event::KeyCode::Char(char) => self
+                    .state
+                    .borrow()
+                    .active_pane
+                    .borrow_mut()
+                    .insert_char(char),
                 _ => (),
-            },
-            _ => (),
+            }
         }
         Ok(())
     }

@@ -10,12 +10,12 @@ use crossterm::{
 };
 
 #[derive(Debug)]
-pub struct CursorPosition {
+pub struct Position {
     pub x: u16,
     pub y: u16,
 }
 
-use crate::{buffer::Buffer, commands::Directions, editor::EditorModes};
+use crate::{buffer::Buffer, commands::Directions};
 
 #[derive(Debug)]
 pub struct Pane {
@@ -25,11 +25,11 @@ pub struct Pane {
     pub col: u16,
     pub height: u16,
     pub width: u16,
-    pub cursor: CursorPosition,
-    pub mode: EditorModes,
-    cursor_left_limit: u16,
+    pub cursor: Position,
+    pub cursor_left_limit: u16,
     col_render_offset: u16,
     stdout: Stdout,
+    pub content_pane: Position,
 }
 
 impl Pane {
@@ -43,14 +43,14 @@ impl Pane {
             height: 0,
             width: 0,
             buffer,
-            cursor: CursorPosition {
+            cursor: Position {
                 x: col_render_offset + 2,
                 y: 0,
             },
             cursor_left_limit,
             col_render_offset,
             stdout: stdout(),
-            mode: EditorModes::Normal,
+            content_pane: Position { x: 0, y: 0 },
         }
     }
 
@@ -64,8 +64,15 @@ impl Pane {
     pub fn render(&mut self) -> Result<()> {
         let total_lines = self.render_lines()?;
         self.render_empty_lines(total_lines)?;
+        let buffer = self.buffer.lock().unwrap();
+        let line_len = buffer.get_line_len(self.cursor.y as usize);
+        let col_limit = line_len as u16 + self.cursor_left_limit;
+        let cursor_col = match self.cursor.x {
+            x if x > col_limit => col_limit,
+            _ => self.cursor.x,
+        };
         self.stdout
-            .queue(cursor::MoveTo(self.cursor.x, self.cursor.y))?;
+            .queue(cursor::MoveTo(cursor_col, self.cursor.y))?;
         Ok(())
     }
 
@@ -80,13 +87,25 @@ impl Pane {
                 }
             }
             Directions::Left => {
-                if self.cursor.x > self.cursor_left_limit {
-                    self.cursor.x -= 1;
+                let buffer = self.buffer.lock().unwrap();
+                let line_len = buffer.get_line_len(self.cursor.y as usize);
+                let col_limit = line_len as u16 + self.cursor_left_limit;
+
+                match self.cursor.x {
+                    x if x > col_limit => self.cursor.x = col_limit - 1,
+                    x if x > self.cursor_left_limit => self.cursor.x -= 1,
+                    _ => (),
                 }
             }
             Directions::Right => {
-                if self.cursor.x < self.width {
-                    self.cursor.x += 1;
+                let buffer = self.buffer.lock().unwrap();
+                let line_len = buffer.get_line_len(self.cursor.y as usize);
+                let col_limit = line_len as u16 + self.cursor_left_limit;
+
+                match self.cursor.x {
+                    x if x > col_limit => self.cursor.x = col_limit,
+                    x if x < self.width && x < col_limit => self.cursor.x += 1,
+                    _ => (),
                 }
             }
         }
@@ -97,12 +116,10 @@ impl Pane {
         match direction {
             Directions::Up => {
                 buffer_lock.new_line(self.cursor.y as usize);
-                self.mode = EditorModes::Insert;
             }
             Directions::Down => {
                 buffer_lock.new_line(self.cursor.y as usize + 1);
                 self.cursor.y += 1;
-                self.mode = EditorModes::Insert;
             }
             _ => (),
         }
@@ -118,26 +135,45 @@ impl Pane {
         self.cursor.x += 1;
     }
 
+    pub fn delete_char(&mut self) {
+        let mut buffer_lock = self.buffer.lock().unwrap();
+        let cursor_col = self.cursor.x as usize - self.cursor_left_limit as usize;
+
+        if cursor_col == 0 && self.cursor.y == 0 {
+            return;
+        }
+
+        if cursor_col == 0 && self.cursor.y > 0 {
+            let line_len = buffer_lock.get_line_len(self.cursor.y as usize - 1);
+            buffer_lock.append_line(self.cursor.y as usize - 1);
+            self.cursor.y -= 1;
+            self.cursor.x = line_len as u16 + self.cursor_left_limit;
+            return;
+        }
+
+        buffer_lock.delete_char(self.cursor.y as usize, cursor_col - 1);
+        self.cursor.x -= 1;
+    }
+
     fn render_lines(&mut self) -> Result<u16> {
         let buffer_lock = self.buffer.lock().unwrap();
         let total_lines = usize::min(self.height as usize, buffer_lock.lines.len());
+
         for i in 0..total_lines {
-            let normalized_line = i + 1 as usize;
-            let line_col = normalized_line.to_string().len() as u16 - 1;
-            let line_number = format!("{}", normalized_line).with(Color::DarkGrey);
-            if i == self.cursor.y as usize {
-                self.stdout
-                    .queue(cursor::MoveTo(self.col_render_offset - 2, i as u16))?
-                    .queue(Print(line_number.with(Color::DarkGreen)))?;
-            } else {
-                self.stdout
-                    .queue(cursor::MoveTo(self.col_render_offset - line_col, i as u16))?
-                    .queue(Print(line_number))?;
-            }
+            let readable_line = i + 1_usize;
+            let line_len = readable_line.to_string().len() as u16 - 1;
+            let line_display = format!("{}", readable_line).with(Color::DarkGrey);
+            let line_print_col = match self.cursor.y as usize {
+                y if y == i => self.col_render_offset - 2,
+                _ => self.col_render_offset - line_len,
+            };
             self.stdout
+                .queue(cursor::MoveTo(line_print_col, i as u16))?
+                .queue(Print(line_display))?
                 .queue(cursor::MoveTo(self.col_render_offset + 2, i as u16))?
                 .queue(Print(buffer_lock.lines.get(i).unwrap()))?;
         }
+
         Ok(total_lines as u16)
     }
 

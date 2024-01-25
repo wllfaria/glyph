@@ -6,6 +6,7 @@ use std::{
 
 use crate::{buffer::Buffer, pane::Pane, window::Window};
 
+#[derive(Debug)]
 pub struct State {
     pub active_buffer: Arc<Mutex<Buffer>>,
     pub active_pane: Rc<RefCell<Pane>>,

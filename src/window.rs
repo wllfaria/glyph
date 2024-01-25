@@ -1,3 +1,9 @@
+use crossterm::{
+    cursor,
+    style::{Color, Print, Stylize},
+    terminal::Clear,
+    QueueableCommand,
+};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -5,18 +11,17 @@ use std::{
     rc::Rc,
 };
 
-use crossterm::{terminal::Clear, QueueableCommand};
-
-use crate::pane::Pane;
+use crate::pane::{Pane, Position};
 
 #[derive(Debug)]
 pub struct Window {
+    panes: HashMap<u16, Rc<RefCell<Pane>>>,
     last_id: u16,
     total_panes: u16,
     height: u16,
     width: u16,
-    pub panes: HashMap<u16, Rc<RefCell<Pane>>>,
-    pub stdout: Stdout,
+    active_pane: Rc<RefCell<Pane>>,
+    stdout: Stdout,
 }
 
 impl Window {
@@ -26,7 +31,8 @@ impl Window {
 
         panes.insert(pane_mut.id, Rc::clone(&pane));
         let (width, height) = crossterm::terminal::size()?;
-        pane_mut.set_pane_position(0, 0, height, width);
+        pane_mut.set_pane_position(0, 0, height - 2, width);
+
         Ok(Self {
             panes,
             stdout: stdout(),
@@ -34,16 +40,40 @@ impl Window {
             total_panes: 1,
             height,
             width,
+            active_pane: Rc::clone(&pane),
         })
     }
 
     pub fn render(&mut self) -> Result<()> {
-        self.stdout
-            .queue(Clear(crossterm::terminal::ClearType::All))?;
+        self.clear()?;
+        self.render_status_bar()?;
         for pane in self.panes.values() {
             pane.borrow_mut().render()?;
-            self.stdout.flush()?;
         }
+        self.stdout.flush()?;
+        Ok(())
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+        self.stdout
+            .queue(Clear(crossterm::terminal::ClearType::All))?;
+        Ok(())
+    }
+
+    fn render_status_bar(&mut self) -> Result<()> {
+        let pane = self.active_pane.borrow();
+        let Position { x, y } = pane.cursor;
+        let offset = pane.cursor_left_limit;
+        let col_and_row = (y + 1).to_string() + ":" + &(x - offset).to_string();
+
+        self.stdout
+            .queue(cursor::MoveTo(
+                self.width - 11 - col_and_row.len() as u16,
+                self.height - 2,
+            ))?
+            .queue(Print(col_and_row.with(Color::Blue)))?
+            .queue(cursor::MoveTo(self.width - 9, self.height - 2))?
+            .queue(Print("17:51:45"))?;
         Ok(())
     }
 
