@@ -26,11 +26,15 @@ pub struct Pane {
     pub height: u16,
     pub width: u16,
     pub cursor: CursorPosition,
+    cursor_left_limit: u16,
+    col_render_offset: u16,
     stdout: Stdout,
 }
 
 impl Pane {
     pub fn new(id: u16, buffer: Arc<Mutex<Buffer>>) -> Self {
+        let col_render_offset = buffer.lock().unwrap().lines.len().to_string().len() as u16 + 1;
+        let cursor_left_limit = col_render_offset + 2;
         Self {
             id,
             row: 0,
@@ -38,7 +42,12 @@ impl Pane {
             height: 0,
             width: 0,
             buffer,
-            cursor: CursorPosition { x: 5, y: 0 },
+            cursor: CursorPosition {
+                x: col_render_offset + 2,
+                y: 0,
+            },
+            cursor_left_limit,
+            col_render_offset,
             stdout: stdout(),
         }
     }
@@ -62,14 +71,20 @@ impl Pane {
         let buffer_lock = self.buffer.lock().unwrap();
         let total_lines = usize::min(self.height as usize, buffer_lock.lines.len());
         for i in 0..total_lines {
-            let start = match i {
-                r if r >= 9 => 2,
-                _ => 3,
-            };
+            let normalized_line = i + 1 as usize;
+            let line_col = normalized_line.to_string().len() as u16 - 1;
+            let line_number = format!("{}", normalized_line).with(Color::DarkGrey);
+            if i == self.cursor.y as usize {
+                self.stdout
+                    .queue(cursor::MoveTo(self.col_render_offset - 2, i as u16))?
+                    .queue(Print(line_number.with(Color::DarkGreen)))?;
+            } else {
+                self.stdout
+                    .queue(cursor::MoveTo(self.col_render_offset - line_col, i as u16))?
+                    .queue(Print(line_number))?;
+            }
             self.stdout
-                .queue(cursor::MoveTo(start, i as u16))?
-                .queue(Print(format!("{}", i + 1).with(Color::DarkGrey)))?
-                .queue(cursor::MoveTo(5, i as u16))?
+                .queue(cursor::MoveTo(self.col_render_offset + 2, i as u16))?
                 .queue(Print(buffer_lock.lines.get(i).unwrap()))?;
         }
         Ok(total_lines as u16)
@@ -86,7 +101,7 @@ impl Pane {
                 }
             }
             Directions::Left => {
-                if self.cursor.x > 5 {
+                if self.cursor.x > self.cursor_left_limit {
                     self.cursor.x -= 1;
                 }
             }
@@ -101,7 +116,7 @@ impl Pane {
     fn render_empty_lines(&mut self, start_row: u16) -> Result<()> {
         for row in start_row..self.height {
             self.stdout
-                .queue(cursor::MoveTo(3, self.row + row))?
+                .queue(cursor::MoveTo(self.col_render_offset, self.row + row))?
                 .queue(Print("~".with(Color::DarkGrey)))?;
         }
         Ok(())
