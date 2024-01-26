@@ -39,7 +39,7 @@ impl Window {
             panes: HashMap::new(),
             stdout: stdout(),
             last_id: 0,
-            total_panes: 1,
+            total_panes: 0,
             height,
             width,
             active_pane: None,
@@ -50,8 +50,8 @@ impl Window {
     pub fn attach_pane(&mut self, pane: Rc<RefCell<Pane>>) {
         pane.borrow_mut()
             .set_pane_position(0, 0, self.height, self.width);
-        self.add_pane(pane);
-        self.active_pane = self.panes.get(&self.last_id).map(|pane| Rc::clone(pane));
+        self.add_pane(pane.clone());
+        self.active_pane = Some(pane.clone())
     }
 
     pub fn render(&mut self) -> Result<()> {
@@ -99,10 +99,7 @@ impl Window {
         for (i, pane) in self.panes.values().enumerate() {
             let mut pane_mut = pane.borrow_mut();
             let width = self.width / self.total_panes;
-
-            pane_mut.col = i as u16 * width;
-            pane_mut.width = width;
-            pane_mut.height = self.height;
+            pane_mut.set_pane_position(0, i as u16 * width, self.height, width);
         }
     }
 }
@@ -120,17 +117,22 @@ mod tests {
 
     #[test]
     pub fn should_split_vertically() {
-        let buffer = Arc::new(Mutex::new(Buffer::new(None)));
-        let pane_one = Pane::new(0, Arc::clone(&buffer));
-        let pane_two = Pane::new(0, Arc::clone(&buffer));
-        let mut window = Window::new(Rc::new(RefCell::new(pane_one))).unwrap();
+        let state = Rc::new(RefCell::new(State::new()));
+        let buffer = Arc::new(Mutex::new(Buffer::new(1, None, state.clone())));
+        let mut pane_one = Pane::new(1, state.clone());
+        let mut pane_two = Pane::new(2, state.clone());
+        let mut window = Window::new(1, state.clone()).unwrap();
+
+        pane_one.attach_buffer(buffer.clone());
+        pane_two.attach_buffer(buffer.clone());
+
         window.width = 50;
         window.height = 30;
-
+        window.attach_pane(Rc::new(RefCell::new(pane_one)));
         window.split_vertical(Rc::new(RefCell::new(pane_two)));
 
-        let pane_one = window.panes.get(&0).unwrap();
-        let pane_two = window.panes.get(&1).unwrap();
+        let pane_one = window.panes.get(&1).unwrap();
+        let pane_two = window.panes.get(&2).unwrap();
         let pane_one_ref = pane_one.borrow();
         let pane_two_ref = pane_two.borrow();
 

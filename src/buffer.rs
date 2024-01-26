@@ -101,15 +101,17 @@ mod tests {
         let mut buffer = make_buffer();
 
         buffer.new_line(0);
-        buffer.insert_char(0, 0, 'a');
         buffer.new_line(1);
-        buffer.insert_char(1, 10, 'b');
         buffer.new_line(2);
+        buffer.insert_char(0, 0, 'a');
+        buffer.insert_char(2, 10, 'b');
+        buffer.new_line(0);
 
-        assert_eq!(buffer.lines.len(), 3);
-        assert_eq!(buffer.lines[0], "a");
-        assert_eq!(buffer.lines[1], "");
-        assert_eq!(buffer.lines[2], "b");
+        assert_eq!(buffer.lines.len(), 4);
+        assert_eq!(buffer.lines[0], "");
+        assert_eq!(buffer.lines[1], "a");
+        assert_eq!(buffer.lines[2], "");
+        assert_eq!(buffer.lines[3], "b");
     }
 
     #[test]
@@ -117,10 +119,10 @@ mod tests {
         let mut buffer = make_buffer();
 
         buffer.new_line(0);
-        buffer.insert_char(0, 0, 'a');
         buffer.new_line(1);
-        buffer.insert_char(1, 0, 'b');
         buffer.new_line(2);
+        buffer.insert_char(0, 0, 'a');
+        buffer.insert_char(1, 0, 'b');
 
         let input = "Hello World!";
 
