@@ -66,12 +66,6 @@ impl Keyboard {
                         .unwrap()
                         .execute();
                 }
-                event::KeyCode::Char(char) => self
-                    .state
-                    .borrow()
-                    .active_pane
-                    .borrow_mut()
-                    .insert_char(char),
                 _ => (),
             }
         }

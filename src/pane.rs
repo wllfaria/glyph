@@ -1,5 +1,7 @@
 use std::{
+    cell::RefCell,
     io::{stdout, Result, Stdout},
+    rc::Rc,
     sync::{Arc, Mutex},
 };
 
@@ -15,13 +17,15 @@ pub struct Position {
     pub y: u16,
 }
 
-use crate::{buffer::Buffer, commands::Directions};
+const NO_BUFFER_ATTACHED: &str = "No buffer attached to pane";
+
+use crate::{buffer::Buffer, commands::Directions, state::State};
 
 #[derive(Debug)]
 pub struct Pane {
     pub id: u16,
-    pub buffer: Arc<Mutex<Buffer>>,
-    pub row: u16,
+    buffer: Option<Arc<Mutex<Buffer>>>,
+    row: u16,
     pub col: u16,
     pub height: u16,
     pub width: u16,
@@ -29,29 +33,42 @@ pub struct Pane {
     pub cursor_left_limit: u16,
     col_render_offset: u16,
     stdout: Stdout,
-    pub content_pane: Position,
+    content_pane: Position,
+    state: Rc<RefCell<State>>,
 }
 
 impl Pane {
-    pub fn new(id: u16, buffer: Arc<Mutex<Buffer>>) -> Self {
-        let col_render_offset = buffer.lock().unwrap().lines.len().to_string().len() as u16 + 1;
-        let cursor_left_limit = col_render_offset + 2;
+    pub fn new(id: u16, state: Rc<RefCell<State>>) -> Self {
         Self {
             id,
             row: 0,
             col: 0,
             height: 0,
             width: 0,
-            buffer,
-            cursor: Position {
-                x: col_render_offset + 2,
-                y: 0,
-            },
-            cursor_left_limit,
-            col_render_offset,
+            buffer: None,
+            cursor: Position { x: 0, y: 0 },
+            cursor_left_limit: 0,
+            col_render_offset: 0,
             stdout: stdout(),
             content_pane: Position { x: 0, y: 0 },
+            state,
         }
+    }
+
+    pub fn attach_buffer(&mut self, buffer: Arc<Mutex<Buffer>>) {
+        let col_render_offset = buffer
+            .lock()
+            .expect(NO_BUFFER_ATTACHED)
+            .lines
+            .len()
+            .to_string()
+            .len() as u16
+            + 1;
+        let cursor_left_limit = col_render_offset + 2;
+        self.cursor.x = cursor_left_limit;
+        self.cursor_left_limit = cursor_left_limit;
+        self.col_render_offset = col_render_offset;
+        self.buffer = Some(buffer);
     }
 
     pub fn set_pane_position(&mut self, row: u16, col: u16, height: u16, width: u16) {
@@ -64,7 +81,12 @@ impl Pane {
     pub fn render(&mut self) -> Result<()> {
         let total_lines = self.render_lines()?;
         self.render_empty_lines(total_lines)?;
-        let buffer = self.buffer.lock().unwrap();
+        let buffer = self
+            .buffer
+            .as_ref()
+            .expect(NO_BUFFER_ATTACHED)
+            .lock()
+            .unwrap();
         let line_len = buffer.get_line_len(self.cursor.y as usize);
         let col_limit = line_len as u16 + self.cursor_left_limit;
         let cursor_col = match self.cursor.x {
@@ -77,6 +99,12 @@ impl Pane {
     }
 
     pub fn move_cursor(&mut self, direction: &Directions) {
+        let buffer = self
+            .buffer
+            .as_ref()
+            .expect(NO_BUFFER_ATTACHED)
+            .lock()
+            .unwrap();
         match direction {
             Directions::Up => {
                 self.cursor.y = self.cursor.y.saturating_sub(1);
@@ -87,22 +115,32 @@ impl Pane {
                 }
             }
             Directions::Left => {
-                let buffer = self.buffer.lock().unwrap();
                 let line_len = buffer.get_line_len(self.cursor.y as usize);
                 let col_limit = line_len as u16 + self.cursor_left_limit;
 
                 match self.cursor.x {
+                    x if x == self.cursor_left_limit && self.cursor.y > 0 => {
+                        self.cursor.y -= 1;
+                        let line_above_len = buffer.get_line_len(self.cursor.y as usize) as u16;
+                        self.cursor.x = line_above_len + self.cursor_left_limit;
+                    }
+                    _ if line_len == 0 => {
+                        self.cursor.x = self.cursor_left_limit;
+                    }
                     x if x > col_limit => self.cursor.x = col_limit - 1,
-                    x if x > self.cursor_left_limit => self.cursor.x -= 1,
+                    x if x > self.cursor_left_limit => self.cursor.x = x.saturating_sub(1),
                     _ => (),
                 }
             }
             Directions::Right => {
-                let buffer = self.buffer.lock().unwrap();
                 let line_len = buffer.get_line_len(self.cursor.y as usize);
                 let col_limit = line_len as u16 + self.cursor_left_limit;
 
                 match self.cursor.x {
+                    x if x == col_limit && self.cursor.y < self.height - 1 => {
+                        self.cursor.y += 1;
+                        self.cursor.x = self.cursor_left_limit;
+                    }
                     x if x > col_limit => self.cursor.x = col_limit,
                     x if x < self.width && x < col_limit => self.cursor.x += 1,
                     _ => (),
@@ -111,52 +149,13 @@ impl Pane {
         }
     }
 
-    pub fn insert_line(&mut self, direction: &Directions) {
-        let mut buffer_lock = self.buffer.lock().unwrap();
-        match direction {
-            Directions::Up => {
-                buffer_lock.new_line(self.cursor.y as usize);
-            }
-            Directions::Down => {
-                buffer_lock.new_line(self.cursor.y as usize + 1);
-                self.cursor.y += 1;
-            }
-            _ => (),
-        }
-    }
-
-    pub fn insert_char(&mut self, c: char) {
-        let mut buffer_lock = self.buffer.lock().unwrap();
-        buffer_lock.insert_char(
-            self.cursor.y as usize,
-            self.cursor.x as usize - self.cursor_left_limit as usize,
-            c,
-        );
-        self.cursor.x += 1;
-    }
-
-    pub fn delete_char(&mut self) {
-        let mut buffer_lock = self.buffer.lock().unwrap();
-        let cursor_col = self.cursor.x as usize - self.cursor_left_limit as usize;
-
-        if cursor_col == 0 && self.cursor.y == 0 {
-            return;
-        }
-
-        if cursor_col == 0 && self.cursor.y > 0 {
-            let line_len = buffer_lock.get_line_len(self.cursor.y as usize - 1);
-            buffer_lock.append_line(self.cursor.y as usize - 1);
-            self.cursor.y -= 1;
-            self.cursor.x = line_len as u16 + self.cursor_left_limit;
-            return;
-        }
-
-        buffer_lock.delete_char(self.cursor.y as usize, cursor_col - 1);
-        self.cursor.x -= 1;
-    }
-
     fn render_lines(&mut self) -> Result<u16> {
-        let buffer_lock = self.buffer.lock().unwrap();
+        let buffer_lock = self
+            .buffer
+            .as_ref()
+            .expect(NO_BUFFER_ATTACHED)
+            .lock()
+            .unwrap();
         let total_lines = usize::min(self.height as usize, buffer_lock.lines.len());
 
         for i in 0..total_lines {

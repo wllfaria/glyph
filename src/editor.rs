@@ -21,39 +21,46 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(filename: Option<String>) -> Result<Self> {
-        let mut buffers = HashMap::new();
-        let mut panes = HashMap::new();
-        let mut windows = HashMap::new();
-
-        let buffer = Arc::new(Mutex::new(Buffer::new(filename)));
-        let pane = Rc::new(RefCell::new(Pane::new(0, Arc::clone(&buffer))));
-        let window = Rc::new(RefCell::new(Window::new(Rc::clone(&pane))?));
-        let state = Rc::new(RefCell::new(State::new(
-            Arc::clone(&buffer),
-            Rc::clone(&pane),
-            Rc::clone(&window),
-        )));
-        let commands = Commands::make_commands(Rc::clone(&state));
-
-        buffers.insert(0, Arc::clone(&buffer));
-        panes.insert(0, Rc::clone(&pane));
-        windows.insert(0, Rc::clone(&window));
+    pub fn new() -> Result<Self> {
+        let state = Rc::new(RefCell::new(State::new()));
+        let commands = Commands::make_commands(state.clone());
 
         Ok(Self {
-            buffers,
-            event_handler: Keyboard::new(Rc::clone(&state), commands),
-            panes,
-            windows,
-            state,
+            state: state.clone(),
+            panes: HashMap::new(),
+            buffers: HashMap::new(),
+            windows: HashMap::new(),
+            event_handler: Keyboard::new(state.clone(), commands),
         })
+    }
+
+    pub fn populate_empty(&mut self, filename: Option<String>) -> Result<()> {
+        let pane = Rc::new(RefCell::new(Pane::new(1, self.state.clone())));
+        let window = Rc::new(RefCell::new(Window::new(1, self.state.clone())?));
+        let buffer = Arc::new(Mutex::new(Buffer::new(1, filename, self.state.clone())));
+        let mut state = self.state.borrow_mut();
+
+        pane.borrow_mut().attach_buffer(buffer.clone());
+        window.borrow_mut().attach_pane(pane.clone());
+
+        self.panes.insert(1, pane.clone());
+        self.windows.insert(1, window.clone());
+        self.buffers.insert(1, buffer.clone());
+
+        state.set_active_buffer(buffer.clone());
+        state.set_active_pane(pane.clone());
+        state.set_active_window(window.clone());
+        Ok(())
     }
 
     pub fn start(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
 
         while !self.state.borrow().is_quitting {
-            self.state.borrow().active_window.borrow_mut().render()?;
+            match self.state.borrow().active_window {
+                Some(ref window) => window.borrow_mut().render()?,
+                None => break,
+            };
             self.event_handler.poll_events()?;
         }
 
@@ -61,6 +68,7 @@ impl Editor {
         for window in self.windows.values() {
             window.borrow_mut().clear()?;
         }
+
         std::io::stdout().flush()?;
         terminal::disable_raw_mode()?;
         Ok(())

@@ -11,37 +11,47 @@ use std::{
     rc::Rc,
 };
 
-use crate::pane::{Pane, Position};
+use crate::{
+    pane::{Pane, Position},
+    state::State,
+};
+
+const NO_PANE_ATTACHED: &str = "No pane attached to window";
 
 #[derive(Debug)]
 pub struct Window {
+    pub id: u16,
     panes: HashMap<u16, Rc<RefCell<Pane>>>,
     last_id: u16,
     total_panes: u16,
     height: u16,
     width: u16,
-    active_pane: Rc<RefCell<Pane>>,
+    active_pane: Option<Rc<RefCell<Pane>>>,
     stdout: Stdout,
+    state: Rc<RefCell<State>>,
 }
 
 impl Window {
-    pub fn new(pane: Rc<RefCell<Pane>>) -> Result<Self> {
-        let mut pane_mut = pane.borrow_mut();
-        let mut panes = HashMap::new();
-
-        panes.insert(pane_mut.id, Rc::clone(&pane));
+    pub fn new(id: u16, state: Rc<RefCell<State>>) -> Result<Self> {
         let (width, height) = crossterm::terminal::size()?;
-        pane_mut.set_pane_position(0, 0, height - 2, width);
-
         Ok(Self {
-            panes,
+            id,
+            panes: HashMap::new(),
             stdout: stdout(),
-            last_id: pane_mut.id,
+            last_id: 0,
             total_panes: 1,
             height,
             width,
-            active_pane: Rc::clone(&pane),
+            active_pane: None,
+            state,
         })
+    }
+
+    pub fn attach_pane(&mut self, pane: Rc<RefCell<Pane>>) {
+        pane.borrow_mut()
+            .set_pane_position(0, 0, self.height, self.width);
+        self.add_pane(pane);
+        self.active_pane = self.panes.get(&self.last_id).map(|pane| Rc::clone(pane));
     }
 
     pub fn render(&mut self) -> Result<()> {
@@ -61,10 +71,10 @@ impl Window {
     }
 
     fn render_status_bar(&mut self) -> Result<()> {
-        let pane = self.active_pane.borrow();
-        let Position { x, y } = pane.cursor;
+        let pane = self.active_pane.as_ref().expect(NO_PANE_ATTACHED).borrow();
         let offset = pane.cursor_left_limit;
-        let col_and_row = (y + 1).to_string() + ":" + &(x - offset).to_string();
+        let Position { x, y } = pane.cursor;
+        let col_and_row = (y + 1).to_string() + ":" + &(x.saturating_sub(offset)).to_string();
 
         self.stdout
             .queue(cursor::MoveTo(

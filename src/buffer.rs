@@ -1,17 +1,37 @@
+use std::{cell::RefCell, io::Result, rc::Rc};
+
+use crate::{commands::Directions, pane::Pane, state::State};
+
 #[derive(Debug)]
 pub struct Buffer {
+    id: u16,
     pub lines: Vec<String>,
+    panes: Vec<Rc<RefCell<Pane>>>,
+    state: Rc<RefCell<State>>,
 }
 
 impl Buffer {
-    pub fn new(filename: Option<String>) -> Self {
-        if let Some(filename) = filename {
-            let lines = std::fs::read_to_string(filename).unwrap();
-            let lines = lines.lines().map(|s| s.to_string()).collect();
-            Buffer { lines }
-        } else {
-            Buffer { lines: Vec::new() }
+    pub fn new(id: u16, filename: Option<String>, state: Rc<RefCell<State>>) -> Self {
+        let lines = match filename {
+            Some(filename) => {
+                let lines = std::fs::read_to_string(filename).unwrap();
+                lines.lines().map(|s| s.to_string()).collect()
+            }
+            None => Vec::new(),
+        };
+        Buffer {
+            id,
+            lines,
+            panes: Vec::new(),
+            state,
         }
+    }
+
+    fn notify_panes(&self) -> Result<()> {
+        for pane in &self.panes {
+            pane.borrow_mut().render()?;
+        }
+        Ok(())
     }
 
     pub fn new_line(&mut self, at: usize) {
@@ -60,21 +80,31 @@ impl Buffer {
 
 #[cfg(test)]
 mod tests {
+    use crate::{buffer::Buffer, state::State};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    fn make_buffer() -> Buffer {
+        let state = Rc::new(RefCell::new(State::new()));
+        let buffer = Buffer::new(1, None, Rc::clone(&state));
+        buffer
+    }
+
     #[test]
     fn test_buffer_new() {
-        let buffer = super::Buffer::new(None);
+        let buffer = make_buffer();
         assert_eq!(buffer.lines.len(), 0);
     }
 
     #[test]
     fn test_new_line() {
-        let mut buffer = super::Buffer::new(None);
+        let mut buffer = make_buffer();
 
         buffer.new_line(0);
         buffer.insert_char(0, 0, 'a');
         buffer.new_line(1);
         buffer.insert_char(1, 10, 'b');
-        buffer.new_line(1);
+        buffer.new_line(2);
 
         assert_eq!(buffer.lines.len(), 3);
         assert_eq!(buffer.lines[0], "a");
@@ -84,7 +114,7 @@ mod tests {
 
     #[test]
     fn test_insert_char() {
-        let mut buffer = super::Buffer::new(None);
+        let mut buffer = make_buffer();
 
         buffer.new_line(0);
         buffer.insert_char(0, 0, 'a');
@@ -110,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_split_line() {
-        let mut buffer = super::Buffer::new(None);
+        let mut buffer = make_buffer();
 
         buffer.new_line(0);
         let input = "Hello World!";
@@ -128,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_append_line() {
-        let mut buffer = super::Buffer::new(None);
+        let mut buffer = make_buffer();
 
         buffer.new_line(0);
         let input = "Hello World!";
