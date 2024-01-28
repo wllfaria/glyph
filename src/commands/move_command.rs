@@ -11,10 +11,12 @@ pub struct MoveCommand {
 }
 
 impl Command for MoveCommand {
-    fn execute(&self) {
+    fn execute(&self, _: Option<Box<dyn std::any::Any>>) {
         let mut state = self.state.borrow_mut();
         match state.active_pane {
-            Some(ref pane) => pane.borrow_mut().move_cursor(&self.direction),
+            Some(ref pane) => {
+                let _ = pane.borrow_mut().move_cursor(&self.direction);
+            }
             // TODO: this should quit with an error if it happens
             //       but it should never happen.
             None => state.is_quitting = true,

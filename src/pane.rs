@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    io::{stdout, Result, Stdout},
+    io::{stdout, Result, Stdout, Write},
     rc::Rc,
     sync::{Arc, Mutex},
 };
@@ -98,6 +98,14 @@ impl Pane {
         Ok(())
     }
 
+    pub fn set_cursor(&mut self, position: Position) {
+        self.cursor.x = position.x + self.cursor_left_limit;
+        self.cursor.y = position.y;
+    }
+
+    // TODO: I have to refactor this logic, probably make the pane have an cursor
+    //       actual position and a render position.
+    //       Or maybe make the line gap ignored in the calculation of the cursor
     pub fn move_cursor(&mut self, direction: &Directions) {
         let buffer = self
             .buffer
@@ -105,46 +113,61 @@ impl Pane {
             .expect(NO_BUFFER_ATTACHED)
             .lock()
             .unwrap();
+        let line_len = buffer.get_line_len(self.cursor.y as usize);
+        let col_limit = line_len as u16 + self.cursor_left_limit;
+        let line_above_len = match self.cursor.y {
+            0 => 0,
+            _ => buffer.get_line_len(self.cursor.y as usize - 1) as u16,
+        };
+        std::mem::drop(buffer);
         match direction {
             Directions::Up => {
                 self.cursor.y = self.cursor.y.saturating_sub(1);
             }
             Directions::Down => {
                 if self.cursor.y < self.height - 1 {
+                    self.set_cursor(Position {
+                        x: self.cursor.x - self.cursor_left_limit,
+                        y: self.cursor.y + 1,
+                    });
+                }
+            }
+            Directions::Left => match self.cursor.x {
+                x if x == self.cursor_left_limit && self.cursor.y > 0 => {
+                    self.set_cursor(Position {
+                        x: line_above_len + self.cursor_left_limit,
+                        y: self.cursor.y - 1,
+                    });
+                }
+                _ if line_len == 0 => {
+                    self.set_cursor(Position {
+                        x: self.cursor_left_limit,
+                        y: self.cursor.y,
+                    });
+                }
+                x if x > col_limit => {
+                    self.set_cursor(Position {
+                        x: col_limit - 1 - self.cursor_left_limit,
+                        y: self.cursor.y,
+                    });
+                }
+                x if x > self.cursor_left_limit => self.set_cursor(Position {
+                    x: x.saturating_sub(1) - self.cursor_left_limit,
+                    y: self.cursor.y,
+                }),
+                _ => (),
+            },
+            Directions::Right => match self.cursor.x {
+                x if x == col_limit && self.cursor.y < self.height - 1 => {
                     self.cursor.y += 1;
+                    self.cursor.x = self.cursor_left_limit;
                 }
-            }
-            Directions::Left => {
-                let line_len = buffer.get_line_len(self.cursor.y as usize);
-                let col_limit = line_len as u16 + self.cursor_left_limit;
-
-                match self.cursor.x {
-                    x if x == self.cursor_left_limit && self.cursor.y > 0 => {
-                        self.cursor.y -= 1;
-                        let line_above_len = buffer.get_line_len(self.cursor.y as usize) as u16;
-                        self.cursor.x = line_above_len + self.cursor_left_limit;
-                    }
-                    _ if line_len == 0 => {
-                        self.cursor.x = self.cursor_left_limit;
-                    }
-                    x if x > col_limit => self.cursor.x = col_limit - 1,
-                    x if x > self.cursor_left_limit => self.cursor.x = x.saturating_sub(1),
-                    _ => (),
-                }
-            }
-            Directions::Right => {
-                let line_len = buffer.get_line_len(self.cursor.y as usize);
-                let col_limit = line_len as u16 + self.cursor_left_limit;
-
-                match self.cursor.x {
-                    x if x == col_limit && self.cursor.y < self.height - 1 => {
-                        self.cursor.y += 1;
-                        self.cursor.x = self.cursor_left_limit;
-                    }
-                    x if x > col_limit => self.cursor.x = col_limit,
-                    x if x < self.width && x < col_limit => self.cursor.x += 1,
-                    _ => (),
-                }
+                x if x > col_limit => self.cursor.x = col_limit,
+                x if x < self.width && x < col_limit => self.cursor.x += 1,
+                _ => (),
+            },
+            Directions::LineStart => {
+                self.cursor.x = self.cursor_left_limit;
             }
         }
     }

@@ -28,43 +28,52 @@ impl Keyboard {
         {
             match code {
                 c if c == event::KeyCode::Char('q') && modifiers == KeyModifiers::CONTROL => {
-                    self.commands.get(&EditorCommands::Quit).unwrap().execute();
+                    self.commands
+                        .get(&EditorCommands::Quit)
+                        .unwrap()
+                        .execute(None);
                 }
                 event::KeyCode::Enter => {
                     self.commands
                         .get(&EditorCommands::InsertLineBelow)
                         .unwrap()
-                        .execute();
+                        .execute(None);
                 }
                 event::KeyCode::Backspace => {
                     self.commands
                         .get(&EditorCommands::Backspace)
                         .unwrap()
-                        .execute();
+                        .execute(None);
                 }
                 event::KeyCode::Left => {
                     self.commands
                         .get(&EditorCommands::MoveLeft)
                         .unwrap()
-                        .execute();
+                        .execute(None);
                 }
                 event::KeyCode::Down => {
                     self.commands
                         .get(&EditorCommands::MoveDown)
                         .unwrap()
-                        .execute();
+                        .execute(None);
                 }
                 event::KeyCode::Up => {
                     self.commands
                         .get(&EditorCommands::MoveUp)
                         .unwrap()
-                        .execute();
+                        .execute(None);
                 }
                 event::KeyCode::Right => {
                     self.commands
                         .get(&EditorCommands::MoveRight)
                         .unwrap()
-                        .execute();
+                        .execute(None);
+                }
+                event::KeyCode::Char(c) => {
+                    self.commands
+                        .get(&EditorCommands::Type)
+                        .unwrap()
+                        .execute(Some(Box::new(c)));
                 }
                 _ => (),
             }

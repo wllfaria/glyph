@@ -1,12 +1,14 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{commands::Command, pane::Position, state::State};
+use crate::{commands::Command, state::State};
 
-pub struct BackspaceCommand {
+use super::Directions;
+
+pub struct InsertLineBelowCommand {
     state: Rc<RefCell<State>>,
 }
 
-impl Command for BackspaceCommand {
+impl Command for InsertLineBelowCommand {
     fn execute(&self, _: Option<Box<dyn std::any::Any>>) {
         let state = self.state.borrow_mut();
         let mut active_buffer = match state.active_buffer {
@@ -17,17 +19,16 @@ impl Command for BackspaceCommand {
             Some(ref pane) => pane.borrow_mut(),
             None => panic!("No active pane!"),
         };
-
-        let Position { x, y } = &active_pane.cursor;
+        let cursor = &active_pane.cursor;
         let offset = &active_pane.cursor_left_limit;
-        let updated_cursor = active_buffer.delete_char(*y as usize, (x - offset) as usize);
+        active_buffer.new_line(cursor.y as usize, (cursor.x - offset) as usize);
         std::mem::drop(active_buffer);
-
-        active_pane.set_cursor(updated_cursor);
+        active_pane.move_cursor(&Directions::Down);
+        active_pane.move_cursor(&Directions::LineStart);
     }
 }
 
-impl BackspaceCommand {
+impl InsertLineBelowCommand {
     pub fn new(state: Rc<RefCell<State>>) -> Self {
         Self { state }
     }

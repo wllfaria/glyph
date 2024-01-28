@@ -37,7 +37,7 @@ impl Editor {
     pub fn populate_empty(&mut self, filename: Option<String>) -> Result<()> {
         let pane = Rc::new(RefCell::new(Pane::new(1, self.state.clone())));
         let window = Rc::new(RefCell::new(Window::new(1, self.state.clone())?));
-        let buffer = Arc::new(Mutex::new(Buffer::new(1, filename, self.state.clone())));
+        let buffer = Arc::new(Mutex::new(Buffer::new(1, filename)));
         let mut state = self.state.borrow_mut();
 
         pane.borrow_mut().attach_buffer(buffer.clone());

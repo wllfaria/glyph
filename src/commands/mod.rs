@@ -1,16 +1,18 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub use backspace_command::BackspaceCommand;
-pub use insert_line::InsertLineCommand;
+pub use insert_line_below::InsertLineBelowCommand;
 pub use move_command::MoveCommand;
 pub use quit_command::QuitCommand;
+pub use type_command::TypeCommand;
 
 use crate::state::State;
 
 mod backspace_command;
-mod insert_line;
+mod insert_line_below;
 mod move_command;
 mod quit_command;
+mod type_command;
 
 #[derive(Debug)]
 pub enum Directions {
@@ -18,6 +20,7 @@ pub enum Directions {
     Down,
     Left,
     Right,
+    LineStart,
 }
 
 #[derive(Hash, Eq, PartialEq)]
@@ -27,13 +30,13 @@ pub enum EditorCommands {
     MoveDown,
     MoveLeft,
     MoveRight,
-    InsertLineAbove,
     InsertLineBelow,
     Backspace,
+    Type,
 }
 
 pub trait Command {
-    fn execute(&self);
+    fn execute(&self, payload: Option<Box<dyn std::any::Any>>);
 }
 
 pub struct Commands {}
@@ -55,16 +58,16 @@ impl Commands {
             Box::new(QuitCommand::new(Rc::clone(&state))),
         );
         command_map.insert(
-            EditorCommands::InsertLineAbove,
-            Box::new(InsertLineCommand::new(Rc::clone(&state), Directions::Up)),
-        );
-        command_map.insert(
             EditorCommands::InsertLineBelow,
-            Box::new(InsertLineCommand::new(Rc::clone(&state), Directions::Down)),
+            Box::new(InsertLineBelowCommand::new(Rc::clone(&state))),
         );
         command_map.insert(
             EditorCommands::Backspace,
             Box::new(BackspaceCommand::new(Rc::clone(&state))),
+        );
+        command_map.insert(
+            EditorCommands::Type,
+            Box::new(TypeCommand::new(Rc::clone(&state))),
         );
     }
 

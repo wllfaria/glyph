@@ -7,7 +7,7 @@ pub struct QuitCommand {
 }
 
 impl Command for QuitCommand {
-    fn execute(&self) {
+    fn execute(&self, _: Option<Box<dyn std::any::Any>>) {
         self.state.borrow_mut().is_quitting = true;
     }
 }

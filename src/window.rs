@@ -118,7 +118,7 @@ mod tests {
     #[test]
     pub fn should_split_vertically() {
         let state = Rc::new(RefCell::new(State::new()));
-        let buffer = Arc::new(Mutex::new(Buffer::new(1, None, state.clone())));
+        let buffer = Arc::new(Mutex::new(Buffer::new(1, None)));
         let mut pane_one = Pane::new(1, state.clone());
         let mut pane_two = Pane::new(2, state.clone());
         let mut window = Window::new(1, state.clone()).unwrap();
