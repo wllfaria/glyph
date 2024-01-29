@@ -18,9 +18,10 @@ impl Command for BackspaceCommand {
             None => panic!("No active pane!"),
         };
 
-        let Position { x, y } = &active_pane.cursor;
-        let offset = &active_pane.cursor_left_limit;
-        let updated_cursor = active_buffer.delete_char(*y as usize, (x - offset) as usize);
+        let Position {
+            render_col, row, ..
+        } = &active_pane.cursor;
+        let updated_cursor = active_buffer.delete_char(*row as usize, *render_col as usize);
         std::mem::drop(active_buffer);
 
         active_pane.set_cursor(updated_cursor);

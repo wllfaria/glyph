@@ -17,7 +17,6 @@ impl Command for TypeCommand {
             Some(ref pane) => pane.borrow_mut(),
             None => panic!("No active pane!"),
         };
-        let offset = &active_pane.cursor_left_limit;
         let cursor = &active_pane.cursor;
         let char = match payload {
             Some(payload) => payload,
@@ -25,7 +24,7 @@ impl Command for TypeCommand {
         };
 
         let char = char.downcast::<char>().unwrap();
-        active_buffer.insert_char(cursor.y as usize, (cursor.x - offset) as usize, *char);
+        active_buffer.insert_char(cursor.row as usize, (cursor.render_col) as usize, *char);
         std::mem::drop(active_buffer);
 
         active_pane.move_cursor(&crate::commands::Directions::Right);
