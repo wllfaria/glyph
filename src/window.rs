@@ -12,7 +12,7 @@ use std::{
 };
 
 use crate::{
-    pane::{Pane, Position},
+    pane::{Pane, PaneSize, Position},
     state::State,
 };
 
@@ -48,8 +48,12 @@ impl Window {
     }
 
     pub fn attach_pane(&mut self, pane: Rc<RefCell<Pane>>) {
-        pane.borrow_mut()
-            .set_pane_position(0, 0, self.height, self.width);
+        pane.borrow_mut().resize_pane(PaneSize {
+            row: 0,
+            col: 0,
+            height: self.height,
+            width: self.width,
+        });
         self.add_pane(pane.clone());
         self.active_pane = Some(pane.clone())
     }
@@ -72,9 +76,12 @@ impl Window {
 
     fn render_status_bar(&mut self) -> Result<()> {
         let pane = self.active_pane.as_ref().expect(NO_PANE_ATTACHED).borrow();
-        let offset = pane.cursor_left_limit;
-        let Position { x, y } = pane.cursor;
-        let col_and_row = (y + 1).to_string() + ":" + &(x.saturating_sub(offset)).to_string();
+        let offset = 4;
+        let Position {
+            render_col, row, ..
+        } = pane.cursor;
+        let col_and_row =
+            (row + 1).to_string() + ":" + &(render_col.saturating_sub(offset)).to_string();
 
         self.stdout
             .queue(cursor::MoveTo(
@@ -99,7 +106,12 @@ impl Window {
         for (i, pane) in self.panes.values().enumerate() {
             let mut pane_mut = pane.borrow_mut();
             let width = self.width / self.total_panes;
-            pane_mut.set_pane_position(0, i as u16 * width, self.height, width);
+            pane_mut.resize_pane(PaneSize {
+                row: 0,
+                col: i as u16 * width,
+                height: self.height,
+                width,
+            });
         }
     }
 }
@@ -136,7 +148,7 @@ mod tests {
         let pane_one_ref = pane_one.borrow();
         let pane_two_ref = pane_two.borrow();
 
-        assert_eq!(pane_one_ref.width, 25);
-        assert_eq!(pane_two_ref.width, 25);
+        assert_eq!(pane_one_ref.pane_size.width, 25);
+        assert_eq!(pane_two_ref.pane_size.width, 25);
     }
 }

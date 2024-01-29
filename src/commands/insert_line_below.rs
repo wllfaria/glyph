@@ -20,8 +20,7 @@ impl Command for InsertLineBelowCommand {
             None => panic!("No active pane!"),
         };
         let cursor = &active_pane.cursor;
-        let offset = &active_pane.cursor_left_limit;
-        active_buffer.new_line(cursor.y as usize, (cursor.x - offset) as usize);
+        active_buffer.new_line(cursor.row as usize, cursor.col as usize);
         std::mem::drop(active_buffer);
         active_pane.move_cursor(&Directions::Down);
         active_pane.move_cursor(&Directions::LineStart);

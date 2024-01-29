@@ -1,12 +1,9 @@
-use std::{cell::RefCell, io::Result, rc::Rc};
-
-use crate::pane::{Pane, Position};
+use crate::pane::Position;
 
 #[derive(Debug)]
 pub struct Buffer {
     id: u16,
     pub lines: Vec<String>,
-    panes: Vec<Rc<RefCell<Pane>>>,
 }
 
 impl Buffer {
@@ -18,27 +15,19 @@ impl Buffer {
             }
             None => Vec::new(),
         };
-        Buffer {
-            id,
-            lines,
-            panes: Vec::new(),
-        }
+        Buffer { id, lines }
     }
 
-    fn notify_panes(&self) -> Result<()> {
-        for pane in &self.panes {
-            pane.borrow_mut().render()?;
-        }
-        Ok(())
-    }
-
-    pub fn new_line(&mut self, row: usize, col: usize) {
+    pub fn new_line(&mut self, current_row: usize, col: usize) {
         match col {
-            c if c < self.lines[row].len() => {
-                self.split_line(row, col);
+            _ if self.lines.len() == 0 => {
+                self.lines.push(String::new());
+            }
+            c if c < self.lines[current_row].len() => {
+                self.split_line(current_row, col);
             }
             _ => {
-                self.lines.insert(row, String::new());
+                self.lines.insert(current_row + 1, String::new());
             }
         }
     }
@@ -53,11 +42,16 @@ impl Buffer {
 
     pub fn delete_char(&mut self, row: usize, col: usize) -> Position {
         match col {
-            c if c == 0 && row == 0 => Position { x: 0, y: 0 },
+            c if c == 0 && row == 0 => Position {
+                col: 0,
+                row: 0,
+                render_col: 0,
+            },
             c if c == 0 && row > 0 => {
                 let cursor = Position {
-                    x: self.get_line_len(row - 1) as u16,
-                    y: row as u16 - 1,
+                    col: self.get_line_len(row - 1) as u16,
+                    row: row as u16 - 1,
+                    render_col: self.get_line_len(row - 1) as u16,
                 };
                 self.append_line(row - 1);
                 return cursor;
@@ -65,8 +59,9 @@ impl Buffer {
             c if c >= self.lines[row].len() => {
                 self.lines[row].pop();
                 return Position {
-                    x: self.get_line_len(row) as u16,
-                    y: row as u16,
+                    col: self.get_line_len(row) as u16,
+                    row: row as u16,
+                    render_col: self.get_line_len(row) as u16,
                 };
             }
             _ => {
@@ -74,8 +69,9 @@ impl Buffer {
                 let right = self.lines[row][col..].to_string();
                 self.lines[row] = left + &right;
                 return Position {
-                    x: col as u16 - 1,
-                    y: row as u16,
+                    col: col as u16 - 1,
+                    row: row as u16,
+                    render_col: col as u16 - 1,
                 };
             }
         }
@@ -96,10 +92,11 @@ impl Buffer {
     }
 
     pub fn get_line_len(&self, line: usize) -> usize {
-        if line >= self.lines.len() {
-            return 0;
+        match line {
+            l if l >= self.lines.len() => 0,
+            _ if self.lines.len() == 0 => 0,
+            _ => self.lines[line].len(),
         }
-        self.lines[line].len()
     }
 }
 
@@ -123,8 +120,8 @@ mod tests {
         let mut buffer = make_buffer();
 
         buffer.new_line(0, 0);
+        buffer.new_line(0, 0);
         buffer.new_line(1, 0);
-        buffer.new_line(2, 0);
         buffer.insert_char(0, 0, 'a');
         buffer.insert_char(2, 10, 'b');
         buffer.new_line(0, 0);
@@ -141,8 +138,8 @@ mod tests {
         let mut buffer = make_buffer();
 
         buffer.new_line(0, 0);
+        buffer.new_line(0, 0);
         buffer.new_line(1, 0);
-        buffer.new_line(2, 0);
         buffer.insert_char(0, 0, 'a');
         buffer.insert_char(1, 0, 'b');
 
@@ -190,7 +187,7 @@ mod tests {
         for (i, ch) in input.chars().enumerate() {
             buffer.insert_char(0, i, ch);
         }
-        buffer.new_line(1, 0);
+        buffer.new_line(0, 0);
 
         for (i, ch) in input.chars().enumerate() {
             buffer.insert_char(1, i, ch);
