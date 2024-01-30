@@ -9,7 +9,6 @@ use crate::buffer::Buffer;
 use crate::commands::Commands;
 use crate::keyboard::Keyboard;
 use crate::pane::Pane;
-use crate::state::State;
 use crate::window::Window;
 
 pub struct Editor {
@@ -17,28 +16,26 @@ pub struct Editor {
     pub buffers: HashMap<u16, Arc<Mutex<Buffer>>>,
     pub panes: HashMap<u16, Rc<RefCell<Pane>>>,
     pub windows: HashMap<u16, Rc<RefCell<Window>>>,
-    pub state: Rc<RefCell<State>>,
+    is_running: bool,
 }
 
 impl Editor {
-    pub fn new() -> Result<Self> {
-        let state = Rc::new(RefCell::new(State::new()));
-        let commands = Commands::make_commands(state.clone());
+    pub fn new() -> Self {
+        let commands = Commands::make_commands();
 
-        Ok(Self {
-            state: state.clone(),
+        Self {
             panes: HashMap::new(),
             buffers: HashMap::new(),
             windows: HashMap::new(),
-            event_handler: Keyboard::new(state.clone(), commands),
-        })
+            event_handler: Keyboard::new(commands),
+            is_running: true,
+        }
     }
 
     pub fn populate_empty(&mut self, filename: Option<String>) -> Result<()> {
-        let pane = Rc::new(RefCell::new(Pane::new(1, self.state.clone())));
-        let window = Rc::new(RefCell::new(Window::new(1, self.state.clone())?));
+        let pane = Rc::new(RefCell::new(Pane::new(1)));
+        let window = Rc::new(RefCell::new(Window::new(1)?));
         let buffer = Arc::new(Mutex::new(Buffer::new(1, filename)));
-        let mut state = self.state.borrow_mut();
 
         pane.borrow_mut().attach_buffer(buffer.clone());
         window.borrow_mut().attach_pane(pane.clone());
@@ -47,20 +44,13 @@ impl Editor {
         self.windows.insert(1, window.clone());
         self.buffers.insert(1, buffer.clone());
 
-        state.set_active_buffer(buffer.clone());
-        state.set_active_pane(pane.clone());
-        state.set_active_window(window.clone());
         Ok(())
     }
 
     pub fn start(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
 
-        while !self.state.borrow().is_quitting {
-            match self.state.borrow().active_window {
-                Some(ref window) => window.borrow_mut().render()?,
-                None => break,
-            };
+        while self.is_running {
             self.event_handler.poll_events()?;
         }
 
