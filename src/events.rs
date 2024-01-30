@@ -1,8 +1,6 @@
 use crossterm::event::{self, KeyModifiers};
 use std::collections::HashMap;
 
-use crate::commands::{Command, EditorCommands};
-
 pub struct Keyboard {
     pub commands: HashMap<EditorCommands, Box<dyn Command>>,
 }
