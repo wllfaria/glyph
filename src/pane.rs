@@ -1,14 +1,20 @@
-use std::{
-    cell::RefCell,
-    io::{stdout, Result, Stdout},
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
-
 use crossterm::{
     cursor,
     style::{Color, Print, Stylize},
     QueueableCommand,
+};
+use std::{
+    cell::RefCell,
+    io::{stdout, Result, Stdout},
+    rc::Rc,
+};
+
+use crate::{
+    command::{
+        BufferCommands, Command, CommandBus, CommandListener, CursorCommands, EditorCommands,
+        PaneCommands,
+    },
+    cursor::Cursor,
 };
 
 #[derive(Debug)]
@@ -18,34 +24,17 @@ pub struct Position {
     pub render_col: u16,
 }
 
-impl Position {
-    pub fn new(col: u16, row: u16, render_col: u16) -> Self {
-        Self {
-            col,
-            row,
-            render_col,
-        }
-    }
-}
-
-const NO_BUFFER_ATTACHED: &str = "No buffer attached to pane";
-
-use crate::{buffer::Buffer, commands::Directions, state::State};
-
-#[derive(Debug)]
 pub struct Pane {
     pub id: u16,
-    pub cursor: Position,
-    buffer: Option<Arc<Mutex<Buffer>>>,
     pub pane_size: PaneSize,
     pub content_size: PaneSize,
     pub sidebar_width: u16,
     pub sidebar_gap: u16,
+    cursor: Rc<RefCell<Cursor>>,
+    command_bus: Rc<RefCell<CommandBus>>,
     stdout: Stdout,
-    state: Rc<RefCell<State>>,
 }
 
-#[derive(Debug)]
 pub struct PaneSize {
     pub row: u16,
     pub col: u16,
@@ -54,22 +43,20 @@ pub struct PaneSize {
 }
 
 impl Pane {
-    pub fn new(id: u16, state: Rc<RefCell<State>>) -> Self {
+    pub fn new(id: u16, command_bus: Rc<RefCell<CommandBus>>) -> Self {
+        let cursor = Rc::new(RefCell::new(Cursor::new(command_bus.clone())));
+        cursor.borrow_mut().setup(cursor.clone());
+
         Self {
             id,
-            state,
-            buffer: None,
             sidebar_width: 5,
             sidebar_gap: 1,
+            cursor: cursor.clone(),
             stdout: stdout(),
-            cursor: Position {
-                col: 0,
-                row: 0,
-                render_col: 0,
-            },
+            command_bus,
             pane_size: PaneSize {
-                row: 0,
-                col: 0,
+                row: 10,
+                col: 10,
                 height: 0,
                 width: 0,
             },
@@ -82,13 +69,10 @@ impl Pane {
         }
     }
 
-    pub fn attach_buffer(&mut self, buffer: Arc<Mutex<Buffer>>) {
-        self.cursor = Position {
-            row: 0,
-            col: 0,
-            render_col: 0,
-        };
-        self.buffer = Some(buffer);
+    pub fn setup(&mut self, pane: Rc<RefCell<Pane>>) {
+        self.command_bus
+            .borrow_mut()
+            .subscribe(Box::new(PaneListener { pane }));
     }
 
     pub fn resize_pane(&mut self, size: PaneSize) {
@@ -101,137 +85,65 @@ impl Pane {
         self.pane_size = size;
     }
 
-    pub fn set_cursor(&mut self, position: Position) {
-        self.cursor = position;
-    }
-
-    pub fn render(&mut self) -> Result<()> {
-        let total_lines = self.render_lines()?;
-        self.render_empty_lines(total_lines)?;
-        let column = self.content_size.col + self.cursor.render_col;
-        self.stdout.queue(cursor::MoveTo(column, self.cursor.row))?;
+    fn render_buffer(&mut self, lines: &[String]) -> Result<()> {
+        for (i, line) in lines.iter().enumerate() {
+            self.stdout
+                .queue(cursor::MoveTo(
+                    self.content_size.col,
+                    self.content_size.row + i as u16,
+                ))?
+                .queue(Print(line))?;
+        }
         Ok(())
     }
 
-    pub fn move_cursor(&mut self, direction: &Directions) {
-        let buffer = self
-            .buffer
-            .as_ref()
-            .expect(NO_BUFFER_ATTACHED)
-            .lock()
-            .unwrap();
-        let line_len = buffer.get_line_len(self.cursor.row as usize) as u16;
-        let line_above_len = match self.cursor.row {
-            0 => 0,
-            _ => buffer.get_line_len(self.cursor.row as usize - 1) as u16,
-        };
-        let line_below_len = match self.cursor.row {
-            x if x >= self.content_size.height => 0,
-            _ => buffer.get_line_len(self.cursor.row as usize + 1) as u16,
-        };
-        std::mem::drop(buffer);
-        match direction {
-            Directions::Up => match self.cursor.col {
-                col if col > line_above_len && self.cursor.row == 0 => self.set_cursor(
-                    Position::new(line_above_len, self.cursor.row, line_above_len),
-                ),
-                col if col > line_above_len => self.set_cursor(Position::new(
-                    self.cursor.col,
-                    self.cursor.row.saturating_sub(1),
-                    line_above_len,
-                )),
-                _ => {
-                    self.set_cursor(Position::new(
-                        self.cursor.col,
-                        self.cursor.row.saturating_sub(1),
-                        self.cursor.col,
-                    ));
-                }
-            },
-            Directions::Down => match self.cursor.row {
-                row if row >= self.content_size.height - 1 => (),
-                _ => match self.cursor.col {
-                    col if col > line_below_len => self.set_cursor(Position::new(
-                        self.cursor.col,
-                        self.cursor.row + 1,
-                        line_below_len,
-                    )),
-                    _ => self.set_cursor(Position::new(
-                        self.cursor.col,
-                        self.cursor.row + 1,
-                        self.cursor.col,
-                    )),
-                },
-            },
-            Directions::Left => match self.cursor.col {
-                col if col == 0 && self.cursor.row == 0 => (),
-                col if col == 0 && self.cursor.row > 0 => self.set_cursor(Position::new(
-                    line_above_len,
-                    self.cursor.row - 1,
-                    line_above_len,
-                )),
-                col if col > line_len && line_len == 0 => self.set_cursor(Position::new(
-                    line_above_len,
-                    self.cursor.row - 1,
-                    line_above_len,
-                )),
-                col if col > line_len => {
-                    self.set_cursor(Position::new(line_len, self.cursor.row, line_len))
-                }
-                _ => self.set_cursor(Position::new(
-                    self.cursor.col - 1,
-                    self.cursor.row,
-                    self.cursor.col - 1,
-                )),
-            },
-            Directions::Right => match self.cursor.col {
-                _ if self.content_size.height - 1 == self.cursor.row => (),
-                col if col >= line_len => self.set_cursor(Position::new(0, self.cursor.row + 1, 0)),
-                col if col >= line_len && self.cursor.row == self.content_size.height => {
-                    self.set_cursor(Position::new(0, self.cursor.row, 0))
-                }
-                _ => self.set_cursor(Position::new(
-                    self.cursor.col + 1,
-                    self.cursor.row,
-                    self.cursor.render_col + 1,
-                )),
-            },
-            Directions::LineStart => self.set_cursor(Position::new(0, self.cursor.row, 0)),
-        }
+    pub fn render(&mut self) -> Result<()> {
+        // NOTE: Order matters here. We need to render the sidebar first
+        self.render_sidebar(0)?;
+        self.render_cursor()?;
+        Ok(())
     }
 
-    fn render_lines(&mut self) -> Result<u16> {
-        let buffer_lock = self
-            .buffer
-            .as_ref()
-            .expect(NO_BUFFER_ATTACHED)
-            .lock()
-            .unwrap();
-        let total_lines = usize::min(self.pane_size.height as usize, buffer_lock.lines.len());
-
-        for i in 0..total_lines {
-            let readable_line = i + 1_usize;
-            let line_len = readable_line.to_string().len() as u16;
-            let line_display = format!("{}", readable_line).with(Color::DarkGrey);
-            let line_print_col = self.pane_size.col + self.sidebar_width - line_len;
-            self.stdout
-                .queue(cursor::MoveTo(line_print_col, i as u16))?
-                .queue(Print(line_display))?
-                .queue(cursor::MoveTo(self.content_size.col, i as u16))?
-                .queue(Print(buffer_lock.lines.get(i).unwrap()))?;
-        }
-
-        Ok(total_lines as u16)
+    fn render_cursor(&mut self) -> Result<()> {
+        self.stdout.queue(cursor::MoveTo(
+            self.content_size.col + self.cursor.borrow().col,
+            self.cursor.borrow().row,
+        ))?;
+        Ok(())
     }
 
-    fn render_empty_lines(&mut self, start_row: u16) -> Result<()> {
-        for row in start_row..self.pane_size.height {
+    fn render_sidebar(&mut self, _: u16) -> Result<()> {
+        for row in 0..self.pane_size.height {
             self.stdout
                 .queue(cursor::MoveTo(
                     self.pane_size.col + self.sidebar_width - self.sidebar_gap,
                     self.content_size.row + row,
                 ))?
                 .queue(Print("~".with(Color::DarkGrey)))?;
+        }
+        Ok(())
+    }
+}
+
+pub struct PaneListener {
+    pane: Rc<RefCell<Pane>>,
+}
+
+impl CommandListener for PaneListener {
+    fn call(&mut self, command: &Command, _id: u16) -> Result<()> {
+        match command {
+            Command::Editor(EditorCommands::Start) => self.pane.borrow_mut().render()?,
+            Command::Buffer(BufferCommands::Type(_)) => self.pane.borrow_mut().render()?,
+            Command::Buffer(BufferCommands::Backspace) => self.pane.borrow_mut().render()?,
+            Command::Buffer(BufferCommands::NewLineBelow) => self.pane.borrow_mut().render()?,
+            Command::Cursor(CursorCommands::MoveUp) => self.pane.borrow_mut().render()?,
+            Command::Cursor(CursorCommands::MoveDown) => self.pane.borrow_mut().render()?,
+            Command::Cursor(CursorCommands::MoveLeft) => self.pane.borrow_mut().render()?,
+            Command::Cursor(CursorCommands::MoveRight) => self.pane.borrow_mut().render()?,
+            Command::Pane(PaneCommands::BufferUpdate(lines)) => {
+                self.pane.borrow_mut().render_buffer(lines)?
+            }
+            _ => {}
         }
         Ok(())
     }

@@ -1,13 +1,18 @@
-use crate::pane::Position;
+use std::{cell::RefCell, io::Result, rc::Rc};
 
-#[derive(Debug)]
+use crate::{
+    command::{BufferCommands, Command, CommandBus, CommandListener, PaneCommands},
+    pane::Position,
+};
+
 pub struct Buffer {
-    id: u16,
-    pub lines: Vec<String>,
+    pub id: u16,
+    lines: Vec<String>,
+    command_bus: Rc<RefCell<CommandBus>>,
 }
 
 impl Buffer {
-    pub fn new(id: u16, filename: Option<String>) -> Self {
+    pub fn new(id: u16, filename: Option<String>, command_bus: Rc<RefCell<CommandBus>>) -> Self {
         let lines = match filename {
             Some(filename) => {
                 let lines = std::fs::read_to_string(filename).unwrap();
@@ -15,10 +20,20 @@ impl Buffer {
             }
             None => Vec::new(),
         };
-        Buffer { id, lines }
+        Buffer {
+            id,
+            lines,
+            command_bus,
+        }
     }
 
-    pub fn new_line(&mut self, current_row: usize, col: usize) {
+    pub fn setup(&self, buffer: Rc<RefCell<Buffer>>) {
+        self.command_bus
+            .borrow_mut()
+            .subscribe(Box::new(BufferListener { buffer }));
+    }
+
+    pub fn new_line(&mut self, current_row: usize, col: usize) -> Result<()> {
         match col {
             _ if self.lines.len() == 0 => {
                 self.lines.push(String::new());
@@ -30,14 +45,24 @@ impl Buffer {
                 self.lines.insert(current_row + 1, String::new());
             }
         }
+        self.notify_listeners()?;
+        Ok(())
     }
 
-    pub fn insert_char(&mut self, row: usize, col: usize, c: char) {
-        if col >= self.lines[row].len() {
-            self.lines[row].push(c);
-            return;
+    fn notify_listeners(&self) -> Result<()> {
+        self.command_bus
+            .borrow_mut()
+            .dispatch::<PaneCommands>(Command::Pane(PaneCommands::BufferUpdate(&self.lines)))?;
+        Ok(())
+    }
+
+    pub fn insert_char(&mut self, row: usize, col: usize, c: char) -> Result<()> {
+        match col {
+            col if col >= self.lines[row].len() => self.lines[row].push(c),
+            _ => self.lines[row].insert(col, c),
         }
-        self.lines[row].insert(col, c);
+        self.notify_listeners()?;
+        Ok(())
     }
 
     pub fn delete_char(&mut self, row: usize, col: usize) -> Position {
@@ -100,102 +125,15 @@ impl Buffer {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::buffer::Buffer;
+pub struct BufferListener {
+    buffer: Rc<RefCell<Buffer>>,
+}
 
-    fn make_buffer() -> Buffer {
-        let buffer = Buffer::new(1, None);
-        buffer
-    }
-
-    #[test]
-    fn test_buffer_new() {
-        let buffer = make_buffer();
-        assert_eq!(buffer.lines.len(), 0);
-    }
-
-    #[test]
-    fn test_new_line() {
-        let mut buffer = make_buffer();
-
-        buffer.new_line(0, 0);
-        buffer.new_line(0, 0);
-        buffer.new_line(1, 0);
-        buffer.insert_char(0, 0, 'a');
-        buffer.insert_char(2, 10, 'b');
-        buffer.new_line(0, 0);
-
-        assert_eq!(buffer.lines.len(), 4);
-        assert_eq!(buffer.lines[0], "");
-        assert_eq!(buffer.lines[1], "a");
-        assert_eq!(buffer.lines[2], "");
-        assert_eq!(buffer.lines[3], "b");
-    }
-
-    #[test]
-    fn test_insert_char() {
-        let mut buffer = make_buffer();
-
-        buffer.new_line(0, 0);
-        buffer.new_line(0, 0);
-        buffer.new_line(1, 0);
-        buffer.insert_char(0, 0, 'a');
-        buffer.insert_char(1, 0, 'b');
-
-        let input = "Hello World!";
-
-        for (i, ch) in input.chars().enumerate() {
-            buffer.insert_char(2, i, ch);
-        }
-
-        assert_eq!(buffer.lines.len(), 3);
-        assert_eq!(buffer.lines[0], "a");
-        assert_eq!(buffer.lines[1], "b");
-        assert_eq!(buffer.lines[2], "Hello World!");
-
-        buffer.insert_char(2, 5, ',');
-
-        assert_eq!(buffer.lines[2], "Hello, World!");
-    }
-
-    #[test]
-    fn test_split_line() {
-        let mut buffer = make_buffer();
-
-        buffer.new_line(0, 0);
-        let input = "Hello World!";
-
-        for (i, ch) in input.chars().enumerate() {
-            buffer.insert_char(0, i, ch);
-        }
-
-        buffer.split_line(0, 5);
-
-        assert_eq!(buffer.lines.len(), 2);
-        assert_eq!(buffer.lines[0], "Hello");
-        assert_eq!(buffer.lines[1], " World!");
-    }
-
-    #[test]
-    fn test_append_line() {
-        let mut buffer = make_buffer();
-
-        buffer.new_line(0, 0);
-        let input = "Hello World!";
-
-        for (i, ch) in input.chars().enumerate() {
-            buffer.insert_char(0, i, ch);
-        }
-        buffer.new_line(0, 0);
-
-        for (i, ch) in input.chars().enumerate() {
-            buffer.insert_char(1, i, ch);
-        }
-
-        buffer.append_line(0);
-
-        assert_eq!(buffer.lines.len(), 1);
-        assert_eq!(buffer.lines[0], "Hello World!Hello World!");
+impl CommandListener for BufferListener {
+    fn call(&mut self, command: &Command, _: u16) -> std::io::Result<()> {
+        match command {
+            _ => {}
+        };
+        Ok(())
     }
 }

@@ -3,73 +3,88 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Result, Write};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 
 use crate::buffer::Buffer;
-use crate::commands::Commands;
-use crate::keyboard::Keyboard;
+use crate::command::{Command, CommandBus, EditorCommands};
+use crate::events::Events;
 use crate::pane::Pane;
-use crate::state::State;
 use crate::window::Window;
 
 pub struct Editor {
-    pub event_handler: Keyboard,
-    pub buffers: HashMap<u16, Arc<Mutex<Buffer>>>,
-    pub panes: HashMap<u16, Rc<RefCell<Pane>>>,
-    pub windows: HashMap<u16, Rc<RefCell<Window>>>,
-    pub state: Rc<RefCell<State>>,
+    should_quit: bool,
+    command_bus: Rc<RefCell<CommandBus>>,
+    event_handler: Events,
+    windows: HashMap<u16, Rc<RefCell<Window>>>,
+    panes: HashMap<u16, Rc<RefCell<Pane>>>,
+    buffers: HashMap<u16, Rc<RefCell<Buffer>>>,
+    stdout: std::io::Stdout,
 }
 
 impl Editor {
-    pub fn new() -> Result<Self> {
-        let state = Rc::new(RefCell::new(State::new()));
-        let commands = Commands::make_commands(state.clone());
-
-        Ok(Self {
-            state: state.clone(),
+    pub fn new() -> Self {
+        Self {
+            windows: HashMap::new(),
             panes: HashMap::new(),
             buffers: HashMap::new(),
-            windows: HashMap::new(),
-            event_handler: Keyboard::new(state.clone(), commands),
-        })
+            should_quit: false,
+            event_handler: Events::new(),
+            command_bus: Rc::new(RefCell::new(CommandBus::new())),
+            stdout: std::io::stdout(),
+        }
     }
 
-    pub fn populate_empty(&mut self, filename: Option<String>) -> Result<()> {
-        let pane = Rc::new(RefCell::new(Pane::new(1, self.state.clone())));
-        let window = Rc::new(RefCell::new(Window::new(1, self.state.clone())?));
-        let buffer = Arc::new(Mutex::new(Buffer::new(1, filename)));
-        let mut state = self.state.borrow_mut();
+    pub fn setup(&mut self, file_name: Option<String>) {
+        let command_bus = self.command_bus.clone();
+        let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name, command_bus.clone())));
+        let pane = Rc::new(RefCell::new(Pane::new(1, command_bus.clone())));
+        let window = Rc::new(RefCell::new(Window::new(
+            1,
+            command_bus.clone(),
+            pane.clone(),
+        )));
 
-        pane.borrow_mut().attach_buffer(buffer.clone());
-        window.borrow_mut().attach_pane(pane.clone());
+        window.borrow_mut().setup(window.clone());
+        pane.borrow_mut().setup(pane.clone());
+        buffer.borrow_mut().setup(buffer.clone());
 
-        self.panes.insert(1, pane.clone());
-        self.windows.insert(1, window.clone());
-        self.buffers.insert(1, buffer.clone());
+        self.windows.insert(window.borrow().id, window.clone());
+        self.panes.insert(pane.borrow().id, pane.clone());
+        self.buffers.insert(buffer.borrow().id, buffer.clone());
+    }
 
-        state.set_active_buffer(buffer.clone());
-        state.set_active_pane(pane.clone());
-        state.set_active_window(window.clone());
+    fn clear_screen(&mut self) -> Result<()> {
+        self.stdout
+            .queue(crossterm::cursor::MoveTo(0, 0))?
+            .queue(crossterm::terminal::Clear(
+                crossterm::terminal::ClearType::All,
+            ))?;
         Ok(())
     }
 
     pub fn start(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
 
-        while !self.state.borrow().is_quitting {
-            match self.state.borrow().active_window {
-                Some(ref window) => window.borrow_mut().render()?,
-                None => break,
-            };
-            self.event_handler.poll_events()?;
+        self.clear_screen()?;
+
+        self.command_bus
+            .borrow_mut()
+            .dispatch::<EditorCommands>(Command::Editor(EditorCommands::Start))?;
+
+        while !self.should_quit {
+            if let Some(command) = self.event_handler.poll_events()? {
+                match command {
+                    Command::Editor(EditorCommands::Quit) => self.should_quit = true,
+                    _ => self.command_bus.borrow_mut().dispatch::<Command>(command)?,
+                }
+            }
+            self.command_bus
+                .borrow_mut()
+                .dispatch::<EditorCommands>(Command::Editor(EditorCommands::Render))?;
+            self.stdout.flush()?
         }
 
-        std::io::stdout().queue(crossterm::cursor::MoveTo(0, 0))?;
-        for window in self.windows.values() {
-            window.borrow_mut().clear()?;
-        }
-
-        std::io::stdout().flush()?;
+        self.clear_screen()?;
+        self.stdout.flush()?;
         terminal::disable_raw_mode()?;
         Ok(())
     }
