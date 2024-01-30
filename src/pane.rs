@@ -1,7 +1,5 @@
 use std::{
-    cell::RefCell,
     io::{stdout, Result, Stdout},
-    rc::Rc,
     sync::{Arc, Mutex},
 };
 
@@ -30,13 +28,13 @@ impl Position {
 
 const NO_BUFFER_ATTACHED: &str = "No buffer attached to pane";
 
-use crate::{buffer::Buffer, commands::Directions};
+use crate::buffer::Buffer;
 
 #[derive(Debug)]
 pub struct Pane {
     pub id: u16,
     pub cursor: Position,
-    buffer: Option<Arc<Mutex<Buffer>>>,
+    buffer: Rc<RefCell<Buffer>>,
     pub pane_size: PaneSize,
     pub content_size: PaneSize,
     pub sidebar_width: u16,
@@ -53,10 +51,10 @@ pub struct PaneSize {
 }
 
 impl Pane {
-    pub fn new(id: u16) -> Self {
+    pub fn new(id: u16, buffer: Rc<RefCell<Buffer>>) -> Self {
         Self {
             id,
-            buffer: None,
+            buffer,
             sidebar_width: 5,
             sidebar_gap: 1,
             stdout: stdout(),
@@ -78,15 +76,6 @@ impl Pane {
                 width: 0,
             },
         }
-    }
-
-    pub fn attach_buffer(&mut self, buffer: Arc<Mutex<Buffer>>) {
-        self.cursor = Position {
-            row: 0,
-            col: 0,
-            render_col: 0,
-        };
-        self.buffer = Some(buffer);
     }
 
     pub fn resize_pane(&mut self, size: PaneSize) {
@@ -111,7 +100,7 @@ impl Pane {
         Ok(())
     }
 
-    pub fn move_cursor(&mut self, direction: &Directions) {
+    pub fn move_cursor(&mut self, direction: bool) {
         let buffer = self
             .buffer
             .as_ref()

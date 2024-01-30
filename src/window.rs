@@ -11,7 +11,10 @@ use std::{
     rc::Rc,
 };
 
-use crate::pane::{Pane, PaneSize, Position};
+use crate::{
+    pane::{Pane, PaneSize, Position},
+    view::ViewSize,
+};
 
 const NO_PANE_ATTACHED: &str = "No pane attached to window";
 
@@ -21,36 +24,24 @@ pub struct Window {
     panes: HashMap<u16, Rc<RefCell<Pane>>>,
     last_id: u16,
     total_panes: u16,
-    height: u16,
-    width: u16,
-    active_pane: Option<Rc<RefCell<Pane>>>,
+    active_pane: Rc<RefCell<Pane>>,
     stdout: Stdout,
+    size: ViewSize,
 }
 
 impl Window {
-    pub fn new(id: u16) -> Result<Self> {
-        let (width, height) = crossterm::terminal::size()?;
-        Ok(Self {
+    pub fn new(id: u16, size: ViewSize, pane: Rc<RefCell<Pane>>) -> Self {
+        let mut panes = HashMap::new();
+        panes.insert(pane.borrow().id, pane.clone());
+        Self {
             id,
-            panes: HashMap::new(),
+            size,
+            panes,
+            active_pane: pane.clone(),
             stdout: stdout(),
             last_id: 0,
             total_panes: 0,
-            height,
-            width,
-            active_pane: None,
-        })
-    }
-
-    pub fn attach_pane(&mut self, pane: Rc<RefCell<Pane>>) {
-        pane.borrow_mut().resize_pane(PaneSize {
-            row: 0,
-            col: 0,
-            height: self.height,
-            width: self.width,
-        });
-        self.add_pane(pane.clone());
-        self.active_pane = Some(pane.clone())
+        }
     }
 
     pub fn render(&mut self) -> Result<()> {
@@ -70,7 +61,7 @@ impl Window {
     }
 
     fn render_status_bar(&mut self) -> Result<()> {
-        let pane = self.active_pane.as_ref().expect(NO_PANE_ATTACHED).borrow();
+        let pane = self.active_pane.borrow();
         let offset = 4;
         let Position {
             render_col, row, ..
@@ -80,11 +71,11 @@ impl Window {
 
         self.stdout
             .queue(cursor::MoveTo(
-                self.width - 11 - col_and_row.len() as u16,
-                self.height - 2,
+                self.size.width - 11 - col_and_row.len() as u16,
+                self.size.height - 2,
             ))?
             .queue(Print(col_and_row.with(Color::Blue)))?
-            .queue(cursor::MoveTo(self.width - 9, self.height - 2))?
+            .queue(cursor::MoveTo(self.size.width - 9, self.size.height - 2))?
             .queue(Print("17:51:45"))?;
         Ok(())
     }
@@ -100,11 +91,11 @@ impl Window {
 
         for (i, pane) in self.panes.values().enumerate() {
             let mut pane_mut = pane.borrow_mut();
-            let width = self.width / self.total_panes;
+            let width = self.size.width / self.total_panes;
             pane_mut.resize_pane(PaneSize {
                 row: 0,
                 col: i as u16 * width,
-                height: self.height,
+                height: self.size.height,
                 width,
             });
         }
