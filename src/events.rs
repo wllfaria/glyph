@@ -1,73 +1,38 @@
-use crossterm::event::{self, KeyModifiers};
-use std::collections::HashMap;
+use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
+use std::{io::Result, time::Duration};
 
-pub struct Keyboard {
-    pub commands: HashMap<EditorCommands, Box<dyn Command>>,
-}
+use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
 
-impl Keyboard {
-    pub fn new(commands: HashMap<EditorCommands, Box<dyn Command>>) -> Self {
-        Keyboard { commands }
+#[derive(Default)]
+pub struct Events {}
+
+impl Events {
+    pub fn new() -> Self {
+        Events {}
     }
 
-    pub fn poll_events(&mut self) -> std::io::Result<()> {
-        let event = event::read()?;
-        if let event::Event::Key(event::KeyEvent {
-            code, modifiers, ..
-        }) = event
-        {
-            match code {
-                c if c == event::KeyCode::Char('q') && modifiers == KeyModifiers::CONTROL => {
-                    self.commands
-                        .get(&EditorCommands::Quit)
-                        .unwrap()
-                        .execute(None);
-                }
-                event::KeyCode::Enter => {
-                    self.commands
-                        .get(&EditorCommands::InsertLineBelow)
-                        .unwrap()
-                        .execute(None);
-                }
-                event::KeyCode::Backspace => {
-                    self.commands
-                        .get(&EditorCommands::Backspace)
-                        .unwrap()
-                        .execute(None);
-                }
-                event::KeyCode::Left => {
-                    self.commands
-                        .get(&EditorCommands::MoveLeft)
-                        .unwrap()
-                        .execute(None);
-                }
-                event::KeyCode::Down => {
-                    self.commands
-                        .get(&EditorCommands::MoveDown)
-                        .unwrap()
-                        .execute(None);
-                }
-                event::KeyCode::Up => {
-                    self.commands
-                        .get(&EditorCommands::MoveUp)
-                        .unwrap()
-                        .execute(None);
-                }
-                event::KeyCode::Right => {
-                    self.commands
-                        .get(&EditorCommands::MoveRight)
-                        .unwrap()
-                        .execute(None);
-                }
-                event::KeyCode::Char(c) => {
-                    self.commands
-                        .get(&EditorCommands::Type)
-                        .unwrap()
-                        .execute(Some(Box::new(c)));
-                }
-                _ => (),
+    pub fn poll(&self) -> Result<Option<Command>> {
+        if poll(Duration::from_millis(0))? {
+            if let Event::Key(KeyEvent {
+                code, modifiers, ..
+            }) = read()?
+            {
+                let command = match code {
+                    KeyCode::Enter => Some(Command::Buffer(BufferCommands::NewLineBelow)),
+                    KeyCode::Backspace => Some(Command::Buffer(BufferCommands::Backspace)),
+                    KeyCode::Left => Some(Command::Cursor(CursorCommands::MoveLeft)),
+                    KeyCode::Down => Some(Command::Cursor(CursorCommands::MoveDown)),
+                    KeyCode::Up => Some(Command::Cursor(CursorCommands::MoveUp)),
+                    KeyCode::Right => Some(Command::Cursor(CursorCommands::MoveRight)),
+                    c if c == KeyCode::Char('q') && modifiers == KeyModifiers::CONTROL => {
+                        Some(Command::Editor(EditorCommands::Quit))
+                    }
+                    KeyCode::Char(c) => Some(Command::Buffer(BufferCommands::Type(c))),
+                    _ => None,
+                };
+                return Ok(command);
             }
         }
-        Ok(())
+        Ok(None)
     }
 }

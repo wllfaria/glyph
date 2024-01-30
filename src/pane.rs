@@ -1,6 +1,7 @@
 use std::{
+    cell::RefCell,
     io::{stdout, Result, Stdout},
-    sync::{Arc, Mutex},
+    rc::Rc,
 };
 
 use crossterm::{
@@ -28,7 +29,7 @@ impl Position {
 
 const NO_BUFFER_ATTACHED: &str = "No buffer attached to pane";
 
-use crate::buffer::Buffer;
+use crate::{buffer::Buffer, command::Command};
 
 #[derive(Debug)]
 pub struct Pane {
@@ -78,6 +79,12 @@ impl Pane {
         }
     }
 
+    pub fn handle_command(&self, command: Command) {
+        match command {
+            _ => {}
+        }
+    }
+
     pub fn resize_pane(&mut self, size: PaneSize) {
         self.content_size = PaneSize {
             row: size.row,
@@ -100,100 +107,8 @@ impl Pane {
         Ok(())
     }
 
-    pub fn move_cursor(&mut self, direction: bool) {
-        let buffer = self
-            .buffer
-            .as_ref()
-            .expect(NO_BUFFER_ATTACHED)
-            .lock()
-            .unwrap();
-        let line_len = buffer.get_line_len(self.cursor.row as usize) as u16;
-        let line_above_len = match self.cursor.row {
-            0 => 0,
-            _ => buffer.get_line_len(self.cursor.row as usize - 1) as u16,
-        };
-        let line_below_len = match self.cursor.row {
-            x if x >= self.content_size.height => 0,
-            _ => buffer.get_line_len(self.cursor.row as usize + 1) as u16,
-        };
-        std::mem::drop(buffer);
-        match direction {
-            Directions::Up => match self.cursor.col {
-                col if col > line_above_len && self.cursor.row == 0 => self.set_cursor(
-                    Position::new(line_above_len, self.cursor.row, line_above_len),
-                ),
-                col if col > line_above_len => self.set_cursor(Position::new(
-                    self.cursor.col,
-                    self.cursor.row.saturating_sub(1),
-                    line_above_len,
-                )),
-                _ => {
-                    self.set_cursor(Position::new(
-                        self.cursor.col,
-                        self.cursor.row.saturating_sub(1),
-                        self.cursor.col,
-                    ));
-                }
-            },
-            Directions::Down => match self.cursor.row {
-                row if row >= self.content_size.height - 1 => (),
-                _ => match self.cursor.col {
-                    col if col > line_below_len => self.set_cursor(Position::new(
-                        self.cursor.col,
-                        self.cursor.row + 1,
-                        line_below_len,
-                    )),
-                    _ => self.set_cursor(Position::new(
-                        self.cursor.col,
-                        self.cursor.row + 1,
-                        self.cursor.col,
-                    )),
-                },
-            },
-            Directions::Left => match self.cursor.col {
-                col if col == 0 && self.cursor.row == 0 => (),
-                col if col == 0 && self.cursor.row > 0 => self.set_cursor(Position::new(
-                    line_above_len,
-                    self.cursor.row - 1,
-                    line_above_len,
-                )),
-                col if col > line_len && line_len == 0 => self.set_cursor(Position::new(
-                    line_above_len,
-                    self.cursor.row - 1,
-                    line_above_len,
-                )),
-                col if col > line_len => {
-                    self.set_cursor(Position::new(line_len, self.cursor.row, line_len))
-                }
-                _ => self.set_cursor(Position::new(
-                    self.cursor.col - 1,
-                    self.cursor.row,
-                    self.cursor.col - 1,
-                )),
-            },
-            Directions::Right => match self.cursor.col {
-                _ if self.content_size.height - 1 == self.cursor.row => (),
-                col if col >= line_len => self.set_cursor(Position::new(0, self.cursor.row + 1, 0)),
-                col if col >= line_len && self.cursor.row == self.content_size.height => {
-                    self.set_cursor(Position::new(0, self.cursor.row, 0))
-                }
-                _ => self.set_cursor(Position::new(
-                    self.cursor.col + 1,
-                    self.cursor.row,
-                    self.cursor.render_col + 1,
-                )),
-            },
-            Directions::LineStart => self.set_cursor(Position::new(0, self.cursor.row, 0)),
-        }
-    }
-
     fn render_lines(&mut self) -> Result<u16> {
-        let buffer_lock = self
-            .buffer
-            .as_ref()
-            .expect(NO_BUFFER_ATTACHED)
-            .lock()
-            .unwrap();
+        let buffer_lock = self.buffer.borrow();
         let total_lines = usize::min(self.pane_size.height as usize, buffer_lock.lines.len());
 
         for i in 0..total_lines {

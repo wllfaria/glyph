@@ -7,9 +7,9 @@ use std::{
 
 use crossterm::{cursor, terminal, QueueableCommand};
 
-use crate::{buffer::Buffer, pane::Pane, window::Window};
+use crate::{buffer::Buffer, command::Command, pane::Pane, window::Window};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct ViewSize {
     pub height: u16,
     pub width: u16,
@@ -23,6 +23,7 @@ impl From<(u16, u16)> for ViewSize {
 
 pub struct View {
     windows: HashMap<u16, Rc<RefCell<Window>>>,
+    active_window: Rc<RefCell<Window>>,
     size: ViewSize,
     stdout: Stdout,
     next_pane_id: u16,
@@ -31,37 +32,34 @@ pub struct View {
 }
 
 impl View {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(file_name: Option<String>) -> Result<Self> {
+        let mut windows = HashMap::new();
+        let size = terminal::size()?.into();
+        let buffer = View::make_buffer(1, file_name);
+        let pane = View::make_pane(1, buffer);
+        let window = View::make_window(1, size, pane);
+        windows.insert(window.borrow().id, window.clone());
+
+        Ok(Self {
+            windows,
+            next_pane_id: 2,
+            next_buffer_id: 2,
+            next_window_id: 2,
             stdout: stdout(),
-            windows: HashMap::new(),
             size: ViewSize::default(),
-            next_buffer_id: 0,
-            next_window_id: 0,
-            next_pane_id: 0,
-        }
+            active_window: window.clone(),
+        })
     }
 
     pub fn initialize(&mut self) -> Result<()> {
-        self.size = terminal::size()?.into();
-
-        let buffer = self.make_buffer();
-        let pane = self.make_pane(buffer);
-
-        self.windows.insert(
-            self.next_window_id,
-            Rc::new(RefCell::new(Window::new(1, self.size, pane))),
-        );
-
-        self.next_pane_id += 1;
-        self.next_buffer_id += 1;
-        self.next_window_id += 1;
+        terminal::enable_raw_mode()?;
         Ok(())
     }
 
     pub fn shutdown(&mut self) -> Result<()> {
-        self.clear_screen();
+        self.clear_screen()?;
         self.stdout.flush()?;
+        terminal::disable_raw_mode()?;
         Ok(())
     }
 
@@ -69,18 +67,30 @@ impl View {
         self.clear_screen()
     }
 
-    fn clear_screen(&self) -> Result<()> {
+    pub fn handle_command(&self, command: Command) {
+        match command {
+            Command::Pane(_) => self.active_window.borrow_mut().handle_command(command),
+            Command::Window(_) => self.active_window.borrow_mut().handle_command(command),
+            _ => {}
+        }
+    }
+
+    fn clear_screen(&mut self) -> Result<()> {
         self.stdout
             .queue(cursor::MoveTo(0, 0))?
             .queue(terminal::Clear(terminal::ClearType::All))?;
         Ok(())
     }
 
-    fn make_buffer(&self) -> Rc<RefCell<Buffer>> {
-        Rc::new(RefCell::new(Buffer::new(self.next_buffer_id, None)))
+    fn make_buffer(id: u16, file_name: Option<String>) -> Rc<RefCell<Buffer>> {
+        Rc::new(RefCell::new(Buffer::new(id, file_name)))
     }
 
-    fn make_pane(&self, buffer: Rc<RefCell<Buffer>>) -> Rc<RefCell<Pane>> {
-        Rc::new(RefCell::new(Pane::new(self.next_pane_id, buffer)))
+    fn make_pane(id: u16, buffer: Rc<RefCell<Buffer>>) -> Rc<RefCell<Pane>> {
+        Rc::new(RefCell::new(Pane::new(id, buffer)))
+    }
+
+    fn make_window(id: u16, size: ViewSize, pane: Rc<RefCell<Pane>>) -> Rc<RefCell<Window>> {
+        Rc::new(RefCell::new(Window::new(id, size, pane)))
     }
 }

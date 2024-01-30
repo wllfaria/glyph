@@ -1,28 +1,25 @@
 use crossterm::{
     cursor,
     style::{Color, Print, Stylize},
-    terminal::Clear,
     QueueableCommand,
 };
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io::{stdout, Result, Stdout, Write},
+    io::{stdout, Result, Stdout},
     rc::Rc,
 };
 
 use crate::{
+    command::Command,
     pane::{Pane, PaneSize, Position},
     view::ViewSize,
 };
-
-const NO_PANE_ATTACHED: &str = "No pane attached to window";
 
 #[derive(Debug)]
 pub struct Window {
     pub id: u16,
     panes: HashMap<u16, Rc<RefCell<Pane>>>,
-    last_id: u16,
     total_panes: u16,
     active_pane: Rc<RefCell<Pane>>,
     stdout: Stdout,
@@ -39,25 +36,17 @@ impl Window {
             panes,
             active_pane: pane.clone(),
             stdout: stdout(),
-            last_id: 0,
             total_panes: 0,
         }
     }
 
-    pub fn render(&mut self) -> Result<()> {
-        self.clear()?;
-        self.render_status_bar()?;
-        for pane in self.panes.values() {
-            pane.borrow_mut().render()?;
+    pub fn handle_command(&self, command: Command) {
+        match command {
+            Command::Pane(_) => self.active_pane.borrow_mut().handle_command(command),
+            Command::Buffer(_) => self.active_pane.borrow_mut().handle_command(command),
+            Command::Cursor(_) => self.active_pane.borrow_mut().handle_command(command),
+            _ => {}
         }
-        self.stdout.flush()?;
-        Ok(())
-    }
-
-    pub fn clear(&mut self) -> Result<()> {
-        self.stdout
-            .queue(Clear(crossterm::terminal::ClearType::All))?;
-        Ok(())
     }
 
     fn render_status_bar(&mut self) -> Result<()> {
@@ -80,15 +69,7 @@ impl Window {
         Ok(())
     }
 
-    fn add_pane(&mut self, pane: Rc<RefCell<Pane>>) {
-        self.last_id += 1;
-        self.total_panes += 1;
-        self.panes.insert(self.last_id, pane);
-    }
-
     pub fn split_vertical(&mut self, pane: Rc<RefCell<Pane>>) {
-        self.add_pane(pane);
-
         for (i, pane) in self.panes.values().enumerate() {
             let mut pane_mut = pane.borrow_mut();
             let width = self.size.width / self.total_panes;

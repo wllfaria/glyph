@@ -1,28 +1,38 @@
 use std::io::Result;
 
-use crate::view::View;
+use crate::{
+    command::{Command, EditorCommands},
+    events::Events,
+    view::View,
+};
 
 pub struct Editor {
     is_running: bool,
+    events: Events,
     view: View,
 }
 
 impl Editor {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(file_name: Option<String>) -> Result<Self> {
+        Ok(Self {
             is_running: true,
-            view: View::new(),
-        }
+            events: Events::new(),
+            view: View::new(file_name)?,
+        })
     }
 
     pub fn start(&mut self) -> Result<()> {
-        self.view.initialize();
-
+        self.view.initialize()?;
         while self.is_running {
-            self.view.render();
+            if let Some(command) = self.events.poll()? {
+                match command {
+                    Command::Editor(EditorCommands::Quit) => self.is_running = false,
+                    _ => self.view.handle_command(command),
+                }
+            }
+            self.view.render()?;
         }
-
-        self.view.shutdown();
+        self.view.shutdown()?;
         Ok(())
     }
 }
