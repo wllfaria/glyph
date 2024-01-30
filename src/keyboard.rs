@@ -1,23 +1,15 @@
 use crossterm::event::{self, KeyModifiers};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 
 use crate::commands::{Command, EditorCommands};
-use crate::state::State;
 
 pub struct Keyboard {
-    pub state: Rc<RefCell<State>>,
     pub commands: HashMap<EditorCommands, Box<dyn Command>>,
 }
 
 impl Keyboard {
-    pub fn new(
-        state: Rc<RefCell<State>>,
-        commands: HashMap<EditorCommands, Box<dyn Command>>,
-    ) -> Self {
-        Keyboard {
-            commands,
-            state: Rc::clone(&state),
-        }
+    pub fn new(commands: HashMap<EditorCommands, Box<dyn Command>>) -> Self {
+        Keyboard { commands }
     }
 
     pub fn poll_events(&mut self) -> std::io::Result<()> {

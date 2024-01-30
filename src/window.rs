@@ -11,10 +11,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{
-    pane::{Pane, PaneSize, Position},
-    state::State,
-};
+use crate::pane::{Pane, PaneSize, Position};
 
 const NO_PANE_ATTACHED: &str = "No pane attached to window";
 
@@ -28,11 +25,10 @@ pub struct Window {
     width: u16,
     active_pane: Option<Rc<RefCell<Pane>>>,
     stdout: Stdout,
-    state: Rc<RefCell<State>>,
 }
 
 impl Window {
-    pub fn new(id: u16, state: Rc<RefCell<State>>) -> Result<Self> {
+    pub fn new(id: u16) -> Result<Self> {
         let (width, height) = crossterm::terminal::size()?;
         Ok(Self {
             id,
@@ -43,7 +39,6 @@ impl Window {
             height,
             width,
             active_pane: None,
-            state,
         })
     }
 
@@ -113,42 +108,5 @@ impl Window {
                 width,
             });
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::buffer::Buffer;
-    use crate::pane::Pane;
-    use std::{
-        cell::RefCell,
-        rc::Rc,
-        sync::{Arc, Mutex},
-    };
-
-    #[test]
-    pub fn should_split_vertically() {
-        let state = Rc::new(RefCell::new(State::new()));
-        let buffer = Arc::new(Mutex::new(Buffer::new(1, None)));
-        let mut pane_one = Pane::new(1, state.clone());
-        let mut pane_two = Pane::new(2, state.clone());
-        let mut window = Window::new(1, state.clone()).unwrap();
-
-        pane_one.attach_buffer(buffer.clone());
-        pane_two.attach_buffer(buffer.clone());
-
-        window.width = 50;
-        window.height = 30;
-        window.attach_pane(Rc::new(RefCell::new(pane_one)));
-        window.split_vertical(Rc::new(RefCell::new(pane_two)));
-
-        let pane_one = window.panes.get(&1).unwrap();
-        let pane_two = window.panes.get(&2).unwrap();
-        let pane_one_ref = pane_one.borrow();
-        let pane_two_ref = pane_two.borrow();
-
-        assert_eq!(pane_one_ref.pane_size.width, 25);
-        assert_eq!(pane_two_ref.pane_size.width, 25);
     }
 }

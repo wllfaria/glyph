@@ -30,7 +30,7 @@ impl Position {
 
 const NO_BUFFER_ATTACHED: &str = "No buffer attached to pane";
 
-use crate::{buffer::Buffer, commands::Directions, state::State};
+use crate::{buffer::Buffer, commands::Directions};
 
 #[derive(Debug)]
 pub struct Pane {
@@ -42,7 +42,6 @@ pub struct Pane {
     pub sidebar_width: u16,
     pub sidebar_gap: u16,
     stdout: Stdout,
-    state: Rc<RefCell<State>>,
 }
 
 #[derive(Debug)]
@@ -54,10 +53,9 @@ pub struct PaneSize {
 }
 
 impl Pane {
-    pub fn new(id: u16, state: Rc<RefCell<State>>) -> Self {
+    pub fn new(id: u16) -> Self {
         Self {
             id,
-            state,
             buffer: None,
             sidebar_width: 5,
             sidebar_gap: 1,
