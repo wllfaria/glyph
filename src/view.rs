@@ -7,7 +7,12 @@ use std::{
 
 use crossterm::{cursor, terminal, QueueableCommand};
 
-use crate::{buffer::Buffer, command::Command, pane::Pane, window::Window};
+use crate::{
+    buffer::Buffer,
+    command::Command,
+    pane::{Pane, PaneDimensions},
+    window::Window,
+};
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct ViewSize {
@@ -34,10 +39,10 @@ pub struct View {
 impl View {
     pub fn new(file_name: Option<String>) -> Result<Self> {
         let mut windows = HashMap::new();
-        let size = terminal::size()?.into();
+        let size = terminal::size()?;
         let buffer = View::make_buffer(1, file_name);
-        let pane = View::make_pane(1, buffer);
-        let window = View::make_window(1, size, pane);
+        let pane = View::make_pane(1, buffer, size.into());
+        let window = View::make_window(1, size.into(), pane);
         windows.insert(window.borrow().id, window.clone());
 
         Ok(Self {
@@ -64,7 +69,9 @@ impl View {
     }
 
     pub fn render(&mut self) -> Result<()> {
-        self.clear_screen()
+        self.clear_screen()?;
+        self.active_window.borrow_mut().render()?;
+        Ok(())
     }
 
     pub fn handle_command(&self, command: Command) {
@@ -86,8 +93,12 @@ impl View {
         Rc::new(RefCell::new(Buffer::new(id, file_name)))
     }
 
-    fn make_pane(id: u16, buffer: Rc<RefCell<Buffer>>) -> Rc<RefCell<Pane>> {
-        Rc::new(RefCell::new(Pane::new(id, buffer)))
+    fn make_pane(
+        id: u16,
+        buffer: Rc<RefCell<Buffer>>,
+        dimensions: PaneDimensions,
+    ) -> Rc<RefCell<Pane>> {
+        Rc::new(RefCell::new(Pane::new(id, buffer, dimensions)))
     }
 
     fn make_window(id: u16, size: ViewSize, pane: Rc<RefCell<Pane>>) -> Rc<RefCell<Window>> {

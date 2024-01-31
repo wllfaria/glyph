@@ -34,4 +34,3 @@ pub enum Command {
     Cursor(CursorCommands),
     Pane(PaneCommands),
 }
-

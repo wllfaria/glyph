@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     command::Command,
-    pane::{Pane, PaneSize, Position},
+    pane::{Pane, PaneDimensions},
     view::ViewSize,
 };
 
@@ -49,14 +49,20 @@ impl Window {
         }
     }
 
+    pub fn render(&mut self) -> Result<()> {
+        self.render_status_bar()?;
+        for pane in self.panes.values() {
+            pane.borrow_mut().render()?;
+        }
+        Ok(())
+    }
+
     fn render_status_bar(&mut self) -> Result<()> {
         let pane = self.active_pane.borrow();
         let offset = 4;
-        let Position {
-            render_col, row, ..
-        } = pane.cursor;
-        let col_and_row =
-            (row + 1).to_string() + ":" + &(render_col.saturating_sub(offset)).to_string();
+        let row = self.active_pane.borrow().cursor.row;
+        let col = self.active_pane.borrow().cursor.row;
+        let col_and_row = (row + 1).to_string() + ":" + &(col.saturating_sub(offset)).to_string();
 
         self.stdout
             .queue(cursor::MoveTo(
@@ -73,12 +79,6 @@ impl Window {
         for (i, pane) in self.panes.values().enumerate() {
             let mut pane_mut = pane.borrow_mut();
             let width = self.size.width / self.total_panes;
-            pane_mut.resize_pane(PaneSize {
-                row: 0,
-                col: i as u16 * width,
-                height: self.size.height,
-                width,
-            });
         }
     }
 }

@@ -1,5 +1,6 @@
 mod buffer;
 mod command;
+mod cursor;
 mod editor;
 mod events;
 mod pane;
