@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     buffer::Buffer,
-    command::{Command, CursorCommands, EditorCommands, PaneCommands},
+    command::{Command, EditorCommands},
     cursor::Cursor,
 };
 
@@ -45,17 +45,6 @@ impl From<(u16, u16)> for PaneDimensions {
     }
 }
 
-impl PaneDimensions {
-    pub fn new(row: u16, col: u16, height: u16, width: u16) -> Self {
-        PaneDimensions {
-            row,
-            col,
-            height,
-            width,
-        }
-    }
-}
-
 impl Pane {
     pub fn new(id: u16, buffer: Rc<RefCell<Buffer>>, dimensions: PaneDimensions) -> Self {
         Self {
@@ -72,7 +61,7 @@ impl Pane {
     pub fn handle(&mut self, command: Command) -> Result<()> {
         match command {
             Command::Editor(EditorCommands::Start) => self.initialize()?,
-            Command::Cursor(_) => self.handle_cursor(command)?,
+            Command::Cursor(_) => self.handle_cursor_command(command)?,
             Command::Buffer(_) => self.buffer.borrow().handle(command),
             Command::Pane(_) => (),
             _ => (),
@@ -80,7 +69,18 @@ impl Pane {
         Ok(())
     }
 
-    fn handle_cursor(&mut self, command: Command) -> Result<()> {
+    pub fn initialize(&mut self) -> Result<()> {
+        self.draw_sidebar()?;
+        self.draw_buffer()?;
+        self.draw_cursor()?;
+        Ok(())
+    }
+
+    pub fn get_cursor_readable_position(&self) -> (u16, u16) {
+        self.cursor.get_readable_position()
+    }
+
+    fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
         self.cursor.handle(&command, &self.buffer.borrow().lines);
         self.draw_cursor()?;
         Ok(())
@@ -92,17 +92,13 @@ impl Pane {
         Ok(())
     }
 
-    pub fn initialize(&mut self) -> Result<()> {
-        self.draw_sidebar()?;
-        self.draw_cursor()?;
+    fn draw_sidebar(&mut self) -> Result<()> {
+        self.draw_line_numbers()?;
+        self.draw_empty_lines()?;
         Ok(())
     }
 
-    pub fn get_cursor_readable_position(&self) -> (u16, u16) {
-        self.cursor.get_readable_position()
-    }
-
-    fn draw_lines(&mut self) -> Result<u16> {
+    fn draw_line_numbers(&mut self) -> Result<()> {
         let buffer = self.buffer.borrow();
         let total_lines = usize::min(self.dimensions.height as usize, buffer.lines.len());
 
@@ -114,19 +110,30 @@ impl Pane {
                 .queue(cursor::MoveTo(offset, i as u16))?
                 .queue(Print(line.with(Color::DarkGrey)))?;
         }
-
-        Ok(total_lines as u16)
+        Ok(())
     }
 
-    fn draw_sidebar(&mut self) -> Result<()> {
-        let total_lines = self.draw_lines()?;
+    fn draw_empty_lines(&mut self) -> Result<()> {
+        let total_lines = self.buffer.borrow().lines.len() as u16;
+        let offset = self.dimensions.col + self.sidebar_width - self.sidebar_gap;
         for row in total_lines..self.dimensions.height {
             self.stdout
-                .queue(cursor::MoveTo(
-                    self.dimensions.col + self.sidebar_width - self.sidebar_gap,
-                    self.dimensions.row + row,
-                ))?
+                .queue(cursor::MoveTo(offset, self.dimensions.row + row))?
                 .queue(Print("~".with(Color::DarkGrey)))?;
+        }
+        Ok(())
+    }
+
+    fn draw_buffer(&mut self) -> Result<()> {
+        let lines = &self.buffer.borrow().lines;
+        let offset = self.dimensions.col + self.sidebar_width + self.sidebar_gap;
+        for row in 0..self.dimensions.height {
+            let line = &lines[row as usize];
+            let len = self.dimensions.width.min(line.len() as u16);
+            let line = line[0..len as usize].to_string();
+            self.stdout
+                .queue(cursor::MoveTo(offset, row as u16))?
+                .queue(Print(line))?;
         }
         Ok(())
     }
