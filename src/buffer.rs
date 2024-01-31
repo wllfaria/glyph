@@ -1,5 +1,3 @@
-use std::io::Result;
-
 use crate::command::Command;
 
 #[derive(Debug)]
