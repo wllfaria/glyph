@@ -5,7 +5,11 @@ use std::{
     rc::Rc,
 };
 
-use crossterm::{cursor, terminal, QueueableCommand};
+use crossterm::{
+    cursor,
+    style::{Color, Print, Stylize},
+    terminal, QueueableCommand,
+};
 
 use crate::{
     buffer::Buffer,
@@ -40,9 +44,11 @@ impl View {
     pub fn new(file_name: Option<String>) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
+        let mut window_size = size.clone();
+        window_size.1 -= 1;
         let buffer = View::make_buffer(1, file_name);
-        let pane = View::make_pane(1, buffer, size.into());
-        let window = View::make_window(1, size.into(), pane);
+        let pane = View::make_pane(1, buffer, window_size.into());
+        let window = View::make_window(1, window_size.into(), pane);
         windows.insert(window.borrow().id, window.clone());
 
         Ok(Self {
@@ -51,7 +57,7 @@ impl View {
             next_buffer_id: 2,
             next_window_id: 2,
             stdout: stdout(),
-            size: ViewSize::default(),
+            size: size.into(),
             active_window: window.clone(),
         })
     }
@@ -79,6 +85,7 @@ impl View {
     fn initialize(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
         self.clear_screen()?;
+        self.draw_statusbar()?;
         self.active_window.borrow_mut().initialize()?;
         Ok(())
     }
@@ -87,6 +94,20 @@ impl View {
         self.stdout
             .queue(cursor::MoveTo(0, 0))?
             .queue(terminal::Clear(terminal::ClearType::All))?;
+        Ok(())
+    }
+
+    fn draw_statusbar(&mut self) -> Result<()> {
+        for col in 0..self.size.width {
+            self.stdout
+                .queue(cursor::MoveTo(col, self.size.height))?
+                .queue(Print(" ".to_string().with(Color::Black).on(Color::White)))?;
+        }
+        self.stdout
+            .queue(cursor::MoveTo(0, self.size.height))?
+            .queue(Print(
+                "status bar".to_string().with(Color::Black).on(Color::White),
+            ))?;
         Ok(())
     }
 
