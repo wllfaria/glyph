@@ -9,7 +9,7 @@ use crossterm::{cursor, terminal, QueueableCommand};
 
 use crate::{
     buffer::Buffer,
-    command::Command,
+    command::{Command, EditorCommands},
     pane::{Pane, PaneDimensions},
     window::Window,
 };
@@ -56,30 +56,31 @@ impl View {
         })
     }
 
-    pub fn initialize(&mut self) -> Result<()> {
-        terminal::enable_raw_mode()?;
+    pub fn handle(&mut self, command: Command) -> Result<()> {
+        match command {
+            Command::Editor(EditorCommands::Start) => self.initialize()?,
+            Command::Editor(EditorCommands::Quit) => self.shutdown()?,
+            Command::Buffer(_) => self.active_window.borrow_mut().handle(command)?,
+            Command::Cursor(_) => self.active_window.borrow_mut().handle(command)?,
+            Command::Pane(_) => self.active_window.borrow_mut().handle(command)?,
+            Command::Window(_) => self.active_window.borrow_mut().handle(command)?,
+            _ => (),
+        };
         Ok(())
     }
 
-    pub fn shutdown(&mut self) -> Result<()> {
+    fn shutdown(&mut self) -> Result<()> {
         self.clear_screen()?;
         self.stdout.flush()?;
         terminal::disable_raw_mode()?;
         Ok(())
     }
 
-    pub fn render(&mut self) -> Result<()> {
+    fn initialize(&mut self) -> Result<()> {
+        terminal::enable_raw_mode()?;
         self.clear_screen()?;
-        self.active_window.borrow_mut().render()?;
+        self.active_window.borrow_mut().initialize()?;
         Ok(())
-    }
-
-    pub fn handle_command(&self, command: Command) {
-        match command {
-            Command::Pane(_) => self.active_window.borrow_mut().handle_command(command),
-            Command::Window(_) => self.active_window.borrow_mut().handle_command(command),
-            _ => {}
-        }
     }
 
     fn clear_screen(&mut self) -> Result<()> {

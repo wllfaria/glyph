@@ -1,5 +1,7 @@
 #[derive(Debug)]
-pub enum WindowCommands {}
+pub enum WindowCommands {
+    SplitVertical,
+}
 
 #[derive(Debug)]
 pub enum EditorCommands {
