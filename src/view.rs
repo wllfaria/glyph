@@ -66,11 +66,19 @@ impl View {
             Command::Editor(EditorCommands::Start) => self.initialize()?,
             Command::Editor(EditorCommands::Quit) => self.shutdown()?,
             Command::Buffer(_) => self.active_window.borrow_mut().handle(command)?,
-            Command::Cursor(_) => self.active_window.borrow_mut().handle(command)?,
+            Command::Cursor(_) => self.handle_cursor(command)?,
             Command::Pane(_) => self.active_window.borrow_mut().handle(command)?,
             Command::Window(_) => self.active_window.borrow_mut().handle(command)?,
             _ => (),
         };
+        Ok(())
+    }
+
+    fn handle_cursor(&mut self, command: Command) -> Result<()> {
+        self.active_window.borrow_mut().handle(command)?;
+        self.stdout.queue(cursor::SavePosition)?;
+        self.draw_statusbar()?;
+        self.stdout.queue(cursor::RestorePosition)?;
         Ok(())
     }
 
@@ -97,16 +105,24 @@ impl View {
     }
 
     fn draw_statusbar(&mut self) -> Result<()> {
+        self.draw_statusbar_background()?;
+        let active_pane = self.active_window.borrow_mut().get_active_pane();
+        let cursor_position = active_pane.borrow().get_cursor_readable_position();
+        let (col, row) = cursor_position;
+        let cursor = format!("{}:{}", row, col);
+        let padding = self.size.width - cursor.len() as u16 - active_pane.borrow().sidebar_width;
+        self.stdout
+            .queue(cursor::MoveTo(padding as u16, self.size.height))?
+            .queue(Print(cursor.with(Color::White)))?;
+        Ok(())
+    }
+
+    fn draw_statusbar_background(&mut self) -> Result<()> {
         for col in 0..self.size.width {
             self.stdout
                 .queue(cursor::MoveTo(col, self.size.height))?
-                .queue(Print(" ".to_string().with(Color::Black).on(Color::White)))?;
+                .queue(Print(" ".to_string().with(Color::Black)))?;
         }
-        self.stdout
-            .queue(cursor::MoveTo(0, self.size.height))?
-            .queue(Print(
-                "status bar".to_string().with(Color::Black).on(Color::White),
-            ))?;
         Ok(())
     }
 
