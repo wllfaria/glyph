@@ -45,47 +45,21 @@ impl Window {
             Command::Pane(_) => self.active_pane.borrow_mut().handle(command)?,
             Command::Buffer(_) => self.active_pane.borrow_mut().handle(command)?,
             Command::Cursor(_) => self.active_pane.borrow_mut().handle(command)?,
-            Command::Window(WindowCommands::SplitVertical) => (),
+            Command::Window(_) => (),
             _ => {}
         }
         Ok(())
     }
 
     pub fn initialize(&mut self) -> Result<()> {
-        self.render_status_bar()?;
         self.render_panes()?;
         Ok(())
     }
 
-    pub fn render_panes(&mut self) -> Result<()> {
+    fn render_panes(&mut self) -> Result<()> {
         for pane in self.panes.values() {
             pane.borrow_mut().initialize()?;
         }
         Ok(())
-    }
-
-    fn render_status_bar(&mut self) -> Result<()> {
-        let pane = self.active_pane.borrow();
-        let offset = 4;
-        let row = self.active_pane.borrow().cursor.row;
-        let col = self.active_pane.borrow().cursor.row;
-        let col_and_row = (row + 1).to_string() + ":" + &(col.saturating_sub(offset)).to_string();
-
-        self.stdout
-            .queue(cursor::MoveTo(
-                self.size.width - 11 - col_and_row.len() as u16,
-                self.size.height - 2,
-            ))?
-            .queue(Print(col_and_row.with(Color::Blue)))?
-            .queue(cursor::MoveTo(self.size.width - 9, self.size.height - 2))?
-            .queue(Print("17:51:45"))?;
-        Ok(())
-    }
-
-    pub fn split_vertical(&mut self, pane: Rc<RefCell<Pane>>) {
-        for (i, pane) in self.panes.values().enumerate() {
-            let mut pane_mut = pane.borrow_mut();
-            let width = self.size.width / self.total_panes;
-        }
     }
 }

@@ -81,14 +81,8 @@ impl Pane {
     }
 
     fn handle_cursor(&mut self, command: Command) -> Result<()> {
-        self.cursor.handle(&command);
+        self.cursor.handle(&command, &self.buffer.borrow().lines);
         self.draw_cursor()?;
-        match command {
-            Command::Cursor(CursorCommands::MoveUp) => {
-                self.maybe_draw_sidebar()?;
-            }
-            _ => (),
-        }
         Ok(())
     }
 
@@ -98,12 +92,8 @@ impl Pane {
         Ok(())
     }
 
-    pub fn resize_pane(&mut self, dimensions: PaneDimensions) {
-        self.dimensions = dimensions;
-    }
-
     pub fn initialize(&mut self) -> Result<()> {
-        self.maybe_draw_sidebar()?;
+        self.draw_sidebar()?;
         self.draw_cursor()?;
         Ok(())
     }
@@ -113,23 +103,18 @@ impl Pane {
         let total_lines = usize::min(self.dimensions.height as usize, buffer.lines.len());
 
         for i in 0..total_lines {
-            let readable_line = i + 1_usize;
-            let line_len = readable_line.to_string().len() as u16;
-            let line_display = format!("{}", readable_line).with(Color::DarkGrey);
-            let line_number_col = self.dimensions.col + self.sidebar_width - line_len;
-            let line_col = self.dimensions.col + self.sidebar_width + self.sidebar_gap;
+            let line = (i + 1_usize).to_string();
+            let offset = self.dimensions.col + self.sidebar_width - line.len() as u16;
 
             self.stdout
-                .queue(cursor::MoveTo(line_number_col, i as u16))?
-                .queue(Print(line_display))?
-                .queue(cursor::MoveTo(line_col, i as u16))?
-                .queue(Print(buffer.lines.get(i).unwrap()))?;
+                .queue(cursor::MoveTo(offset, i as u16))?
+                .queue(Print(line.with(Color::DarkGrey)))?;
         }
 
         Ok(total_lines as u16)
     }
 
-    fn maybe_draw_sidebar(&mut self) -> Result<()> {
+    fn draw_sidebar(&mut self) -> Result<()> {
         let total_lines = self.draw_lines()?;
         for row in total_lines..self.dimensions.height {
             self.stdout
