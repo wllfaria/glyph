@@ -23,17 +23,49 @@ impl Cursor {
 
     fn move_up(&mut self, lines: &[String]) {
         self.row = self.row.saturating_sub(1);
+        let line_len = lines[self.row as usize].len() as u16;
+        match self.col {
+            col if col > 0 && self.row == 0 => self.col = 0,
+            col if col > line_len => self.col = line_len,
+            _ => (),
+        }
     }
 
     fn move_right(&mut self, lines: &[String]) {
-        self.col += 1;
+        let total_lines = lines.len() as u16 - 1;
+        let line_len = lines[self.row as usize].len() as u16;
+        match self.col {
+            col if col >= line_len && self.row == total_lines => self.col = line_len,
+            col if col >= line_len => {
+                self.row += 1;
+                self.col = 0;
+            }
+            _ => self.col += 1,
+        }
     }
 
     fn move_down(&mut self, lines: &[String]) {
-        self.row += 1;
+        let total_lines = lines.len() as u16 - 1;
+        let line_len = lines[self.row as usize].len() as u16;
+        match self.row {
+            row if row < total_lines && self.col > line_len => {
+                self.col = line_len;
+                self.row += 1;
+            }
+            row if row == total_lines => self.col = line_len,
+            _ => self.row = std::cmp::min(self.row + 1, total_lines),
+        }
     }
 
     fn move_left(&mut self, lines: &[String]) {
-        self.col = self.col.saturating_sub(1);
+        match self.col {
+            col if col == 0 && self.row == 0 => self.col = 0,
+            col if col == 0 && self.row > 0 => {
+                self.row -= 1;
+                let line_len = lines[self.row as usize].len() as u16;
+                self.col = line_len;
+            }
+            _ => self.col = self.col.saturating_sub(1),
+        }
     }
 }

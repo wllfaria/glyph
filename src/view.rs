@@ -1,14 +1,13 @@
+use crossterm::{
+    cursor::{self, SetCursorStyle},
+    style::{Color, Print, Stylize},
+    terminal, QueueableCommand,
+};
 use std::{
     cell::RefCell,
     collections::HashMap,
     io::{stdout, Result, Stdout, Write},
     rc::Rc,
-};
-
-use crossterm::{
-    cursor,
-    style::{Color, Print, Stylize},
-    terminal, QueueableCommand,
 };
 
 use crate::{
