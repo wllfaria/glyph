@@ -1,4 +1,4 @@
-use std::io::Result;
+use std::io::{stdout, Result, Write};
 
 use crate::{
     command::{Command, EditorCommands},
@@ -23,15 +23,17 @@ impl Editor {
 
     pub fn start(&mut self) -> Result<()> {
         self.view.initialize()?;
+
         while self.is_running {
-            if let Some(command) = self.events.poll()? {
-                match command {
-                    Command::Editor(EditorCommands::Quit) => self.is_running = false,
-                    _ => self.view.handle_command(command),
-                }
+            match self.events.poll()? {
+                Some(Command::Editor(EditorCommands::Quit)) => self.is_running = false,
+                Some(command) => self.view.handle_command(command),
+                _ => (),
             }
             self.view.render()?;
+            stdout().flush()?;
         }
+
         self.view.shutdown()?;
         Ok(())
     }
