@@ -98,6 +98,10 @@ impl Pane {
         Ok(())
     }
 
+    pub fn get_cursor_readable_position(&self) -> (u16, u16) {
+        self.cursor.get_readable_position()
+    }
+
     fn draw_lines(&mut self) -> Result<u16> {
         let buffer = self.buffer.borrow();
         let total_lines = usize::min(self.dimensions.height as usize, buffer.lines.len());

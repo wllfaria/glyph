@@ -56,6 +56,10 @@ impl Window {
         Ok(())
     }
 
+    pub fn get_active_pane(&self) -> Rc<RefCell<Pane>> {
+        self.active_pane.clone()
+    }
+
     fn render_panes(&mut self) -> Result<()> {
         for pane in self.panes.values() {
             pane.borrow_mut().initialize()?;

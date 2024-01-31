@@ -21,6 +21,10 @@ impl Cursor {
         }
     }
 
+    pub fn get_readable_position(&self) -> (u16, u16) {
+        (self.col + 1, self.row + 1)
+    }
+
     fn move_up(&mut self, lines: &[String]) {
         self.row = self.row.saturating_sub(1);
         let line_len = lines[self.row as usize].len() as u16;
