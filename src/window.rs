@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    command::Command,
+    command::{Command, EditorCommands, WindowCommands},
     pane::{Pane, PaneDimensions},
     view::ViewSize,
 };
@@ -40,19 +40,26 @@ impl Window {
         }
     }
 
-    pub fn handle_command(&self, command: Command) {
+    pub fn handle(&self, command: Command) -> Result<()> {
         match command {
-            Command::Pane(_) => self.active_pane.borrow_mut().handle_command(command),
-            Command::Buffer(_) => self.active_pane.borrow_mut().handle_command(command),
-            Command::Cursor(_) => self.active_pane.borrow_mut().handle_command(command),
+            Command::Pane(_) => self.active_pane.borrow_mut().handle(command)?,
+            Command::Buffer(_) => self.active_pane.borrow_mut().handle(command)?,
+            Command::Cursor(_) => self.active_pane.borrow_mut().handle(command)?,
+            Command::Window(WindowCommands::SplitVertical) => (),
             _ => {}
         }
+        Ok(())
     }
 
-    pub fn render(&mut self) -> Result<()> {
+    pub fn initialize(&mut self) -> Result<()> {
         self.render_status_bar()?;
+        self.render_panes()?;
+        Ok(())
+    }
+
+    pub fn render_panes(&mut self) -> Result<()> {
         for pane in self.panes.values() {
-            pane.borrow_mut().render()?;
+            pane.borrow_mut().initialize()?;
         }
         Ok(())
     }

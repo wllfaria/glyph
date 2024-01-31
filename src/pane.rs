@@ -9,7 +9,11 @@ use std::{
     rc::Rc,
 };
 
-use crate::{buffer::Buffer, command::Command, cursor::Cursor};
+use crate::{
+    buffer::Buffer,
+    command::{Command, CursorCommands, EditorCommands, PaneCommands},
+    cursor::Cursor,
+};
 
 #[derive(Debug)]
 pub struct Pane {
@@ -65,27 +69,48 @@ impl Pane {
         }
     }
 
-    pub fn handle_command(&self, command: Command) {
+    pub fn handle(&mut self, command: Command) -> Result<()> {
         match command {
-            _ => {}
+            Command::Editor(EditorCommands::Start) => self.initialize()?,
+            Command::Cursor(_) => self.handle_cursor(command)?,
+            Command::Buffer(_) => self.buffer.borrow().handle(command),
+            Command::Pane(_) => (),
+            _ => (),
+        };
+        Ok(())
+    }
+
+    fn handle_cursor(&mut self, command: Command) -> Result<()> {
+        self.cursor.handle(&command);
+        self.draw_cursor()?;
+        match command {
+            Command::Cursor(CursorCommands::MoveUp) => {
+                self.maybe_draw_sidebar()?;
+            }
+            _ => (),
         }
+        Ok(())
+    }
+
+    fn draw_cursor(&mut self) -> Result<()> {
+        let col = self.cursor.col + self.sidebar_width + self.sidebar_gap;
+        self.stdout.queue(cursor::MoveTo(col, self.cursor.row))?;
+        Ok(())
     }
 
     pub fn resize_pane(&mut self, dimensions: PaneDimensions) {
         self.dimensions = dimensions;
     }
 
-    pub fn render(&mut self) -> Result<()> {
-        let total_lines = self.render_lines()?;
-        self.render_empty_lines(0)?;
-        let column = self.cursor.col + self.sidebar_width + self.sidebar_gap;
-        self.stdout.queue(cursor::MoveTo(column, self.cursor.row))?;
+    pub fn initialize(&mut self) -> Result<()> {
+        self.maybe_draw_sidebar()?;
+        self.draw_cursor()?;
         Ok(())
     }
 
-    fn render_lines(&mut self) -> Result<u16> {
-        let buffer_lock = self.buffer.borrow();
-        let total_lines = usize::min(self.dimensions.height as usize, buffer_lock.lines.len());
+    fn draw_lines(&mut self) -> Result<u16> {
+        let buffer = self.buffer.borrow();
+        let total_lines = usize::min(self.dimensions.height as usize, buffer.lines.len());
 
         for i in 0..total_lines {
             let readable_line = i + 1_usize;
@@ -98,14 +123,15 @@ impl Pane {
                 .queue(cursor::MoveTo(line_number_col, i as u16))?
                 .queue(Print(line_display))?
                 .queue(cursor::MoveTo(line_col, i as u16))?
-                .queue(Print(buffer_lock.lines.get(i).unwrap()))?;
+                .queue(Print(buffer.lines.get(i).unwrap()))?;
         }
 
         Ok(total_lines as u16)
     }
 
-    fn render_empty_lines(&mut self, start_row: u16) -> Result<()> {
-        for row in start_row..self.dimensions.height {
+    fn maybe_draw_sidebar(&mut self) -> Result<()> {
+        let total_lines = self.draw_lines()?;
+        for row in total_lines..self.dimensions.height {
             self.stdout
                 .queue(cursor::MoveTo(
                     self.dimensions.col + self.sidebar_width - self.sidebar_gap,

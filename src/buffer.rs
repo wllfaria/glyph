@@ -1,3 +1,7 @@
+use std::io::Result;
+
+use crate::command::Command;
+
 #[derive(Debug)]
 pub struct Buffer {
     id: u16,
@@ -15,6 +19,8 @@ impl Buffer {
         };
         Buffer { id, lines }
     }
+
+    pub fn handle(&self, command: Command) {}
 
     pub fn new_line(&mut self, current_row: usize, col: usize) {
         match col {
