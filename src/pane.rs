@@ -12,6 +12,7 @@ use std::{
 use crate::{
     buffer::Buffer,
     command::{Command, EditorCommands},
+    config::Config,
     cursor::Cursor,
 };
 
@@ -20,9 +21,8 @@ pub struct Pane {
     pub id: u16,
     pub cursor: Cursor,
     buffer: Rc<RefCell<Buffer>>,
+    config: &'static Config,
     dimensions: PaneDimensions,
-    pub sidebar_width: u16,
-    pub sidebar_gap: u16,
     stdout: Stdout,
 }
 
@@ -50,8 +50,7 @@ impl Pane {
         Self {
             id,
             buffer,
-            sidebar_width: 5,
-            sidebar_gap: 1,
+            config: Config::get(),
             stdout: stdout(),
             cursor: Cursor::new(),
             dimensions,
@@ -87,7 +86,7 @@ impl Pane {
     }
 
     fn draw_cursor(&mut self) -> Result<()> {
-        let col = self.cursor.col + self.sidebar_width + self.sidebar_gap;
+        let col = self.cursor.col + self.config.sidebar_width + self.config.sidebar_gap;
         self.stdout.queue(cursor::MoveTo(col, self.cursor.row))?;
         Ok(())
     }
@@ -104,7 +103,7 @@ impl Pane {
 
         for i in 0..total_lines {
             let line = (i + 1_usize).to_string();
-            let offset = self.dimensions.col + self.sidebar_width - line.len() as u16;
+            let offset = self.dimensions.col + self.config.sidebar_width - line.len() as u16;
 
             self.stdout
                 .queue(cursor::MoveTo(offset, i as u16))?
@@ -115,7 +114,7 @@ impl Pane {
 
     fn draw_empty_lines(&mut self) -> Result<()> {
         let total_lines = self.buffer.borrow().lines.len() as u16;
-        let offset = self.dimensions.col + self.sidebar_width - self.sidebar_gap;
+        let offset = self.dimensions.col + self.config.sidebar_width - self.config.sidebar_gap;
         for row in total_lines..self.dimensions.height {
             self.stdout
                 .queue(cursor::MoveTo(offset, self.dimensions.row + row))?
@@ -126,7 +125,7 @@ impl Pane {
 
     fn draw_buffer(&mut self) -> Result<()> {
         let lines = &self.buffer.borrow().lines;
-        let offset = self.dimensions.col + self.sidebar_width + self.sidebar_gap;
+        let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
         for row in 0..self.dimensions.height {
             let line = &lines[row as usize];
             let len = self.dimensions.width.min(line.len() as u16);

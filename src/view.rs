@@ -13,6 +13,7 @@ use std::{
 use crate::{
     buffer::Buffer,
     command::{Command, EditorCommands},
+    config::Config,
     pane::{Pane, PaneDimensions},
     window::Window,
 };
@@ -37,6 +38,7 @@ pub struct View {
     next_pane_id: u16,
     next_buffer_id: u16,
     next_window_id: u16,
+    config: &'static Config,
 }
 
 impl View {
@@ -58,6 +60,7 @@ impl View {
             stdout: stdout(),
             size: size.into(),
             active_window: window.clone(),
+            config: Config::get(),
         })
     }
 
@@ -110,7 +113,7 @@ impl View {
         let cursor_position = active_pane.borrow().get_cursor_readable_position();
         let (col, row) = cursor_position;
         let cursor = format!("{}:{}", row, col);
-        let padding = self.size.width - cursor.len() as u16 - active_pane.borrow().sidebar_width;
+        let padding = self.size.width - cursor.len() as u16 - self.config.sidebar_width;
         self.stdout
             .queue(cursor::MoveTo(padding as u16, self.size.height))?
             .queue(Print(cursor.with(Color::White)))?;
