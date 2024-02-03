@@ -1,25 +1,13 @@
-use crossterm::{
-    cursor,
-    style::{Color, Print, Stylize},
-    QueueableCommand,
-};
-use std::{
-    cell::RefCell,
-    io::{stdout, Result, Stdout},
-    rc::Rc,
-};
+use crossterm::{cursor, style::Print, QueueableCommand};
+use std::cell::RefCell;
+use std::io::{stdout, Result, Stdout};
+use std::rc::Rc;
 
-use crate::{
-    buffer::Buffer,
-    command::{Command, EditorCommands},
-    config::Config,
-    cursor::Cursor,
-};
-
-use super::{
-    line_drawer::{AbsoluteLineDrawer, LineDrawer},
-    pane_dimension::PaneDimensions,
-};
+use crate::buffer::Buffer;
+use crate::command::{Command, EditorCommands};
+use crate::config::{Config, LineNumbers};
+use crate::cursor::Cursor;
+use crate::pane::{AbsoluteLineDrawer, LineDrawer, PaneDimensions};
 
 pub struct Pane {
     pub id: u16,
@@ -33,21 +21,14 @@ pub struct Pane {
 
 impl Pane {
     pub fn new(id: u16, buffer: Rc<RefCell<Buffer>>, dimensions: PaneDimensions) -> Self {
-        let config = Config::get();
-        let stdout = stdout();
-        let line_drawer = match config.line_numbers {
-            true => AbsoluteLineDrawer::new(),
-            false => AbsoluteLineDrawer::new(),
-        };
-
         Self {
             id,
             buffer,
-            stdout,
-            config,
-            line_drawer: Box::new(line_drawer),
-            cursor: Cursor::new(),
             dimensions,
+            stdout: stdout(),
+            config: Config::get(),
+            cursor: Cursor::new(),
+            line_drawer: Pane::get_line_drawer(),
         }
     }
 
@@ -91,25 +72,14 @@ impl Pane {
             self.buffer.borrow().lines.len() as u16,
             self.cursor.row,
         )?;
-        self.draw_empty_lines()?;
-        Ok(())
-    }
-
-    fn draw_empty_lines(&mut self) -> Result<()> {
-        let total_lines = self.buffer.borrow().lines.len() as u16;
-        let offset = self.dimensions.col + self.config.sidebar_width - self.config.sidebar_gap;
-        for row in total_lines..self.dimensions.height {
-            self.stdout
-                .queue(cursor::MoveTo(offset, self.dimensions.row + row))?
-                .queue(Print("~".with(Color::DarkGrey)))?;
-        }
         Ok(())
     }
 
     fn draw_buffer(&mut self) -> Result<()> {
         let lines = &self.buffer.borrow().lines;
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
-        for row in 0..self.dimensions.height {
+        let total_lines = self.dimensions.height.min(lines.len() as u16);
+        for row in 0..total_lines {
             let line = &lines[row as usize];
             let len = self.dimensions.width.min(line.len() as u16);
             let line = line[0..len as usize].to_string();
@@ -118,6 +88,17 @@ impl Pane {
                 .queue(Print(line))?;
         }
         Ok(())
+    }
+
+    fn get_line_drawer() -> Box<dyn LineDrawer> {
+        let config = Config::get();
+        // TODO: implement the others line drwaers
+        match config.line_numbers {
+            LineNumbers::Absolute => Box::new(AbsoluteLineDrawer::new()),
+            LineNumbers::Relative => Box::new(AbsoluteLineDrawer::new()),
+            LineNumbers::RelativeNumbered => Box::new(AbsoluteLineDrawer::new()),
+            LineNumbers::None => Box::new(AbsoluteLineDrawer::new()),
+        }
     }
 }
 
