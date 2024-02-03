@@ -16,42 +16,36 @@ use crate::{
     cursor::Cursor,
 };
 
-#[derive(Debug)]
+use super::{
+    line_drawer::{AbsoluteLineDrawer, LineDrawer},
+    pane_dimension::PaneDimensions,
+};
+
 pub struct Pane {
     pub id: u16,
     pub cursor: Cursor,
     buffer: Rc<RefCell<Buffer>>,
     config: &'static Config,
+    line_drawer: Box<dyn LineDrawer>,
     dimensions: PaneDimensions,
     stdout: Stdout,
 }
 
-#[derive(Debug)]
-pub struct PaneDimensions {
-    pub row: u16,
-    pub col: u16,
-    pub height: u16,
-    pub width: u16,
-}
-
-impl From<(u16, u16)> for PaneDimensions {
-    fn from((width, height): (u16, u16)) -> Self {
-        Self {
-            col: 0,
-            row: 0,
-            width,
-            height,
-        }
-    }
-}
-
 impl Pane {
     pub fn new(id: u16, buffer: Rc<RefCell<Buffer>>, dimensions: PaneDimensions) -> Self {
+        let config = Config::get();
+        let stdout = stdout();
+        let line_drawer = match config.line_numbers {
+            true => AbsoluteLineDrawer::new(),
+            false => AbsoluteLineDrawer::new(),
+        };
+
         Self {
             id,
             buffer,
-            config: Config::get(),
-            stdout: stdout(),
+            stdout,
+            config,
+            line_drawer: Box::new(line_drawer),
             cursor: Cursor::new(),
             dimensions,
         }
@@ -92,23 +86,12 @@ impl Pane {
     }
 
     fn draw_sidebar(&mut self) -> Result<()> {
-        self.draw_line_numbers()?;
+        self.line_drawer.draw_lines(
+            &self.dimensions,
+            self.buffer.borrow().lines.len() as u16,
+            self.cursor.row,
+        )?;
         self.draw_empty_lines()?;
-        Ok(())
-    }
-
-    fn draw_line_numbers(&mut self) -> Result<()> {
-        let buffer = self.buffer.borrow();
-        let total_lines = usize::min(self.dimensions.height as usize, buffer.lines.len());
-
-        for i in 0..total_lines {
-            let line = (i + 1_usize).to_string();
-            let offset = self.dimensions.col + self.config.sidebar_width - line.len() as u16;
-
-            self.stdout
-                .queue(cursor::MoveTo(offset, i as u16))?
-                .queue(Print(line.with(Color::DarkGrey)))?;
-        }
         Ok(())
     }
 
@@ -135,5 +118,17 @@ impl Pane {
                 .queue(Print(line))?;
         }
         Ok(())
+    }
+}
+
+impl std::fmt::Debug for Pane {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Pane")
+            .field("id", &self.id)
+            .field("cursor", &self.cursor)
+            .field("buffer", &self.buffer)
+            .field("config", &self.config)
+            .field("dimensions", &self.dimensions)
+            .finish()
     }
 }

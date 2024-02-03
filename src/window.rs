@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    command::{Command, EditorCommands, WindowCommands},
+    command::Command,
     pane::{Pane, PaneDimensions},
     view::ViewSize,
 };
