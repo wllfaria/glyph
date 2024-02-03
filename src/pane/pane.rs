@@ -1,13 +1,16 @@
+use crossterm::terminal;
 use crossterm::{cursor, style::Print, QueueableCommand};
 use std::cell::RefCell;
 use std::io::{stdout, Result, Stdout};
 use std::rc::Rc;
 
 use crate::buffer::Buffer;
-use crate::command::{Command, EditorCommands};
+use crate::command::{Command, CursorCommands, EditorCommands};
 use crate::config::{Config, LineNumbers};
 use crate::cursor::Cursor;
 use crate::pane::{AbsoluteLineDrawer, LineDrawer, PaneDimensions};
+
+use super::relative_line_drawer::RelativeLineDrawer;
 
 pub struct Pane {
     pub id: u16,
@@ -56,6 +59,11 @@ impl Pane {
 
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
         self.cursor.handle(&command, &self.buffer.borrow().lines);
+        match command {
+            Command::Cursor(CursorCommands::MoveUp) => self.draw_sidebar()?,
+            Command::Cursor(CursorCommands::MoveDown) => self.draw_sidebar()?,
+            _ => (),
+        }
         self.draw_cursor()?;
         Ok(())
     }
@@ -67,11 +75,23 @@ impl Pane {
     }
 
     fn draw_sidebar(&mut self) -> Result<()> {
+        self.clear_sidebar()?;
         self.line_drawer.draw_lines(
             &self.dimensions,
             self.buffer.borrow().lines.len() as u16,
-            self.cursor.row,
+            self.cursor.row + 1,
         )?;
+        Ok(())
+    }
+
+    fn clear_sidebar(&mut self) -> Result<()> {
+        for row in 0..self.dimensions.height {
+            for col in 0..self.config.sidebar_width {
+                self.stdout
+                    .queue(cursor::MoveTo(col, row))?
+                    .queue(Print(" "))?;
+            }
+        }
         Ok(())
     }
 
@@ -95,8 +115,8 @@ impl Pane {
         // TODO: implement the others line drwaers
         match config.line_numbers {
             LineNumbers::Absolute => Box::new(AbsoluteLineDrawer::new()),
-            LineNumbers::Relative => Box::new(AbsoluteLineDrawer::new()),
-            LineNumbers::RelativeNumbered => Box::new(AbsoluteLineDrawer::new()),
+            LineNumbers::Relative => Box::new(RelativeLineDrawer::new()),
+            LineNumbers::RelativeNumbered => Box::new(RelativeLineDrawer::new()),
             LineNumbers::None => Box::new(AbsoluteLineDrawer::new()),
         }
     }

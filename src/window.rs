@@ -1,8 +1,3 @@
-use crossterm::{
-    cursor,
-    style::{Color, Print, Stylize},
-    QueueableCommand,
-};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -10,11 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::{
-    command::Command,
-    pane::{Pane, PaneDimensions},
-    view::ViewSize,
-};
+use crate::{command::Command, pane::Pane, view::ViewSize};
 
 #[derive(Debug)]
 pub struct Window {
