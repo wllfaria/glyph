@@ -14,6 +14,7 @@ pub struct Config {
     pub line_numbers: LineNumbers,
     pub sidebar_gap: u16,
     pub sidebar_width: u16,
+    pub empty_line_char: char,
 }
 
 impl Config {
@@ -22,6 +23,7 @@ impl Config {
             line_numbers: LineNumbers::Absolute,
             sidebar_gap: 1,
             sidebar_width: 5,
+            empty_line_char: '~',
         })
     }
 }

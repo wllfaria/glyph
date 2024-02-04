@@ -1,4 +1,3 @@
-use crossterm::terminal;
 use crossterm::{cursor, style::Print, QueueableCommand};
 use std::cell::RefCell;
 use std::io::{stdout, Result, Stdout};
@@ -8,9 +7,7 @@ use crate::buffer::Buffer;
 use crate::command::{Command, CursorCommands, EditorCommands};
 use crate::config::{Config, LineNumbers};
 use crate::cursor::Cursor;
-use crate::pane::{AbsoluteLineDrawer, LineDrawer, PaneDimensions};
-
-use super::relative_line_drawer::RelativeLineDrawer;
+use crate::pane::{LineDrawer, PaneDimensions};
 
 pub struct Pane {
     pub id: u16,
@@ -31,7 +28,7 @@ impl Pane {
             stdout: stdout(),
             config: Config::get(),
             cursor: Cursor::new(),
-            line_drawer: Pane::get_line_drawer(),
+            line_drawer: <dyn LineDrawer>::get_line_drawer(),
         }
     }
 
@@ -60,8 +57,8 @@ impl Pane {
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
         self.cursor.handle(&command, &self.buffer.borrow().lines);
         match command {
-            Command::Cursor(CursorCommands::MoveUp) => self.draw_sidebar()?,
-            Command::Cursor(CursorCommands::MoveDown) => self.draw_sidebar()?,
+            Command::Cursor(CursorCommands::MoveUp) => self.maybe_redraw_sidebar()?,
+            Command::Cursor(CursorCommands::MoveDown) => self.maybe_redraw_sidebar()?,
             _ => (),
         }
         self.draw_cursor()?;
@@ -74,12 +71,21 @@ impl Pane {
         Ok(())
     }
 
+    fn maybe_redraw_sidebar(&mut self) -> Result<()> {
+        match self.config.line_numbers {
+            LineNumbers::Absolute => (),
+            LineNumbers::None => (),
+            _ => self.draw_sidebar()?,
+        }
+        Ok(())
+    }
+
     fn draw_sidebar(&mut self) -> Result<()> {
         self.clear_sidebar()?;
         self.line_drawer.draw_lines(
             &self.dimensions,
             self.buffer.borrow().lines.len() as u16,
-            self.cursor.row + 1,
+            self.cursor.row,
         )?;
         Ok(())
     }
@@ -108,17 +114,6 @@ impl Pane {
                 .queue(Print(line))?;
         }
         Ok(())
-    }
-
-    fn get_line_drawer() -> Box<dyn LineDrawer> {
-        let config = Config::get();
-        // TODO: implement the others line drwaers
-        match config.line_numbers {
-            LineNumbers::Absolute => Box::new(AbsoluteLineDrawer::new()),
-            LineNumbers::Relative => Box::new(RelativeLineDrawer::new()),
-            LineNumbers::RelativeNumbered => Box::new(RelativeLineDrawer::new()),
-            LineNumbers::None => Box::new(AbsoluteLineDrawer::new()),
-        }
     }
 }
 

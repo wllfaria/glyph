@@ -36,6 +36,16 @@ impl LineDrawer for AbsoluteLineDrawer {
                 .queue(cursor::MoveTo(offset, i as u16))?
                 .queue(Print(line.with(Color::DarkGrey)))?;
         }
+
+        if total_lines < dimensions.height {
+            for i in total_lines..dimensions.height {
+                let offset = dimensions.col + self.config.sidebar_width - 1;
+                self.stdout
+                    .queue(cursor::MoveTo(offset, i as u16))?
+                    .queue(Print(self.config.empty_line_char))?;
+            }
+        }
+
         Ok(())
     }
 }
