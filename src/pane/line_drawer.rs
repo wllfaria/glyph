@@ -12,6 +12,7 @@ pub trait LineDrawer: std::fmt::Debug {
         dimensions: &PaneDimensions,
         total_lines: u16,
         current_line: u16,
+        scroll_row: u16,
     ) -> Result<()>;
 }
 

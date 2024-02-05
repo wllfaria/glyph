@@ -20,11 +20,22 @@ pub struct Config {
 
 impl Config {
     pub fn get() -> &'static Self {
-        CONFIG.get_or_init(|| Self {
-            line_numbers: LineNumbers::Absolute,
+        let mut config = Self {
+            line_numbers: LineNumbers::None,
             sidebar_gap: 1,
             sidebar_width: 5,
             empty_line_char: '~',
-        })
+        };
+
+        Config::set_sidebar_width_if_line_numbers_none(&mut config);
+
+        CONFIG.get_or_init(|| config)
+    }
+
+    fn set_sidebar_width_if_line_numbers_none(config: &mut Config) {
+        match config.line_numbers {
+            LineNumbers::None => config.sidebar_width = 1,
+            _ => (),
+        }
     }
 }

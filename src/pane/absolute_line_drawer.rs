@@ -25,11 +25,14 @@ impl LineDrawer for AbsoluteLineDrawer {
         dimensions: &PaneDimensions,
         total_lines: u16,
         _: u16,
+        scroll_row: u16,
     ) -> io::Result<()> {
         let total_lines = u16::min(dimensions.height, total_lines);
+        let mut scroll_row = scroll_row;
 
         for i in 0..total_lines {
-            let line = (i + 1).to_string();
+            scroll_row += 1;
+            let line = scroll_row.to_string();
             let offset = dimensions.col + self.config.sidebar_width - line.len() as u16;
 
             self.stdout

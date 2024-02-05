@@ -102,6 +102,7 @@ impl Pane {
             &self.dimensions,
             self.buffer.borrow().lines.len() as u16,
             self.cursor.position.row,
+            self.scroll.row,
         )?;
         Ok(())
     }

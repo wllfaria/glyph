@@ -28,17 +28,19 @@ impl LineDrawer for RelativeLineDrawer {
         dimensions: &super::PaneDimensions,
         total_lines: u16,
         current_line: u16,
+        scroll_row: u16,
     ) -> io::Result<()> {
         let total_lines = u16::min(dimensions.height, total_lines);
         let normalized_line = current_line + 1;
+        let mut scroll_row = scroll_row;
 
         for i in 0..total_lines {
-            let normalized_row = i + 1;
-            let mut line = u16::abs_diff(normalized_row, normalized_line).to_string();
+            scroll_row += 1;
+            let mut line = u16::abs_diff(scroll_row, normalized_line).to_string();
 
             match self.config.line_numbers {
                 LineNumbers::RelativeNumbered => match normalized_line {
-                    l if l == normalized_row => line = normalized_row.to_string(),
+                    l if l == scroll_row => line = scroll_row.to_string(),
                     _ => (),
                 },
                 _ => (),
