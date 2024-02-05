@@ -9,9 +9,12 @@ use crate::config::{Config, LineNumbers};
 use crate::cursor::Cursor;
 use crate::pane::{LineDrawer, PaneDimensions};
 
+use super::Position;
+
 pub struct Pane {
     pub id: u16,
     pub cursor: Cursor,
+    scroll: Position,
     buffer: Rc<RefCell<Buffer>>,
     config: &'static Config,
     line_drawer: Box<dyn LineDrawer>,
@@ -28,6 +31,7 @@ impl Pane {
             stdout: stdout(),
             config: Config::get(),
             cursor: Cursor::new(),
+            scroll: Position::default(),
             line_drawer: <dyn LineDrawer>::get_line_drawer(),
         }
     }
@@ -66,8 +70,9 @@ impl Pane {
     }
 
     fn draw_cursor(&mut self) -> Result<()> {
-        let col = self.cursor.col + self.config.sidebar_width + self.config.sidebar_gap;
-        self.stdout.queue(cursor::MoveTo(col, self.cursor.row))?;
+        let col = self.cursor.position.col + self.config.sidebar_width + self.config.sidebar_gap;
+        self.stdout
+            .queue(cursor::MoveTo(col, self.cursor.position.row))?;
         Ok(())
     }
 
@@ -85,7 +90,7 @@ impl Pane {
         self.line_drawer.draw_lines(
             &self.dimensions,
             self.buffer.borrow().lines.len() as u16,
-            self.cursor.row,
+            self.cursor.position.row,
         )?;
         Ok(())
     }
