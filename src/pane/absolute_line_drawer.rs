@@ -1,5 +1,5 @@
-use super::{LineDrawer, PaneDimensions};
 use crate::config::Config;
+use crate::pane::{LineDrawer, PaneDimensions};
 use crossterm::style::{Color, Print, Stylize};
 use crossterm::{cursor, QueueableCommand};
 use std::io;

@@ -25,13 +25,9 @@ impl From<(u16, u16)> for ViewSize {
 }
 
 pub struct View {
-    windows: HashMap<u16, Rc<RefCell<Window>>>,
     active_window: Rc<RefCell<Window>>,
     size: ViewSize,
     stdout: Stdout,
-    next_pane_id: u16,
-    next_buffer_id: u16,
-    next_window_id: u16,
     config: &'static Config,
 }
 
@@ -43,14 +39,10 @@ impl View {
         window_size.1 -= 1;
         let buffer = View::make_buffer(1, file_name);
         let pane = View::make_pane(1, buffer, window_size.into());
-        let window = View::make_window(1, window_size.into(), pane);
+        let window = View::make_window(1, pane);
         windows.insert(window.borrow().id, window.clone());
 
         Ok(Self {
-            windows,
-            next_pane_id: 2,
-            next_buffer_id: 2,
-            next_window_id: 2,
             stdout: stdout(),
             size: size.into(),
             active_window: window.clone(),
@@ -66,7 +58,6 @@ impl View {
             Command::Cursor(_) => self.handle_cursor(command)?,
             Command::Pane(_) => self.active_window.borrow_mut().handle(command)?,
             Command::Window(_) => self.active_window.borrow_mut().handle(command)?,
-            _ => (),
         };
         Ok(())
     }
@@ -135,7 +126,7 @@ impl View {
         Rc::new(RefCell::new(Pane::new(id, buffer, dimensions)))
     }
 
-    fn make_window(id: u16, size: ViewSize, pane: Rc<RefCell<Pane>>) -> Rc<RefCell<Window>> {
-        Rc::new(RefCell::new(Window::new(id, size, pane)))
+    fn make_window(id: u16, pane: Rc<RefCell<Pane>>) -> Rc<RefCell<Window>> {
+        Rc::new(RefCell::new(Window::new(id, pane)))
     }
 }
