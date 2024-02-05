@@ -1,9 +1,7 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    io::{stdout, Result, Stdout},
-    rc::Rc,
-};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::io::{stdout, Result, Stdout};
+use std::rc::Rc;
 
 use crate::{command::Command, pane::Pane, view::ViewSize};
 

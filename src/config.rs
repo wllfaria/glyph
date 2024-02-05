@@ -1,5 +1,6 @@
-use std::sync::OnceLock;
-static CONFIG: OnceLock<Config> = OnceLock::new();
+use std::sync;
+
+static CONFIG: sync::OnceLock<Config> = sync::OnceLock::new();
 
 #[derive(Debug)]
 pub enum LineNumbers {

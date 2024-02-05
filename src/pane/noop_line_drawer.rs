@@ -1,6 +1,6 @@
 use std::io;
 
-use super::{line_drawer::LineDrawer, PaneDimensions};
+use crate::pane::{line_drawer, PaneDimensions};
 
 #[derive(Debug)]
 pub struct NoopLineDrawer {}
@@ -11,7 +11,7 @@ impl NoopLineDrawer {
     }
 }
 
-impl LineDrawer for NoopLineDrawer {
+impl line_drawer::LineDrawer for NoopLineDrawer {
     fn draw_lines(&mut self, _: &PaneDimensions, _: u16, _: u16) -> io::Result<()> {
         Ok(())
     }

@@ -1,10 +1,8 @@
-use std::io::{stdout, Result, Write};
+use std::io::{self, Write};
 
-use crate::{
-    command::{Command, EditorCommands},
-    events::Events,
-    view::View,
-};
+use crate::command::{Command, EditorCommands};
+use crate::events::Events;
+use crate::view::View;
 
 pub struct Editor {
     is_running: bool,
@@ -13,7 +11,7 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn new(file_name: Option<String>) -> Result<Self> {
+    pub fn new(file_name: Option<String>) -> io::Result<Self> {
         Ok(Self {
             is_running: true,
             events: Events::new(),
@@ -21,7 +19,7 @@ impl Editor {
         })
     }
 
-    pub fn start(&mut self) -> Result<()> {
+    pub fn start(&mut self) -> io::Result<()> {
         self.view.handle(Command::Editor(EditorCommands::Start))?;
 
         while self.is_running {
@@ -33,7 +31,7 @@ impl Editor {
                 Some(command) => self.view.handle(command)?,
                 _ => (),
             }
-            stdout().flush()?;
+            io::stdout().flush()?;
         }
         Ok(())
     }

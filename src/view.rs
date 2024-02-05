@@ -1,22 +1,16 @@
-use crossterm::{
-    cursor::{self, SetCursorStyle},
-    style::{Color, Print, Stylize},
-    terminal, QueueableCommand,
-};
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    io::{stdout, Result, Stdout, Write},
-    rc::Rc,
-};
+use crossterm::cursor;
+use crossterm::style::{Color, Print, Stylize};
+use crossterm::{terminal, QueueableCommand};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::io::{stdout, Result, Stdout, Write};
+use std::rc::Rc;
 
-use crate::{
-    buffer::Buffer,
-    command::{Command, EditorCommands},
-    config::Config,
-    pane::{Pane, PaneDimensions},
-    window::Window,
-};
+use crate::buffer::Buffer;
+use crate::command::{Command, EditorCommands};
+use crate::config::Config;
+use crate::pane::{Pane, PaneDimensions};
+use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct ViewSize {
