@@ -59,6 +59,7 @@ impl Pane {
 
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
         self.cursor.handle(&command, &self.buffer.borrow().lines);
+        self.stdout.queue(cursor::Hide)?;
         match command {
             Command::Cursor(CursorCommands::MoveUp) => {
                 if self.cursor.position.row < self.scroll.row {
@@ -79,6 +80,7 @@ impl Pane {
             _ => (),
         }
         self.draw_cursor()?;
+        self.stdout.queue(cursor::Show)?;
         Ok(())
     }
 
