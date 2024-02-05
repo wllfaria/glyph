@@ -7,6 +7,7 @@ use crossterm::QueueableCommand;
 use crate::config::{Config, LineNumbers};
 use crate::pane::line_drawer::LineDrawer;
 
+#[derive(Debug)]
 pub struct RelativeLineDrawer {
     stdout: io::Stdout,
     config: &'static Config,

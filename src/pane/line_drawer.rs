@@ -6,7 +6,7 @@ use crate::pane::noop_line_drawer::NoopLineDrawer;
 use crate::pane::pane_dimension::PaneDimensions;
 use crate::pane::relative_line_drawer::RelativeLineDrawer;
 
-pub trait LineDrawer {
+pub trait LineDrawer: std::fmt::Debug {
     fn draw_lines(
         &mut self,
         dimensions: &PaneDimensions,

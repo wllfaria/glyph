@@ -7,10 +7,9 @@ use crate::buffer::Buffer;
 use crate::command::{Command, CursorCommands, EditorCommands};
 use crate::config::{Config, LineNumbers};
 use crate::cursor::Cursor;
-use crate::pane::{LineDrawer, PaneDimensions};
+use crate::pane::{LineDrawer, PaneDimensions, Position};
 
-use super::Position;
-
+#[derive(Debug)]
 pub struct Pane {
     pub id: u16,
     pub cursor: Cursor,
@@ -107,7 +106,7 @@ impl Pane {
     }
 
     fn draw_buffer(&mut self) -> Result<()> {
-        let lines = &self.buffer.borrow().lines;
+        let lines = &self.buffer.borrow().lines[self.scroll.row as usize..];
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
         let total_lines = self.dimensions.height.min(lines.len() as u16);
         for row in 0..total_lines {
@@ -119,17 +118,5 @@ impl Pane {
                 .queue(Print(line))?;
         }
         Ok(())
-    }
-}
-
-impl std::fmt::Debug for Pane {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Pane")
-            .field("id", &self.id)
-            .field("cursor", &self.cursor)
-            .field("buffer", &self.buffer)
-            .field("config", &self.config)
-            .field("dimensions", &self.dimensions)
-            .finish()
     }
 }

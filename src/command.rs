@@ -6,7 +6,6 @@ pub enum WindowCommands {
 #[derive(Debug)]
 pub enum EditorCommands {
     Quit,
-    Render,
     Start,
 }
 

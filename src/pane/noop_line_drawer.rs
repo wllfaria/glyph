@@ -2,6 +2,7 @@ use std::io;
 
 use super::{line_drawer::LineDrawer, PaneDimensions};
 
+#[derive(Debug)]
 pub struct NoopLineDrawer {}
 
 impl NoopLineDrawer {
