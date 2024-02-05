@@ -6,6 +6,7 @@ use crossterm::QueueableCommand;
 
 use crate::config::{Config, LineNumbers};
 use crate::pane::line_drawer::LineDrawer;
+use crate::pane::PaneDimensions;
 
 #[derive(Debug)]
 pub struct RelativeLineDrawer {
@@ -25,7 +26,7 @@ impl RelativeLineDrawer {
 impl LineDrawer for RelativeLineDrawer {
     fn draw_lines(
         &mut self,
-        dimensions: &super::PaneDimensions,
+        dimensions: &PaneDimensions,
         total_lines: u16,
         current_line: u16,
         scroll_row: u16,

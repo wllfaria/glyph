@@ -1,10 +1,14 @@
 use std::io::Result;
 
 use crate::config::{Config, LineNumbers};
-use crate::pane::absolute_line_drawer::AbsoluteLineDrawer;
-use crate::pane::noop_line_drawer::NoopLineDrawer;
-use crate::pane::pane_dimension::PaneDimensions;
-use crate::pane::relative_line_drawer::RelativeLineDrawer;
+use crate::pane::line_drawer::absolute_line_drawer::AbsoluteLineDrawer;
+use crate::pane::line_drawer::noop_line_drawer::NoopLineDrawer;
+use crate::pane::line_drawer::relative_line_drawer::RelativeLineDrawer;
+use crate::pane::PaneDimensions;
+
+mod absolute_line_drawer;
+mod noop_line_drawer;
+mod relative_line_drawer;
 
 pub trait LineDrawer: std::fmt::Debug {
     fn draw_lines(

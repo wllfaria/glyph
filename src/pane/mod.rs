@@ -1,15 +1,10 @@
-mod absolute_line_drawer;
+use crate::pane::line_drawer::LineDrawer;
+
+mod cursor;
 mod line_drawer;
-mod noop_line_drawer;
-mod relative_line_drawer;
-
-use line_drawer::LineDrawer;
-
-pub mod pane;
-pub mod pane_dimension;
+mod pane;
 
 pub use pane::Pane;
-pub use pane_dimension::PaneDimensions;
 
 #[derive(Debug)]
 pub struct Position {
@@ -20,5 +15,24 @@ pub struct Position {
 impl Default for Position {
     fn default() -> Self {
         Self { row: 0, col: 0 }
+    }
+}
+
+#[derive(Debug)]
+pub struct PaneDimensions {
+    pub row: u16,
+    pub col: u16,
+    pub height: u16,
+    pub width: u16,
+}
+
+impl From<(u16, u16)> for PaneDimensions {
+    fn from((width, height): (u16, u16)) -> Self {
+        Self {
+            col: 0,
+            row: 0,
+            width,
+            height,
+        }
     }
 }

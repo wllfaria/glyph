@@ -1,4 +1,4 @@
-use crossterm::{cursor, style::Print, QueueableCommand};
+use crossterm::{self, style::Print, QueueableCommand};
 use std::cell::RefCell;
 use std::io::{stdout, Result, Stdout};
 use std::rc::Rc;
@@ -6,8 +6,9 @@ use std::rc::Rc;
 use crate::buffer::Buffer;
 use crate::command::{Command, CursorCommands, EditorCommands};
 use crate::config::Config;
-use crate::cursor::Cursor;
-use crate::pane::{LineDrawer, PaneDimensions, Position};
+use crate::pane::cursor::Cursor;
+use crate::pane::line_drawer::LineDrawer;
+use crate::pane::{PaneDimensions, Position};
 
 #[derive(Debug)]
 pub struct Pane {
@@ -59,7 +60,7 @@ impl Pane {
 
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
         self.cursor.handle(&command, &self.buffer.borrow().lines);
-        self.stdout.queue(cursor::Hide)?;
+        self.stdout.queue(crossterm::cursor::Hide)?;
         match command {
             Command::Cursor(CursorCommands::MoveUp) => {
                 if self.cursor.position.row < self.scroll.row {
@@ -80,13 +81,13 @@ impl Pane {
             _ => (),
         }
         self.draw_cursor()?;
-        self.stdout.queue(cursor::Show)?;
+        self.stdout.queue(crossterm::cursor::Show)?;
         Ok(())
     }
 
     fn draw_cursor(&mut self) -> Result<()> {
         let col = self.cursor.position.col + self.config.sidebar_width + self.config.sidebar_gap;
-        self.stdout.queue(cursor::MoveTo(
+        self.stdout.queue(crossterm::cursor::MoveTo(
             col,
             self.cursor.position.row - self.scroll.row,
         ))?;
@@ -113,7 +114,7 @@ impl Pane {
         for row in 0..self.dimensions.height {
             for col in 0..self.config.sidebar_width {
                 self.stdout
-                    .queue(cursor::MoveTo(col, row))?
+                    .queue(crossterm::cursor::MoveTo(col, row))?
                     .queue(Print(" "))?;
             }
         }
@@ -125,7 +126,7 @@ impl Pane {
         for row in 0..self.dimensions.height {
             for col in offset..self.dimensions.width {
                 self.stdout
-                    .queue(cursor::MoveTo(col, row))?
+                    .queue(crossterm::cursor::MoveTo(col, row))?
                     .queue(Print(" "))?;
             }
         }
@@ -141,9 +142,10 @@ impl Pane {
             let len = u16::min(self.dimensions.width - offset, line.len() as u16);
             let line = line[0..len as usize].to_string();
             self.stdout
-                .queue(cursor::MoveTo(offset, row as u16))?
+                .queue(crossterm::cursor::MoveTo(offset, row as u16))?
                 .queue(Print(line))?;
         }
         Ok(())
     }
 }
+
