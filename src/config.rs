@@ -20,7 +20,7 @@ pub struct Config {
 impl Config {
     pub fn get() -> &'static Self {
         CONFIG.get_or_init(|| Self {
-            line_numbers: LineNumbers::Absolute,
+            line_numbers: LineNumbers::Relative,
             sidebar_gap: 1,
             sidebar_width: 5,
             empty_line_char: '~',

@@ -29,14 +29,15 @@ impl LineDrawer for RelativeLineDrawer {
         current_line: u16,
     ) -> io::Result<()> {
         let total_lines = u16::min(dimensions.height, total_lines);
+        let normalized_line = current_line + 1;
 
         for i in 0..total_lines {
-            let row_normalized = i + 1;
-            let mut line = u16::abs_diff(row_normalized, current_line).to_string();
+            let normalized_row = i + 1;
+            let mut line = u16::abs_diff(normalized_row, normalized_line).to_string();
 
             match self.config.line_numbers {
-                LineNumbers::RelativeNumbered => match current_line {
-                    l if l == row_normalized => line = row_normalized.to_string(),
+                LineNumbers::RelativeNumbered => match normalized_line {
+                    l if l == normalized_row => line = normalized_row.to_string(),
                     _ => (),
                 },
                 _ => (),

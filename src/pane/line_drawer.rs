@@ -2,6 +2,7 @@ use std::io::Result;
 
 use crate::config::{Config, LineNumbers};
 use crate::pane::absolute_line_drawer::AbsoluteLineDrawer;
+use crate::pane::noop_line_drawer::NoopLineDrawer;
 use crate::pane::pane_dimension::PaneDimensions;
 use crate::pane::relative_line_drawer::RelativeLineDrawer;
 
@@ -21,7 +22,7 @@ impl dyn LineDrawer {
             LineNumbers::Absolute => Box::new(AbsoluteLineDrawer::new()),
             LineNumbers::Relative => Box::new(RelativeLineDrawer::new()),
             LineNumbers::RelativeNumbered => Box::new(RelativeLineDrawer::new()),
-            LineNumbers::None => Box::new(AbsoluteLineDrawer::new()),
+            LineNumbers::None => Box::new(NoopLineDrawer::new()),
         }
     }
 }
