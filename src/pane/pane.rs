@@ -59,7 +59,9 @@ impl Pane {
     }
 
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
-        // self.cursor.handle(&command, &self.buffer.borrow().buffer);
+        let lines = &self.buffer.borrow().to_string();
+        let lines = lines.split('\n').collect::<Vec<&str>>();
+        self.cursor.handle(&command, &lines[0..]);
         self.stdout.queue(crossterm::cursor::Hide)?;
         match command {
             Command::Cursor(CursorCommands::MoveUp) => {
@@ -101,12 +103,13 @@ impl Pane {
 
     fn draw_sidebar(&mut self) -> Result<()> {
         self.clear_sidebar()?;
-        /* self.line_drawer.draw_lines(
+
+        self.line_drawer.draw_lines(
             &self.dimensions,
-            self.buffer.borrow().lines.len() as u16,
+            self.buffer.borrow().to_string().len() as u16,
             self.cursor.position.row,
             self.scroll.row,
-        )?; */
+        )?;
         Ok(())
     }
 
@@ -134,18 +137,22 @@ impl Pane {
     }
 
     fn draw_buffer(&mut self) -> Result<()> {
-        // let lines = &self.buffer.borrow().lines[self.scroll.row as usize..];
-        let lines: Vec<String> = vec![];
+        let buffer = self.buffer.borrow();
+        let mut lines = buffer.lines();
+        let height = self.dimensions.height;
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
-        let total_lines = self.dimensions.height.min(lines.len() as u16);
-        for row in 0..total_lines {
-            let line = &lines[row as usize];
+
+        for row in 0..height {
+            let line = lines.next().unwrap();
             let len = u16::min(self.dimensions.width - offset, line.len() as u16);
-            let line = line[0..len as usize].to_string();
+            let line = &line[0..len as usize];
+            let line = line.iter().collect::<String>();
+
             self.stdout
                 .queue(crossterm::cursor::MoveTo(offset, row as u16))?
                 .queue(Print(line))?;
         }
+
         Ok(())
     }
 }

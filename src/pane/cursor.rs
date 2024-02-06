@@ -13,7 +13,7 @@ impl Cursor {
         }
     }
 
-    pub fn handle(&mut self, command: &Command, lines: &[String]) {
+    pub fn handle(&mut self, command: &Command, lines: &[&str]) {
         match command {
             Command::Cursor(CursorCommands::MoveUp) => self.move_up(lines),
             Command::Cursor(CursorCommands::MoveRight) => self.move_right(lines),
@@ -27,7 +27,7 @@ impl Cursor {
         (self.position.col + 1, self.position.row + 1)
     }
 
-    fn move_up(&mut self, lines: &[String]) {
+    fn move_up(&mut self, lines: &[&str]) {
         self.position.row = self.position.row.saturating_sub(1);
         let line_len = lines[self.position.row as usize].len() as u16;
         match self.position.col {
@@ -37,7 +37,7 @@ impl Cursor {
         }
     }
 
-    fn move_right(&mut self, lines: &[String]) {
+    fn move_right(&mut self, lines: &[&str]) {
         let total_lines = lines.len() as u16 - 1;
         let line_len = lines[self.position.row as usize].len() as u16;
         match self.position.col {
@@ -52,7 +52,7 @@ impl Cursor {
         }
     }
 
-    fn move_down(&mut self, lines: &[String]) {
+    fn move_down(&mut self, lines: &[&str]) {
         let total_lines = lines.len() as u16 - 1;
         let line_len = lines[self.position.row as usize].len() as u16;
         match self.position.row {
@@ -65,7 +65,7 @@ impl Cursor {
         }
     }
 
-    fn move_left(&mut self, lines: &[String]) {
+    fn move_left(&mut self, lines: &[&str]) {
         match self.position.col {
             col if col == 0 && self.position.row == 0 => self.position.col = 0,
             col if col == 0 && self.position.row > 0 => {
