@@ -37,7 +37,7 @@ impl View {
         let size = terminal::size()?;
         let mut window_size = size.clone();
         window_size.1 -= 1;
-        let buffer = View::make_buffer(1, file_name);
+        let buffer = View::make_buffer(1, file_name)?;
         let pane = View::make_pane(1, buffer, window_size.into());
         let window = View::make_window(1, pane);
         windows.insert(window.borrow().id, window.clone());
@@ -114,8 +114,9 @@ impl View {
         Ok(())
     }
 
-    fn make_buffer(id: u16, file_name: Option<String>) -> Rc<RefCell<Buffer>> {
-        Rc::new(RefCell::new(Buffer::new(id, file_name)))
+    fn make_buffer(id: u16, file_name: Option<String>) -> Result<Rc<RefCell<Buffer>>> {
+        let buffer = Buffer::new(id, file_name)?;
+        Ok(Rc::new(RefCell::new(buffer)))
     }
 
     fn make_pane(

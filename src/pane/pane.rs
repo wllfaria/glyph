@@ -59,7 +59,7 @@ impl Pane {
     }
 
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
-        self.cursor.handle(&command, &self.buffer.borrow().lines);
+        // self.cursor.handle(&command, &self.buffer.borrow().buffer);
         self.stdout.queue(crossterm::cursor::Hide)?;
         match command {
             Command::Cursor(CursorCommands::MoveUp) => {
@@ -101,12 +101,12 @@ impl Pane {
 
     fn draw_sidebar(&mut self) -> Result<()> {
         self.clear_sidebar()?;
-        self.line_drawer.draw_lines(
+        /* self.line_drawer.draw_lines(
             &self.dimensions,
             self.buffer.borrow().lines.len() as u16,
             self.cursor.position.row,
             self.scroll.row,
-        )?;
+        )?; */
         Ok(())
     }
 
@@ -134,7 +134,8 @@ impl Pane {
     }
 
     fn draw_buffer(&mut self) -> Result<()> {
-        let lines = &self.buffer.borrow().lines[self.scroll.row as usize..];
+        // let lines = &self.buffer.borrow().lines[self.scroll.row as usize..];
+        let lines: Vec<String> = vec![];
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
         let total_lines = self.dimensions.height.min(lines.len() as u16);
         for row in 0..total_lines {
@@ -148,4 +149,3 @@ impl Pane {
         Ok(())
     }
 }
-
