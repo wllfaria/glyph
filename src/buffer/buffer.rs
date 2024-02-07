@@ -3,10 +3,13 @@ use std::io;
 use crate::buffer::lines::Lines;
 use crate::command::Command;
 
+use super::marker::{Mark, Marker};
+
 #[derive(Debug)]
 pub struct Buffer {
     pub id: u16,
     pub buffer: Vec<char>,
+    pub marker: Box<dyn Marker>,
     gap_start: usize,
     gap_end: usize,
     gap_size: usize,
@@ -22,9 +25,28 @@ impl Buffer {
         Ok(Buffer::from_string(id, &lines, gap))
     }
 
+    fn initialize_marker(buffer: &Vec<char>) -> Box<dyn Marker> {
+        let mut marker = <dyn Marker>::get_marker();
+        let mut lines = Lines {
+            buffer: &buffer,
+            start: 0,
+            end: buffer.len(),
+        };
+        let mut i = 1;
+        while let Some(line) = lines.next() {
+            let default = Mark::default();
+            let prev = marker.get_by_line(i).unwrap_or(&default);
+            let start = prev.start + prev.size;
+            marker.add_mark(Mark::new(start, i, line.len()), i - 1);
+            i += 1;
+        }
+        marker
+    }
+
     pub fn from_string(id: u16, content: &str, gap: usize) -> Self {
         let mut buffer = vec!['\0'; gap];
         buffer.extend(content.chars());
+        let marker = Self::initialize_marker(&buffer);
 
         Buffer {
             id,
@@ -32,6 +54,7 @@ impl Buffer {
             gap_start: 0,
             gap_size: gap,
             gap_end: gap,
+            marker,
         }
     }
 
@@ -331,5 +354,14 @@ This is a multiline string"#;
         let first_needle = ['H', 'e', 'l', 'o', ',', ' ', 'l', 'o', 'l', '!', ' ', '\n'];
 
         assert_eq!(first, first_needle);
+    }
+
+    #[test]
+    fn test_marks_initialization() {
+        let gap = 5;
+        let buffer = Buffer::from_string(1, "Hello, World!", gap);
+
+        assert_eq!(buffer.marker.len(), 1);
+        assert_eq!(buffer.marker.get_last_mark().unwrap(), &Mark::new(0, 1, 13));
     }
 }

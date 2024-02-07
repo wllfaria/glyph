@@ -21,7 +21,7 @@ pub struct Config {
 impl Config {
     pub fn get() -> &'static Self {
         let mut config = Self {
-            line_numbers: LineNumbers::None,
+            line_numbers: LineNumbers::Absolute,
             sidebar_gap: 1,
             sidebar_width: 5,
             empty_line_char: '~',

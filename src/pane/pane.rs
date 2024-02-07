@@ -143,7 +143,10 @@ impl Pane {
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
 
         for row in 0..height {
-            let line = lines.next().unwrap();
+            let line = match lines.next() {
+                Some(line) => line,
+                None => break,
+            };
             let len = u16::min(self.dimensions.width - offset, line.len() as u16);
             let line = &line[0..len as usize];
             let line = line.iter().collect::<String>();
