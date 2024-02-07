@@ -59,39 +59,36 @@ impl Pane {
     }
 
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
-        let lines = &self.buffer.borrow().to_string();
-        let lines = lines.split('\n').collect::<Vec<&str>>();
-        self.cursor.handle(&command, &lines[0..]);
         self.stdout.queue(crossterm::cursor::Hide)?;
+        self.cursor.handle(&command, &mut self.buffer.borrow_mut());
+        // TODO:
+        // - implement buffer scroll;
+        // - check if we need to redraw the sidebar
+        // - check if we need to redraw the buffer
         match command {
             Command::Cursor(CursorCommands::MoveUp) => {
-                if self.cursor.position.row < self.scroll.row {
-                    self.scroll.row = self.cursor.position.row;
-                    self.clear_buffer()?;
-                    self.draw_buffer()?;
-                }
-                self.maybe_redraw_sidebar()?;
+                self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveDown) => {
-                if self.cursor.position.row == self.scroll.row + self.dimensions.height {
-                    self.scroll.row += 1;
-                    self.clear_buffer()?;
-                    self.draw_buffer()?;
-                }
-                self.maybe_redraw_sidebar()?;
+                self.draw_cursor()?;
+            }
+            Command::Cursor(CursorCommands::MoveLeft) => {
+                self.draw_cursor()?;
+            }
+            Command::Cursor(CursorCommands::MoveRight) => {
+                self.draw_cursor()?;
             }
             _ => (),
         }
-        self.draw_cursor()?;
         self.stdout.queue(crossterm::cursor::Show)?;
         Ok(())
     }
 
     fn draw_cursor(&mut self) -> Result<()> {
-        let col = self.cursor.position.col + self.config.sidebar_width + self.config.sidebar_gap;
+        let col = self.cursor.col + self.config.sidebar_width + self.config.sidebar_gap;
         self.stdout.queue(crossterm::cursor::MoveTo(
             col,
-            self.cursor.position.row - self.scroll.row,
+            self.cursor.row - self.scroll.row,
         ))?;
         Ok(())
     }
@@ -107,8 +104,8 @@ impl Pane {
         self.line_drawer.draw_lines(
             &self.dimensions,
             self.buffer.borrow().to_string().len() as u16,
-            self.cursor.position.row,
-            self.scroll.row,
+            self.cursor.row,
+            self.cursor.row,
         )?;
         Ok(())
     }

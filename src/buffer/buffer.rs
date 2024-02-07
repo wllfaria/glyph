@@ -1,9 +1,8 @@
 use std::io;
 
 use crate::buffer::lines::Lines;
+use crate::buffer::marker::{Mark, Marker};
 use crate::command::Command;
-
-use super::marker::{Mark, Marker};
 
 #[derive(Debug)]
 pub struct Buffer {

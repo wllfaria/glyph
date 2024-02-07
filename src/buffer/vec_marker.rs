@@ -52,9 +52,9 @@ impl Marker for VecMarker {
     }
 
     fn get_by_line(&mut self, line: usize) -> Option<&Mark> {
-        let mark = self.marks.iter().nth(line - 1);
+        let mark = self.marks.iter().nth(line.saturating_sub(1));
         if let Some(mark) = mark {
-            self.last_mark = line - 1;
+            self.last_mark = line.saturating_sub(1);
             return Some(mark);
         }
         None
