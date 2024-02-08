@@ -2,7 +2,7 @@ use std::io;
 
 use crate::buffer::lines::Lines;
 use crate::buffer::marker::{Mark, Marker};
-use crate::command::Command;
+use crate::command::{BufferCommands, Command};
 
 #[derive(Debug)]
 pub struct Buffer {
@@ -24,28 +24,11 @@ impl Buffer {
         Ok(Buffer::from_string(id, &lines, gap))
     }
 
-    fn initialize_marker(buffer: &Vec<char>) -> Box<dyn Marker> {
-        let mut marker = <dyn Marker>::get_marker();
-        let mut lines = Lines {
-            buffer: &buffer,
-            start: 0,
-            end: buffer.len(),
-        };
-        let mut i = 1;
-        while let Some(line) = lines.next() {
-            let default = Mark::default();
-            let prev = marker.get_by_line(i).unwrap_or(&default);
-            let start = prev.start + prev.size;
-            marker.add_mark(Mark::new(start, i, line.len()), i - 1);
-            i += 1;
-        }
-        marker
-    }
-
     pub fn from_string(id: u16, content: &str, gap: usize) -> Self {
         let mut buffer = vec!['\0'; gap];
         buffer.extend(content.chars());
-        let marker = Self::initialize_marker(&buffer);
+        let mut marker = <dyn Marker>::get_marker();
+        marker.set_marks(&buffer);
 
         Buffer {
             id,
@@ -64,6 +47,7 @@ impl Buffer {
         if self.gap_start == self.gap_end {
             self.resize_gap();
         }
+        self.marker.set_marks(&self.buffer);
     }
 
     fn resize_gap(&mut self) {
@@ -85,6 +69,7 @@ impl Buffer {
         self.move_gap(cursor_pos);
         self.gap_start -= 1;
         self.buffer[self.gap_start] = '\0';
+        self.marker.set_marks(&self.buffer);
     }
 
     pub fn move_gap(&mut self, cursor_pos: usize) {
@@ -98,7 +83,6 @@ impl Buffer {
                 self.gap_end += 1;
             }
         } else {
-            println!("{:?}", self.buffer);
             for _ in (cursor_pos..self.gap_start).rev() {
                 self.gap_end -= 1;
                 self.gap_start -= 1;
@@ -135,7 +119,12 @@ impl Buffer {
         }
     }
 
-    pub fn handle(&self, _command: Command) {}
+    pub fn handle(&mut self, command: &Command, cursor_pos: usize) {
+        match command {
+            Command::Buffer(BufferCommands::Type(c)) => self.insert_char(*c, cursor_pos),
+            _ => (),
+        }
+    }
 }
 
 impl std::fmt::Display for Buffer {
@@ -314,8 +303,6 @@ This is a multiline string"#;
             buffer.insert_char(c, i + start_from);
         }
 
-        println!("{:?}", buffer.to_string());
-
         let mut lines = buffer.lines();
         let first = lines.next().unwrap();
         assert_eq!(first, first_needle);
@@ -325,7 +312,6 @@ This is a multiline string"#;
             buffer.insert_char(c, i + start_from);
         }
 
-        println!("{:?}", buffer.to_string());
         let mut lines = buffer.lines();
         let first = lines.next().unwrap();
         let second = lines.next().unwrap();
@@ -345,8 +331,6 @@ This is a multiline string"#;
         assert_eq!(fourth, None);
 
         buffer.delete_char(3);
-
-        println!("{:?}", buffer.to_string());
 
         let mut lines = buffer.lines();
         let first = lines.next().unwrap();

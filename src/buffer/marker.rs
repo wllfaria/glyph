@@ -29,6 +29,7 @@ pub trait Marker: std::fmt::Debug {
     fn get_by_cursor(&mut self, position: usize) -> Option<&Mark>;
     fn get_by_line(&mut self, line: usize) -> Option<&Mark>;
     fn get_last_mark(&self) -> Option<&Mark>;
+    fn set_marks(&mut self, text: &Vec<char>);
     fn len(&self) -> usize;
 }
 

@@ -1,5 +1,7 @@
 use crate::buffer::marker::{Mark, Marker};
 
+use super::lines::Lines;
+
 #[derive(Debug)]
 pub struct VecMarker {
     last_mark: usize,
@@ -62,6 +64,23 @@ impl Marker for VecMarker {
 
     fn get_last_mark(&self) -> Option<&Mark> {
         self.marks.iter().nth(self.last_mark)
+    }
+
+    fn set_marks(&mut self, buffer: &Vec<char>) {
+        self.marks.clear();
+        let mut lines = Lines {
+            buffer: &buffer,
+            start: 0,
+            end: buffer.len(),
+        };
+        let mut i = 1;
+        while let Some(line) = lines.next() {
+            let default = Mark::default();
+            let prev = self.get_by_line(i).unwrap_or(&default);
+            let start = prev.start + prev.size;
+            self.add_mark(Mark::new(start, i, line.len()), i - 1);
+            i += 1;
+        }
     }
 }
 

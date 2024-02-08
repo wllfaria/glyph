@@ -4,7 +4,7 @@ use std::io::{stdout, Result, Stdout};
 use std::rc::Rc;
 
 use crate::buffer::Buffer;
-use crate::command::{Command, CursorCommands, EditorCommands};
+use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
 use crate::config::Config;
 use crate::pane::cursor::Cursor;
 use crate::pane::line_drawer::LineDrawer;
@@ -37,13 +37,16 @@ impl Pane {
     }
 
     pub fn handle(&mut self, command: Command) -> Result<()> {
+        self.stdout.queue(crossterm::cursor::Hide)?;
         match command {
             Command::Editor(EditorCommands::Start) => self.initialize()?,
             Command::Cursor(_) => self.handle_cursor_command(command)?,
-            Command::Buffer(_) => self.buffer.borrow().handle(command),
+            Command::Buffer(_) => self.handle_buffer_command(command)?,
             Command::Pane(_) => (),
             _ => (),
         };
+        self.clear_buffer()?;
+        self.draw_buffer()?;
         Ok(())
     }
 
@@ -59,7 +62,6 @@ impl Pane {
     }
 
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
-        self.stdout.queue(crossterm::cursor::Hide)?;
         self.cursor.handle(&command, &mut self.buffer.borrow_mut());
         // TODO:
         // - implement buffer scroll;
@@ -81,6 +83,14 @@ impl Pane {
             _ => (),
         }
         self.stdout.queue(crossterm::cursor::Show)?;
+        Ok(())
+    }
+
+    fn handle_buffer_command(&mut self, command: Command) -> Result<()> {
+        self.buffer
+            .borrow_mut()
+            .handle(&command, self.cursor.absolute_position);
+        self.cursor.handle(&command, &mut self.buffer.borrow_mut());
         Ok(())
     }
 
@@ -122,6 +132,7 @@ impl Pane {
     }
 
     fn clear_buffer(&mut self) -> Result<()> {
+        self.stdout.queue(crossterm::cursor::SavePosition)?;
         let offset = self.config.sidebar_width + self.config.sidebar_gap;
         for row in 0..self.dimensions.height {
             for col in offset..self.dimensions.width {
@@ -130,10 +141,14 @@ impl Pane {
                     .queue(Print(" "))?;
             }
         }
+
+        self.stdout.queue(crossterm::cursor::RestorePosition)?;
+
         Ok(())
     }
 
     fn draw_buffer(&mut self) -> Result<()> {
+        self.stdout.queue(crossterm::cursor::SavePosition)?;
         let buffer = self.buffer.borrow();
         let mut lines = buffer.lines();
         let height = self.dimensions.height;
@@ -152,6 +167,8 @@ impl Pane {
                 .queue(crossterm::cursor::MoveTo(offset, row as u16))?
                 .queue(Print(line))?;
         }
+
+        self.stdout.queue(crossterm::cursor::RestorePosition)?;
 
         Ok(())
     }
