@@ -10,12 +10,25 @@ pub enum LineNumbers {
     None,
 }
 
+
+
+
+
+
+
+
+
+
+
+
 #[derive(Debug)]
 pub struct Config {
     pub line_numbers: LineNumbers,
     pub sidebar_gap: u16,
     pub sidebar_width: u16,
     pub empty_line_char: char,
+
+
 }
 
 impl Config {

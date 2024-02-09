@@ -1,7 +1,7 @@
 use std::io;
 
 use crate::buffer::lines::Lines;
-use crate::buffer::marker::{Mark, Marker};
+use crate::buffer::marker::Marker;
 use crate::command::{BufferCommands, Command};
 
 #[derive(Debug)]
@@ -111,14 +111,6 @@ impl Buffer {
         }
     }
 
-    pub fn lines_from(&self, start: usize) -> Lines {
-        Lines {
-            buffer: &self.buffer,
-            start,
-            end: self.buffer.len(),
-        }
-    }
-
     pub fn handle(&mut self, command: &Command, cursor_pos: usize) {
         match command {
             Command::Buffer(BufferCommands::Type(c)) => self.insert_char(*c, cursor_pos),
@@ -141,6 +133,7 @@ impl std::fmt::Display for Buffer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::buffer::marker::Mark;
 
     #[test]
     fn test_buffer_initialization() {
