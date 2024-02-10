@@ -1,5 +1,7 @@
 use std::io;
 
+use logger::info;
+
 use crate::buffer::lines::Lines;
 use crate::buffer::marker::Marker;
 use crate::command::{BufferCommands, Command};
@@ -41,6 +43,7 @@ impl Buffer {
     }
 
     pub fn insert_char(&mut self, char: char, cursor_pos: usize) {
+        info!("Inserting char at {}", cursor_pos);
         self.move_gap(cursor_pos);
         self.buffer[self.gap_start] = char;
         self.gap_start += 1;

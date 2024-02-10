@@ -1,48 +1,43 @@
 use chrono::Local;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 mod file_logger;
 mod log_level;
 mod logger_error;
+
 #[macro_use]
 mod macros;
-mod stdout_logger;
-mod writable;
-
-use writable::Writable;
 
 pub use file_logger::FileLogger;
 pub use log_level::LogLevel;
 pub use logger_error::LoggerError;
-pub use stdout_logger::StdoutLogger;
 
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 
-#[derive(Debug)]
 #[allow(dead_code)]
 pub struct Logger {
-    writer: Arc<dyn Writable>,
+    writer: Arc<Mutex<dyn std::fmt::Write + Send>>,
 }
 
 #[allow(dead_code)]
 impl Logger {
     pub fn new<T>(writer: T) -> Result<(), LoggerError>
     where
-        T: Writable + 'static,
+        T: std::fmt::Write + Send + 'static,
     {
         LOGGER
             .set(Logger {
-                writer: Arc::new(writer),
+                writer: Arc::new(Mutex::new(writer)),
             })
             .map_err(|_| LoggerError::AlreadyInitialized("Logger is already initialized"))
     }
 
-    pub fn log(level: LogLevel, message: &str) {
+    pub fn log(level: LogLevel, args: std::fmt::Arguments) {
         if let Some(logger) = LOGGER.get() {
             let now = Local::now();
             let time = now.format("%Y-%m-%d %H:%M:%S");
-            let message = format!("{} [{}] {}", time, level, message);
-            let _ = logger.writer.write(&message);
+            let message = format!("{} [{}] {}", time, level, args);
+            let _ = write!(logger.writer.lock().unwrap(), "{}", message);
         }
     }
 }

@@ -2,9 +2,6 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::logger_error::LoggerError;
-use crate::writable::Writable;
-
 #[derive(Debug)]
 pub struct FileLogger {
     path: PathBuf,
@@ -21,16 +18,13 @@ impl FileLogger {
     }
 }
 
-impl Writable for FileLogger {
-    fn write(&self, message: &str) -> Result<(), LoggerError> {
-        match OpenOptions::new()
+impl std::fmt::Write for FileLogger {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&self.path)
-        {
-            Ok(mut file) => writeln!(file, "{}", message)
-                .map_err(|_| LoggerError::FailedToWrite("Failed to write to log file")),
-            Err(_) => Err(LoggerError::FailedToOpen("Failed to open log file")),
-        }
+            .map_err(|_| std::fmt::Error)?;
+        writeln!(file, "{}", s).map_err(|_| std::fmt::Error)
     }
 }
