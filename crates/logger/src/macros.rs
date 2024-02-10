@@ -13,6 +13,13 @@ macro_rules! trace {
 }
 
 #[macro_export]
+macro_rules! debug {
+    ($($attr:expr),*) => {{
+        $crate::log!($crate::LogLevel::Debug, $($attr),*);
+    }}
+}
+
+#[macro_export]
 macro_rules! info {
     ($($attr:expr),*) => {{
         $crate::log!($crate::LogLevel::Info,  $($attr),*);
