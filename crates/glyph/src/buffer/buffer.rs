@@ -359,7 +359,7 @@ mod tests {
         let buffer = Buffer::from_string(1, "Hello, World!", gap);
 
         assert_eq!(buffer.marker.len(), 1);
-        assert_eq!(buffer.marker.get_last_mark().unwrap(), &Mark::new(0, 1, 13));
+        assert_eq!(buffer.marker.get_by_line(0).unwrap(), &Mark::new(0, 1, 13));
     }
 
     #[test]
