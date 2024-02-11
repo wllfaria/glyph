@@ -23,7 +23,10 @@ impl Cursor {
             Command::Cursor(CursorCommands::MoveRight) => self.move_right(buffer),
             Command::Cursor(CursorCommands::MoveDown) => self.move_down(buffer),
             Command::Cursor(CursorCommands::MoveLeft) => self.move_left(buffer),
-            Command::Buffer(BufferCommands::Type(_)) => self.move_right(buffer),
+            Command::Buffer(BufferCommands::Type(_)) => {
+                self.absolute_position += 1;
+                self.col += 1;
+            }
             _ => (),
         }
     }
@@ -38,7 +41,6 @@ impl Cursor {
             self.col = 0;
             return;
         }
-        self.row = self.row.saturating_sub(1);
         if let Some(mark) = buffer.marker.get_by_line(self.row as usize) {
             match self.col {
                 0 => self.absolute_position = mark.start,
@@ -47,6 +49,7 @@ impl Cursor {
                 }
                 _ => self.absolute_position = mark.start + self.col as usize,
             }
+            self.row = self.row.saturating_sub(1);
         }
     }
 
