@@ -45,8 +45,7 @@ impl Pane {
             Command::Pane(_) => (),
             _ => (),
         };
-        self.clear_buffer()?;
-        self.draw_buffer()?;
+        self.stdout.queue(crossterm::cursor::Show)?;
         Ok(())
     }
 
@@ -82,7 +81,6 @@ impl Pane {
             }
             _ => (),
         }
-        self.stdout.queue(crossterm::cursor::Show)?;
         Ok(())
     }
 
@@ -91,15 +89,45 @@ impl Pane {
             .borrow_mut()
             .handle(&command, self.cursor.absolute_position);
         self.cursor.handle(&command, &mut self.buffer.borrow_mut());
+        match command {
+            Command::Buffer(BufferCommands::Type(_)) => {
+                self.redraw_current_line()?;
+            }
+            _ => (),
+        }
+        self.draw_cursor()?;
+        Ok(())
+    }
+
+    fn redraw_current_line(&mut self) -> Result<()> {
+        if let Some(mark) = self.buffer.borrow().marker.get_last_mark() {
+            let text = self.buffer.borrow().line_from_mark(&mark);
+            let col = self.config.sidebar_gap + self.config.sidebar_width;
+            self.stdout
+                .queue(crossterm::cursor::MoveTo(col, self.cursor.row))?
+                .queue(Print(text))?;
+        }
+
         Ok(())
     }
 
     fn draw_cursor(&mut self) -> Result<()> {
-        let col = self.cursor.col + self.config.sidebar_width + self.config.sidebar_gap;
-        self.stdout.queue(crossterm::cursor::MoveTo(
-            col,
-            self.cursor.row - self.scroll.row,
-        ))?;
+        if let Some(mark) = self
+            .buffer
+            .borrow_mut()
+            .marker
+            .get_by_line(self.cursor.row as usize + 1)
+        {
+            let mut col = self.config.sidebar_width + self.config.sidebar_gap;
+            match self.cursor.col {
+                c if c >= mark.size as u16 - 1 => col += mark.size as u16,
+                _ => col += self.cursor.col,
+            };
+            self.stdout.queue(crossterm::cursor::MoveTo(
+                col,
+                self.cursor.row - self.scroll.row,
+            ))?;
+        }
         Ok(())
     }
 

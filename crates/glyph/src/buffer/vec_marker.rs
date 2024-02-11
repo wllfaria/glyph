@@ -141,4 +141,22 @@ mod tests {
         assert_eq!(mark, &Mark::new(30, 2, 10));
         assert_eq!(marker.last_mark, 1);
     }
+
+    #[test]
+    fn should_return_none_if_line_is_invalid() {
+        let mut marker = VecMarker::new();
+
+        let mark = marker.get_by_line(10);
+
+        assert_eq!(mark, None);
+    }
+
+    #[test]
+    fn should_return_none_if_cursor_is_invalid() {
+        let mut marker = VecMarker::new();
+
+        let mark = marker.get_by_cursor(10);
+
+        assert_eq!(mark, None);
+    }
 }

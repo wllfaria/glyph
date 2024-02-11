@@ -6,6 +6,8 @@ use crate::buffer::lines::Lines;
 use crate::buffer::marker::Marker;
 use crate::command::{BufferCommands, Command};
 
+use super::marker::Mark;
+
 #[derive(Debug)]
 pub struct Buffer {
     pub id: u16,
@@ -111,6 +113,18 @@ impl Buffer {
             buffer: &self.buffer,
             start: 0,
             end: self.buffer.len(),
+        }
+    }
+
+    pub fn line_from_mark(&self, mark: &Mark) -> String {
+        let mut lines = Lines {
+            buffer: &self.buffer,
+            start: mark.start,
+            end: self.buffer.len(),
+        };
+        match lines.next() {
+            Some(l) => l.iter().collect::<String>(),
+            _ => String::new(),
         }
     }
 
