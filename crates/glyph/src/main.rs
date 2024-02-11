@@ -12,7 +12,7 @@ use logger::{self, FileLogger, LogLevel, Logger};
 use editor::Editor;
 
 fn main() -> std::io::Result<()> {
-    let _ = Logger::new(FileLogger::new("./glyph.log"), LogLevel::None);
+    let _ = Logger::new(FileLogger::new("./glyph.log"), LogLevel::Trace);
     let file_name = std::env::args().nth(1);
     let mut editor = Editor::new(file_name)?;
     editor.start()?;

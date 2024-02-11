@@ -4,16 +4,12 @@ use super::lines::Lines;
 
 #[derive(Debug)]
 pub struct VecMarker {
-    last_mark: usize,
     marks: Vec<Mark>,
 }
 
 impl VecMarker {
     pub fn new() -> Self {
-        Self {
-            marks: Vec::new(),
-            last_mark: 0,
-        }
+        Self { marks: Vec::new() }
     }
 
     fn update_marks(&mut self) {
@@ -41,29 +37,23 @@ impl Marker for VecMarker {
         self.update_marks();
     }
 
-    fn get_by_cursor(&mut self, position: usize) -> Option<&Mark> {
+    fn get_by_cursor(&self, position: usize) -> Option<&Mark> {
         let index = self
             .marks
             .iter()
             .position(|m| position >= m.start && position <= m.start + m.size);
         if let Some(index) = index {
-            self.last_mark = index;
             return Some(&self.marks[index]);
         }
         None
     }
 
-    fn get_by_line(&mut self, line: usize) -> Option<&Mark> {
+    fn get_by_line(&self, line: usize) -> Option<&Mark> {
         let mark = self.marks.iter().nth(line.saturating_sub(1));
         if let Some(mark) = mark {
-            self.last_mark = line.saturating_sub(1);
             return Some(mark);
         }
         None
-    }
-
-    fn get_last_mark(&self) -> Option<&Mark> {
-        self.marks.iter().nth(self.last_mark)
     }
 
     fn set_marks(&mut self, buffer: &Vec<char>) {
@@ -126,7 +116,6 @@ mod tests {
         let mark = marker.get_by_cursor(36).unwrap();
 
         assert_eq!(mark, &Mark::new(30, 2, 10));
-        assert_eq!(marker.last_mark, 1);
     }
 
     #[test]
@@ -139,7 +128,6 @@ mod tests {
         let mark = marker.get_by_line(2).unwrap();
 
         assert_eq!(mark, &Mark::new(30, 2, 10));
-        assert_eq!(marker.last_mark, 1);
     }
 
     #[test]

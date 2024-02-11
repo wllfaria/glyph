@@ -93,6 +93,9 @@ impl Pane {
             Command::Buffer(BufferCommands::Type(_)) => {
                 self.redraw_current_line()?;
             }
+            Command::Buffer(BufferCommands::Backspace) => {
+                self.redraw_current_line()?;
+            }
             _ => (),
         }
         self.draw_cursor()?;
@@ -100,11 +103,15 @@ impl Pane {
     }
 
     fn redraw_current_line(&mut self) -> Result<()> {
-        if let Some(mark) = self.buffer.borrow().marker.get_last_mark() {
-            let text = self.buffer.borrow().line_from_mark(&mark);
+        let buffer = self.buffer.borrow();
+        if let Some(mark) = buffer.marker.get_by_line(self.cursor.row as usize + 1) {
+            let text = buffer.line_from_mark(&mark);
             let col = self.config.sidebar_gap + self.config.sidebar_width;
             self.stdout
                 .queue(crossterm::cursor::MoveTo(col, self.cursor.row))?
+                .queue(crossterm::terminal::Clear(
+                    crossterm::terminal::ClearType::UntilNewLine,
+                ))?
                 .queue(Print(text))?;
         }
 
@@ -120,7 +127,9 @@ impl Pane {
         {
             let mut col = self.config.sidebar_width + self.config.sidebar_gap;
             match self.cursor.col {
-                c if c >= mark.size as u16 - 1 => col += mark.size as u16,
+                c if c >= mark.size.saturating_sub(1) as u16 => {
+                    col += mark.size.saturating_sub(1) as u16
+                }
                 _ => col += self.cursor.col,
             };
             self.stdout.queue(crossterm::cursor::MoveTo(

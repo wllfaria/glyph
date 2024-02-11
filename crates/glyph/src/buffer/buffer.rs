@@ -117,9 +117,10 @@ impl Buffer {
     }
 
     pub fn line_from_mark(&self, mark: &Mark) -> String {
+        let pos = self.translate_cursor_pos(mark.start);
         let mut lines = Lines {
             buffer: &self.buffer,
-            start: mark.start,
+            start: pos,
             end: self.buffer.len(),
         };
         match lines.next() {
@@ -131,6 +132,7 @@ impl Buffer {
     pub fn handle(&mut self, command: &Command, cursor_pos: usize) {
         match command {
             Command::Buffer(BufferCommands::Type(c)) => self.insert_char(*c, cursor_pos),
+            Command::Buffer(BufferCommands::Backspace) => self.delete_char(cursor_pos),
             _ => (),
         }
     }

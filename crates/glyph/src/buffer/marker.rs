@@ -26,9 +26,8 @@ impl Mark {
 pub trait Marker: std::fmt::Debug {
     fn add_mark(&mut self, mark: Mark, at: usize);
     fn del_mark(&mut self, at: usize);
-    fn get_by_cursor(&mut self, position: usize) -> Option<&Mark>;
-    fn get_by_line(&mut self, line: usize) -> Option<&Mark>;
-    fn get_last_mark(&self) -> Option<&Mark>;
+    fn get_by_cursor(&self, position: usize) -> Option<&Mark>;
+    fn get_by_line(&self, line: usize) -> Option<&Mark>;
     fn set_marks(&mut self, text: &Vec<char>);
     fn len(&self) -> usize;
 }

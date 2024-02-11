@@ -1,5 +1,6 @@
 use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands};
+use logger;
 
 #[derive(Debug)]
 pub struct Cursor {
@@ -26,6 +27,11 @@ impl Cursor {
             Command::Buffer(BufferCommands::Type(_)) => {
                 self.absolute_position += 1;
                 self.col += 1;
+            }
+            Command::Buffer(BufferCommands::Backspace) => {
+                logger::debug!("{:?}", self);
+                self.absolute_position = self.absolute_position.saturating_sub(1);
+                self.col = self.col.saturating_sub(1);
             }
             _ => (),
         }
