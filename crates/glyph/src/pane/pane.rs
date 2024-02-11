@@ -88,27 +88,39 @@ impl Pane {
         self.buffer
             .borrow_mut()
             .handle(&command, self.cursor.absolute_position);
-        self.cursor.handle(&command, &mut self.buffer.borrow_mut());
         match command {
             Command::Buffer(BufferCommands::Type(_)) => {
-                self.redraw_current_line()?;
+                self.redraw_line(self.cursor.row + 1)?;
             }
             Command::Buffer(BufferCommands::Backspace) => {
-                self.redraw_current_line()?;
+                self.redraw_line(self.cursor.row + 1)?;
+            }
+            Command::Buffer(BufferCommands::NewLineBelow) => {
+                let (_, start) = self.cursor.get_readable_position();
+                let end = self.dimensions.height;
+                self.redraw_line_range(start..end)?;
             }
             _ => (),
         }
+        self.cursor.handle(&command, &mut self.buffer.borrow_mut());
         self.draw_cursor()?;
         Ok(())
     }
 
-    fn redraw_current_line(&mut self) -> Result<()> {
+    fn redraw_line_range(&mut self, range: std::ops::Range<u16>) -> Result<()> {
+        for line in range {
+            self.redraw_line(line)?;
+        }
+        Ok(())
+    }
+
+    fn redraw_line(&mut self, line: u16) -> Result<()> {
         let buffer = self.buffer.borrow();
-        if let Some(mark) = buffer.marker.get_by_line(self.cursor.row as usize + 1) {
+        if let Some(mark) = buffer.marker.get_by_line(line as usize) {
             let text = buffer.line_from_mark(&mark);
             let col = self.config.sidebar_gap + self.config.sidebar_width;
             self.stdout
-                .queue(crossterm::cursor::MoveTo(col, self.cursor.row))?
+                .queue(crossterm::cursor::MoveTo(col, line.saturating_sub(1)))?
                 .queue(crossterm::terminal::Clear(
                     crossterm::terminal::ClearType::UntilNewLine,
                 ))?

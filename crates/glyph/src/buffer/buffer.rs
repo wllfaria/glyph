@@ -133,6 +133,7 @@ impl Buffer {
         match command {
             Command::Buffer(BufferCommands::Type(c)) => self.insert_char(*c, cursor_pos),
             Command::Buffer(BufferCommands::Backspace) => self.delete_char(cursor_pos),
+            Command::Buffer(BufferCommands::NewLineBelow) => self.insert_char('\n', cursor_pos),
             _ => (),
         }
     }

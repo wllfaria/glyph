@@ -29,9 +29,13 @@ impl Cursor {
                 self.col += 1;
             }
             Command::Buffer(BufferCommands::Backspace) => {
-                logger::debug!("{:?}", self);
                 self.absolute_position = self.absolute_position.saturating_sub(1);
                 self.col = self.col.saturating_sub(1);
+            }
+            Command::Buffer(BufferCommands::NewLineBelow) => {
+                self.absolute_position += 1;
+                self.col = 0;
+                self.row += 1;
             }
             _ => (),
         }
