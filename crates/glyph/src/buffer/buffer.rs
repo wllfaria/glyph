@@ -149,6 +149,8 @@ impl std::fmt::Display for Buffer {
 
 #[cfg(test)]
 mod tests {
+    use crate::command::*;
+
     use super::*;
     use crate::buffer::marker::Mark;
 
@@ -278,8 +280,7 @@ mod tests {
     #[test]
     fn test_get_lines() {
         let gap = 5;
-        let multiline = r#"Hello, World!
-This is a multiline string"#;
+        let multiline = "Hello, World!\nThis is a multiline string";
         let buffer = Buffer::from_string(1, multiline, gap);
         let first_needle = [
             'H', 'e', 'l', 'l', 'o', ',', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\n',
@@ -356,5 +357,63 @@ This is a multiline string"#;
 
         assert_eq!(buffer.marker.len(), 1);
         assert_eq!(buffer.marker.get_last_mark().unwrap(), &Mark::new(0, 1, 13));
+    }
+
+    #[test]
+    fn test_return_line_from_mark() {
+        let gap = 5;
+        let buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let mark = Mark {
+            size: 13,
+            line: 1,
+            start: 0,
+        };
+
+        let line = buffer.line_from_mark(&mark);
+        assert_eq!(line, "Hello, World!");
+    }
+
+    #[test]
+    fn test_return_empty_line_from_invalid_mark() {
+        let gap = 5;
+        let buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let mark = Mark {
+            size: 10,
+            line: 2,
+            start: 14 + gap,
+        };
+
+        let line = buffer.line_from_mark(&mark);
+        assert_eq!(line, "");
+    }
+
+    #[test]
+    fn test_insert_char_through_command() {
+        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let first_needle = &"Hello!".chars().collect::<Vec<_>>();
+
+        buffer.handle(&Command::Buffer(BufferCommands::Type('!')), 5);
+
+        assert_eq!(buffer.gap_start, 6);
+        assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));
+        assert_eq!(buffer.gap_end - buffer.gap_start, 4);
+    }
+
+    #[test]
+    fn test_initialization_with_empty_filename() {
+        let gap = 1000;
+        let buffer = Buffer::new(1, None).unwrap();
+
+        assert_eq!(buffer.buffer.len(), gap);
+        assert_eq!(buffer.gap_start, 0);
+        assert_eq!(buffer.gap_end - buffer.gap_start, gap);
+        assert_eq!(buffer.gap_end, gap);
+    }
+
+    #[test]
+    fn test_errors_with_invalid_filename() {
+        let buffer = Buffer::new(1, Some(String::from("some_invalid_filename.extension")));
+
+        assert!(buffer.is_err());
     }
 }
