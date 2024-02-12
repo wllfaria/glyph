@@ -28,10 +28,16 @@ impl Cursor {
                 self.absolute_position += 1;
                 self.col += 1;
             }
-            Command::Buffer(BufferCommands::Backspace) => {
-                self.absolute_position = self.absolute_position.saturating_sub(1);
-                self.col = self.col.saturating_sub(1);
-            }
+            Command::Buffer(BufferCommands::Backspace) => match self.col {
+                0 => {
+                    self.move_up(buffer);
+                    self.move_to_end_of_line(buffer);
+                }
+                _ => {
+                    self.col = self.col.saturating_sub(1);
+                    self.absolute_position = self.absolute_position.saturating_sub(1);
+                }
+            },
             Command::Buffer(BufferCommands::NewLineBelow) => {
                 self.absolute_position += 1;
                 self.col = 0;
@@ -100,9 +106,7 @@ impl Cursor {
             0 => {
                 assert!(self.row > 0);
                 self.move_up(buffer);
-                let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
-                self.col = mark.size.saturating_sub(1) as u16;
-                self.absolute_position = mark.start + mark.size.saturating_sub(1);
+                self.move_to_end_of_line(buffer);
             }
             _ => {
                 self.col = self.col.saturating_sub(1);
@@ -113,6 +117,12 @@ impl Cursor {
                 self.absolute_position -= 1;
             }
         }
+    }
+
+    fn move_to_end_of_line(&mut self, buffer: &mut Buffer) {
+        let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
+        self.col = mark.size.saturating_sub(1) as u16;
+        self.absolute_position = mark.start + mark.size.saturating_sub(1);
     }
 }
 

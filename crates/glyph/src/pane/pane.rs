@@ -1,6 +1,7 @@
 use crossterm::{self, style::Print, QueueableCommand};
 use std::cell::RefCell;
 use std::io::{stdout, Result, Stdout};
+use std::ops::RangeBounds;
 use std::rc::Rc;
 
 use crate::buffer::Buffer;
@@ -85,29 +86,51 @@ impl Pane {
     }
 
     fn handle_buffer_command(&mut self, command: Command) -> Result<()> {
-        self.buffer
-            .borrow_mut()
-            .handle(&command, self.cursor.absolute_position);
         match command {
             Command::Buffer(BufferCommands::Type(_)) => {
+                self.buffer
+                    .borrow_mut()
+                    .handle(&command, self.cursor.absolute_position);
+                self.cursor.handle(&command, &mut self.buffer.borrow_mut());
                 self.redraw_line(self.cursor.row + 1)?;
             }
-            Command::Buffer(BufferCommands::Backspace) => {
-                self.redraw_line(self.cursor.row + 1)?;
-            }
+            Command::Buffer(BufferCommands::Backspace) => match self.cursor.col {
+                0 => {
+                    self.cursor.handle(&command, &mut self.buffer.borrow_mut());
+                    self.buffer
+                        .borrow_mut()
+                        .handle(&command, self.cursor.absolute_position + 1);
+                    self.redraw_line_range(
+                        self.cursor.row.saturating_sub(1)..=self.dimensions.height,
+                    )?;
+                }
+                _ => {
+                    self.buffer
+                        .borrow_mut()
+                        .handle(&command, self.cursor.absolute_position);
+                    self.redraw_line(self.cursor.row + 1)?;
+                    self.cursor.handle(&command, &mut self.buffer.borrow_mut());
+                }
+            },
             Command::Buffer(BufferCommands::NewLineBelow) => {
                 let (_, start) = self.cursor.get_readable_position();
                 let end = self.dimensions.height;
+                self.buffer
+                    .borrow_mut()
+                    .handle(&command, self.cursor.absolute_position);
+                self.cursor.handle(&command, &mut self.buffer.borrow_mut());
                 self.redraw_line_range(start..end)?;
             }
             _ => (),
         }
-        self.cursor.handle(&command, &mut self.buffer.borrow_mut());
         self.draw_cursor()?;
         Ok(())
     }
 
-    fn redraw_line_range(&mut self, range: std::ops::Range<u16>) -> Result<()> {
+    fn redraw_line_range<R>(&mut self, range: R) -> Result<()>
+    where
+        R: RangeBounds<u16> + std::iter::Iterator<Item = u16>,
+    {
         for line in range {
             self.redraw_line(line)?;
         }
