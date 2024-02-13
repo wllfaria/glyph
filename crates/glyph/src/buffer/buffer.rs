@@ -116,6 +116,14 @@ impl Buffer {
         }
     }
 
+    pub fn lines_from(&self, line: usize) -> Lines {
+        let mut lines = self.lines();
+        for _ in 0..line {
+            lines.next();
+        }
+        lines
+    }
+
     pub fn line_from_mark(&self, mark: &Mark) -> String {
         let pos = self.translate_cursor_pos(mark.start);
         let mut lines = Lines {
@@ -418,5 +426,31 @@ mod tests {
         let buffer = Buffer::new(1, Some(String::from("some_invalid_filename.extension")));
 
         assert!(buffer.is_err());
+    }
+
+    #[test]
+    fn test_delete_char_through_command() {
+        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let first_needle = &"Hell".chars().collect::<Vec<_>>();
+
+        buffer.handle(&Command::Buffer(BufferCommands::Backspace), 5);
+
+        assert_eq!(buffer.gap_start, 4);
+        assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));
+        assert_eq!(buffer.gap_end - buffer.gap_start, 6);
+    }
+
+    #[test]
+    fn test_insert_newline_through_command() {
+        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let first_needle = &"Hello".chars().collect::<Vec<_>>();
+        let second_needle = &", World!".chars().collect::<Vec<_>>();
+
+        buffer.handle(&Command::Buffer(BufferCommands::NewLineBelow), 5);
+
+        assert_eq!(buffer.gap_start, 6);
+        assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));
+        assert!(buffer.buffer[buffer.gap_end..].starts_with(second_needle));
+        assert_eq!(buffer.gap_end - buffer.gap_start, 4);
     }
 }

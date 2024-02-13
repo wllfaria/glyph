@@ -72,6 +72,12 @@ impl Pane {
                 self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveDown) => {
+                if self.cursor.row >= self.dimensions.height {
+                    self.scroll.row += 1;
+                    self.clear_buffer()?;
+                    self.draw_buffer()?;
+                    self.draw_sidebar()?
+                }
                 self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveLeft) => {
@@ -187,7 +193,7 @@ impl Pane {
             &self.dimensions,
             self.buffer.borrow().to_string().len() as u16,
             self.cursor.row,
-            self.cursor.row,
+            self.scroll.row,
         )?;
         Ok(())
     }
@@ -222,7 +228,7 @@ impl Pane {
     fn draw_buffer(&mut self) -> Result<()> {
         self.stdout.queue(crossterm::cursor::SavePosition)?;
         let buffer = self.buffer.borrow();
-        let mut lines = buffer.lines();
+        let mut lines = buffer.lines_from(self.scroll.row as usize);
         let height = self.dimensions.height;
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
 
