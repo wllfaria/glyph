@@ -69,6 +69,7 @@ impl Pane {
         // - check if we need to redraw the buffer
         match command {
             Command::Cursor(CursorCommands::MoveUp) => {
+                self.draw_sidebar()?;
                 self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveDown) => {
@@ -76,14 +77,17 @@ impl Pane {
                     self.scroll.row += 1;
                     self.clear_buffer()?;
                     self.draw_buffer()?;
-                    self.draw_sidebar()?
+                    self.draw_sidebar()?;
                 }
+                self.draw_sidebar()?;
                 self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveLeft) => {
+                self.draw_sidebar()?;
                 self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveRight) => {
+                self.draw_sidebar()?;
                 self.draw_cursor()?;
             }
             _ => (),
@@ -99,6 +103,7 @@ impl Pane {
                     .handle(&command, self.cursor.absolute_position)?;
                 self.cursor.handle(&command, &mut self.buffer.borrow_mut());
                 self.redraw_line(self.cursor.row - self.scroll.row, self.cursor.row + 1)?;
+                self.draw_sidebar()?;
             }
             Command::Buffer(BufferCommands::Backspace) => match self.cursor.col {
                 0 => {
@@ -106,8 +111,13 @@ impl Pane {
                     self.buffer
                         .borrow_mut()
                         .handle(&command, self.cursor.absolute_position + 1)?;
-                    let start = self.cursor.row - self.scroll.row + 1;
-                    self.redraw_line_range(start..=self.dimensions.height)?;
+                    let start = self.cursor.row - self.scroll.row;
+                    let mut i = 1;
+                    for pane_line in start..self.dimensions.height {
+                        self.redraw_line(pane_line, self.cursor.row + i)?;
+                        i += 1;
+                    }
+                    self.draw_sidebar()?;
                 }
                 _ => {
                     self.buffer
@@ -115,16 +125,21 @@ impl Pane {
                         .handle(&command, self.cursor.absolute_position)?;
                     self.redraw_line(self.cursor.row - self.scroll.row, self.cursor.row + 1)?;
                     self.cursor.handle(&command, &mut self.buffer.borrow_mut());
+                    self.draw_sidebar()?;
                 }
             },
             Command::Buffer(BufferCommands::NewLineBelow) => {
-                let end = self.dimensions.height;
                 self.buffer
                     .borrow_mut()
                     .handle(&command, self.cursor.absolute_position)?;
                 self.cursor.handle(&command, &mut self.buffer.borrow_mut());
                 let start = self.cursor.row - self.scroll.row;
-                self.redraw_line_range(start - 1..end)?;
+                let mut i = 0;
+                for pane_line in start - 1..self.dimensions.height {
+                    self.redraw_line(pane_line, self.cursor.row + i)?;
+                    i += 1;
+                }
+                self.draw_sidebar()?;
             }
             _ => self
                 .buffer
@@ -135,29 +150,22 @@ impl Pane {
         Ok(())
     }
 
-    fn redraw_line_range<R>(&mut self, range: R) -> Result<()>
-    where
-        R: RangeBounds<u16> + std::iter::Iterator<Item = u16>,
-    {
-        let mut i = 0;
-        for line in range {
-            self.redraw_line(line, self.cursor.row + i)?;
-            i += 1;
-        }
-        Ok(())
-    }
-
-    fn redraw_line(&mut self, pane_line: u16, cursor_line: u16) -> Result<()> {
+    fn redraw_line(&mut self, pane_line: u16, buffer_line: u16) -> Result<()> {
         let buffer = self.buffer.borrow();
-        if let Some(mark) = buffer.marker.get_by_line(cursor_line as usize) {
-            let text = buffer.line_from_mark(&mark);
+        let len = buffer.marker.len();
+        if pane_line as usize > len {
+            return Ok(());
+        }
+        if let Some(mark) = buffer.marker.get_by_line(buffer_line as usize) {
+            let line = buffer.line_from_mark(&mark);
+            logger::debug!("{} {} {} - {}", mark.start, mark.size, mark.line, line);
             let col = self.config.sidebar_gap + self.config.sidebar_width;
             self.stdout
                 .queue(crossterm::cursor::MoveTo(col, pane_line))?
                 .queue(crossterm::terminal::Clear(
                     crossterm::terminal::ClearType::UntilNewLine,
                 ))?
-                .queue(Print(text))?;
+                .queue(Print(line))?;
         }
 
         Ok(())
@@ -195,7 +203,7 @@ impl Pane {
 
         self.line_drawer.draw_lines(
             &self.dimensions,
-            self.buffer.borrow().to_string().len() as u16,
+            self.buffer.borrow().marker.len() as u16,
             self.cursor.row,
             self.scroll.row,
         )?;
@@ -232,7 +240,7 @@ impl Pane {
     fn draw_buffer(&mut self) -> Result<()> {
         self.stdout.queue(crossterm::cursor::SavePosition)?;
         let buffer = self.buffer.borrow();
-        let mut lines = buffer.lines_from(self.scroll.row as usize);
+        let mut lines = buffer.lines_from(self.cursor.row as usize);
         let height = self.dimensions.height;
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
 
@@ -241,9 +249,8 @@ impl Pane {
                 Some(line) => line,
                 None => break,
             };
-            let len = u16::min(self.dimensions.width - offset, line.len() as u16);
-            let line = &line[0..len as usize];
-            let line = line.iter().collect::<String>();
+            let len = u16::min(self.dimensions.width - offset, line.len() as u16) as usize;
+            let line = &line[0..len].iter().collect::<String>();
 
             self.stdout
                 .queue(crossterm::cursor::MoveTo(offset, row as u16))?

@@ -10,31 +10,18 @@ pub enum LineNumbers {
     None,
 }
 
-
-
-
-
-
-
-
-
-
-
-
 #[derive(Debug)]
 pub struct Config {
     pub line_numbers: LineNumbers,
     pub sidebar_gap: u16,
     pub sidebar_width: u16,
     pub empty_line_char: char,
-
-
 }
 
 impl Config {
     pub fn get() -> &'static Self {
         let mut config = Self {
-            line_numbers: LineNumbers::Absolute,
+            line_numbers: LineNumbers::RelativeNumbered,
             sidebar_gap: 1,
             sidebar_width: 5,
             empty_line_char: '~',
