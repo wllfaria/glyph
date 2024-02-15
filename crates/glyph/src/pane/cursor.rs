@@ -95,8 +95,8 @@ impl Cursor {
             }
         } else {
             let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
-            self.absolute_position = mark.start + mark.size.saturating_sub(1);
-            self.col = mark.size.saturating_sub(1) as u16;
+            self.absolute_position = mark.start + mark.size;
+            self.col = mark.size as u16;
         }
     }
 

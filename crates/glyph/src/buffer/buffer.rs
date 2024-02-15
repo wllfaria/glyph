@@ -28,7 +28,7 @@ impl Buffer {
         };
         let gap = 1000;
         let mut buffer = Buffer::from_string(id, &lines, gap);
-        buffer.file_name = file_name.unwrap();
+        buffer.file_name = file_name.unwrap_or(String::new());
         Ok(buffer)
     }
 
