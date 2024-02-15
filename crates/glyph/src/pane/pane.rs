@@ -72,7 +72,7 @@ impl Pane {
                 self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveDown) => {
-                if self.cursor.row >= self.dimensions.height {
+                if self.cursor.row - self.scroll.row >= self.dimensions.height {
                     self.scroll.row += 1;
                     self.clear_buffer()?;
                     self.draw_buffer()?;
@@ -96,25 +96,24 @@ impl Pane {
             Command::Buffer(BufferCommands::Type(_)) => {
                 self.buffer
                     .borrow_mut()
-                    .handle(&command, self.cursor.absolute_position);
+                    .handle(&command, self.cursor.absolute_position)?;
                 self.cursor.handle(&command, &mut self.buffer.borrow_mut());
-                self.redraw_line(self.cursor.row + 1)?;
+                self.redraw_line(self.cursor.row - self.scroll.row)?;
             }
             Command::Buffer(BufferCommands::Backspace) => match self.cursor.col {
                 0 => {
                     self.cursor.handle(&command, &mut self.buffer.borrow_mut());
                     self.buffer
                         .borrow_mut()
-                        .handle(&command, self.cursor.absolute_position + 1);
-                    self.redraw_line_range(
-                        self.cursor.row.saturating_sub(1)..=self.dimensions.height,
-                    )?;
+                        .handle(&command, self.cursor.absolute_position + 1)?;
+                    let start = self.cursor.row - self.scroll.row;
+                    self.redraw_line_range(start..=self.dimensions.height)?;
                 }
                 _ => {
                     self.buffer
                         .borrow_mut()
-                        .handle(&command, self.cursor.absolute_position);
-                    self.redraw_line(self.cursor.row + 1)?;
+                        .handle(&command, self.cursor.absolute_position)?;
+                    self.redraw_line(self.cursor.row - self.scroll.row)?;
                     self.cursor.handle(&command, &mut self.buffer.borrow_mut());
                 }
             },
@@ -123,11 +122,14 @@ impl Pane {
                 let end = self.dimensions.height;
                 self.buffer
                     .borrow_mut()
-                    .handle(&command, self.cursor.absolute_position);
+                    .handle(&command, self.cursor.absolute_position)?;
                 self.cursor.handle(&command, &mut self.buffer.borrow_mut());
                 self.redraw_line_range(start..end)?;
             }
-            _ => (),
+            _ => self
+                .buffer
+                .borrow_mut()
+                .handle(&command, self.cursor.absolute_position)?,
         }
         self.draw_cursor()?;
         Ok(())
@@ -145,11 +147,11 @@ impl Pane {
 
     fn redraw_line(&mut self, line: u16) -> Result<()> {
         let buffer = self.buffer.borrow();
-        if let Some(mark) = buffer.marker.get_by_line(line as usize) {
+        if let Some(mark) = buffer.marker.get_by_cursor(self.cursor.absolute_position) {
             let text = buffer.line_from_mark(&mark);
             let col = self.config.sidebar_gap + self.config.sidebar_width;
             self.stdout
-                .queue(crossterm::cursor::MoveTo(col, line.saturating_sub(1)))?
+                .queue(crossterm::cursor::MoveTo(col, line))?
                 .queue(crossterm::terminal::Clear(
                     crossterm::terminal::ClearType::UntilNewLine,
                 ))?

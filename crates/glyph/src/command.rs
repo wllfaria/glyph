@@ -25,6 +25,7 @@ pub enum BufferCommands {
     NewLineBelow,
     Backspace,
     Type(char),
+    Save,
 }
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use crossterm::event;
+use crossterm::event::{poll, read, Event::Key, KeyCode, KeyEvent, KeyModifiers};
 use std::io;
 use std::time;
 
@@ -13,24 +13,25 @@ impl Events {
     }
 
     pub fn poll(&self) -> io::Result<Option<Command>> {
-        if event::poll(time::Duration::from_millis(0))? {
-            if let event::Event::Key(event::KeyEvent {
+        if poll(time::Duration::from_millis(0))? {
+            if let Key(KeyEvent {
                 code, modifiers, ..
-            }) = event::read()?
+            }) = read()?
             {
                 let command = match code {
-                    event::KeyCode::Enter => Some(Command::Buffer(BufferCommands::NewLineBelow)),
-                    event::KeyCode::Backspace => Some(Command::Buffer(BufferCommands::Backspace)),
-                    event::KeyCode::Left => Some(Command::Cursor(CursorCommands::MoveLeft)),
-                    event::KeyCode::Down => Some(Command::Cursor(CursorCommands::MoveDown)),
-                    event::KeyCode::Up => Some(Command::Cursor(CursorCommands::MoveUp)),
-                    event::KeyCode::Right => Some(Command::Cursor(CursorCommands::MoveRight)),
-                    c if c == event::KeyCode::Char('q')
-                        && modifiers == event::KeyModifiers::CONTROL =>
-                    {
+                    KeyCode::Enter => Some(Command::Buffer(BufferCommands::NewLineBelow)),
+                    KeyCode::Backspace => Some(Command::Buffer(BufferCommands::Backspace)),
+                    KeyCode::Left => Some(Command::Cursor(CursorCommands::MoveLeft)),
+                    KeyCode::Down => Some(Command::Cursor(CursorCommands::MoveDown)),
+                    KeyCode::Up => Some(Command::Cursor(CursorCommands::MoveUp)),
+                    KeyCode::Right => Some(Command::Cursor(CursorCommands::MoveRight)),
+                    c if c == KeyCode::Char('s') && modifiers == KeyModifiers::CONTROL => {
+                        Some(Command::Buffer(BufferCommands::Save))
+                    }
+                    c if c == KeyCode::Char('q') && modifiers == KeyModifiers::CONTROL => {
                         Some(Command::Editor(EditorCommands::Quit))
                     }
-                    event::KeyCode::Char(c) => Some(Command::Buffer(BufferCommands::Type(c))),
+                    KeyCode::Char(c) => Some(Command::Buffer(BufferCommands::Type(c))),
                     _ => None,
                 };
                 return Ok(command);

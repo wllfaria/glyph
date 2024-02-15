@@ -1,4 +1,5 @@
 use std::io;
+use std::path::PathBuf;
 
 use logger;
 
@@ -13,19 +14,22 @@ pub struct Buffer {
     pub id: u16,
     pub buffer: Vec<char>,
     pub marker: Box<dyn Marker>,
+    file_name: String,
     gap_start: usize,
     gap_end: usize,
     gap_size: usize,
 }
 
 impl Buffer {
-    pub fn new(id: u16, filename: Option<String>) -> io::Result<Self> {
-        let lines = match filename {
-            Some(filename) => std::fs::read_to_string(filename)?,
+    pub fn new(id: u16, file_name: Option<String>) -> io::Result<Self> {
+        let lines = match file_name {
+            Some(ref name) => std::fs::read_to_string(name)?,
             None => String::new(),
         };
         let gap = 1000;
-        Ok(Buffer::from_string(id, &lines, gap))
+        let mut buffer = Buffer::from_string(id, &lines, gap);
+        buffer.file_name = file_name.unwrap();
+        Ok(buffer)
     }
 
     pub fn from_string(id: u16, content: &str, gap: usize) -> Self {
@@ -41,6 +45,7 @@ impl Buffer {
             gap_size: gap,
             gap_end: gap,
             marker,
+            file_name: String::new(),
         }
     }
 
@@ -137,13 +142,24 @@ impl Buffer {
         }
     }
 
-    pub fn handle(&mut self, command: &Command, cursor_pos: usize) {
+    fn try_save(&self) -> std::io::Result<()> {
+        if let Ok(mut path) = std::env::current_dir() {
+            path.push(&self.file_name);
+            logger::debug!("saving file: {:?}", path);
+            std::fs::write(path, self.to_string())?;
+        }
+        Ok(())
+    }
+
+    pub fn handle(&mut self, command: &Command, cursor_pos: usize) -> std::io::Result<()> {
         match command {
             Command::Buffer(BufferCommands::Type(c)) => self.insert_char(*c, cursor_pos),
             Command::Buffer(BufferCommands::Backspace) => self.delete_char(cursor_pos),
             Command::Buffer(BufferCommands::NewLineBelow) => self.insert_char('\n', cursor_pos),
+            Command::Buffer(BufferCommands::Save) => self.try_save()?,
             _ => (),
-        }
+        };
+        Ok(())
     }
 }
 
