@@ -254,34 +254,43 @@ impl Pane {
     }
 
     fn draw_buffer(&mut self) -> Result<()> {
-        let start = Instant::now();
         self.stdout.queue(crossterm::cursor::SavePosition)?;
         let buffer = self.buffer.borrow();
-        let lines = buffer.lines_from(self.scroll.row as usize);
         let height = self.dimensions.height;
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
 
-        for (line, row) in lines.zip(0..height) {
-            let len = u16::min(self.dimensions.width - offset, line.len() as u16) as usize;
-            let line = &line[..len].iter().collect::<String>();
-            let colors = self.highlight.colors(line);
+        let start = Instant::now();
+        let lines = buffer.content_from(self.scroll.row as usize);
+        logger::debug!("getting viewport took: {:?}", start.elapsed());
+        let colors_a = self.highlight.colors(&lines);
+        logger::debug!("highlighting took: {:?}", start.elapsed());
 
-            self.stdout
-                .queue(crossterm::cursor::MoveTo(offset, row))?
-                .queue(Print(line))?;
+        let mut x = offset;
+        let mut y = 0;
 
-            for color in colors {
-                let fragment = &line[color.start..color.end];
-                self.stdout
-                    .queue(crossterm::cursor::MoveTo(offset + color.start as u16, row))?
-                    .queue(PrintStyledContent(fragment.with(color.color)))?;
+        for (p, c) in lines.chars().enumerate() {
+            if c == '\n' {
+                x = offset;
+                y += 1;
+                if y > height {
+                    break;
+                }
+                continue;
             }
+
+            if x < self.dimensions.width {
+                let color = match colors_a.iter().find(|ci| ci.start <= p && ci.end > p) {
+                    Some(ci) => ci.color,
+                    None => Color::White,
+                };
+                self.stdout
+                    .queue(crossterm::cursor::MoveTo(x, y))?
+                    .queue(PrintStyledContent(c.with(color)))?;
+            }
+            x += 1;
         }
 
-        logger::debug!("getting viewport took: {:?}", start.elapsed());
-
         self.stdout.queue(crossterm::cursor::RestorePosition)?;
-
         Ok(())
     }
 

@@ -114,20 +114,12 @@ impl Buffer {
         }
     }
 
-    pub fn lines(&self) -> Lines {
-        Lines {
-            buffer: &self.buffer,
-            start: 0,
-            end: self.buffer.len(),
-        }
-    }
-
-    pub fn lines_from(&self, line: usize) -> Lines {
-        let mut lines = self.lines();
-        for _ in 0..line {
-            lines.next();
-        }
-        lines
+    pub fn content_from(&self, line: usize) -> String {
+        self.to_string()
+            .lines()
+            .skip(line)
+            .collect::<Vec<&str>>()
+            .join("\n")
     }
 
     pub fn line_from_mark(&self, mark: &Mark) -> String {
@@ -303,79 +295,6 @@ mod tests {
             buffer.buffer[0..buffer.gap_start],
             "Hello_____!".chars().collect::<Vec<_>>()
         );
-    }
-
-    #[test]
-    fn test_get_lines() {
-        let gap = 5;
-        let multiline = "Hello, World!\nThis is a multiline string";
-        let buffer = Buffer::from_string(1, multiline, gap);
-        let first_needle = [
-            'H', 'e', 'l', 'l', 'o', ',', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\n',
-        ];
-
-        let second_needle = [
-            'T', 'h', 'i', 's', ' ', 'i', 's', ' ', 'a', ' ', 'm', 'u', 'l', 't', 'i', 'l', 'i',
-            'n', 'e', ' ', 's', 't', 'r', 'i', 'n', 'g',
-        ];
-
-        let mut lines = buffer.lines();
-        let first = lines.next().unwrap();
-        let second = lines.next().unwrap();
-
-        assert_eq!(first, first_needle);
-        assert_eq!(second, second_needle);
-    }
-
-    #[test]
-    fn test_get_lines_edited() {
-        let gap = 5;
-        let mut buffer = Buffer::from_string(1, "Hello, World!", gap);
-        let first_needle = [
-            'H', 'e', 'l', 'l', 'o', ',', ' ', 'T', 'h', 'i', 's', ' ', 'i', 's', ' ', 'h', 'e',
-            'a', 'v', 'i', 'l', 'y', ' ', 'e', 'd', 'i', 't', 'e', 'd', ',', ' ', '\n',
-        ];
-        let insert = "This is heavily edited, \n".to_string();
-
-        let start_from = 7;
-        for (i, c) in insert.chars().enumerate() {
-            buffer.insert_char(c, i + start_from);
-        }
-
-        let mut lines = buffer.lines();
-        let first = lines.next().unwrap();
-        assert_eq!(first, first_needle);
-
-        let insert = "lol! \n".to_string();
-        for (i, c) in insert.chars().enumerate() {
-            buffer.insert_char(c, i + start_from);
-        }
-
-        let mut lines = buffer.lines();
-        let first = lines.next().unwrap();
-        let second = lines.next().unwrap();
-        let third = lines.next().unwrap();
-        let fourth = lines.next();
-        let first_needle = [
-            'H', 'e', 'l', 'l', 'o', ',', ' ', 'l', 'o', 'l', '!', ' ', '\n',
-        ];
-        let second_needle = [
-            'T', 'h', 'i', 's', ' ', 'i', 's', ' ', 'h', 'e', 'a', 'v', 'i', 'l', 'y', ' ', 'e',
-            'd', 'i', 't', 'e', 'd', ',', ' ', '\n',
-        ];
-        let third_needle = ['W', 'o', 'r', 'l', 'd', '!'];
-        assert_eq!(first, first_needle);
-        assert_eq!(second, second_needle);
-        assert_eq!(third, third_needle);
-        assert_eq!(fourth, None);
-
-        buffer.delete_char(3);
-
-        let mut lines = buffer.lines();
-        let first = lines.next().unwrap();
-        let first_needle = ['H', 'e', 'l', 'o', ',', ' ', 'l', 'o', 'l', '!', ' ', '\n'];
-
-        assert_eq!(first, first_needle);
     }
 
     #[test]
