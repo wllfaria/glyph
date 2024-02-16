@@ -78,13 +78,15 @@ impl View {
 
     fn shutdown(&mut self) -> Result<()> {
         self.clear_screen()?;
-        self.stdout.flush()?;
+        self.stdout.queue(terminal::LeaveAlternateScreen)?.flush()?;
         terminal::disable_raw_mode()?;
+
         Ok(())
     }
 
     fn initialize(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
+        self.stdout.queue(terminal::EnterAlternateScreen)?;
         self.clear_screen()?;
         self.draw_statusbar()?;
         self.active_window.borrow_mut().initialize()?;

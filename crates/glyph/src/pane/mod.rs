@@ -89,35 +89,33 @@ impl Pane {
 
     fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
         self.cursor.handle(&command, &mut self.buffer.borrow_mut());
-        // TODO:
-        // - implement buffer scroll;
-        // - check if we need to redraw the sidebar
-        // - check if we need to redraw the buffer
         match command {
             Command::Cursor(CursorCommands::MoveUp) => {
+                let Position { row, .. } = self.get_cursor_readable_position();
+                if row.saturating_sub(self.scroll.row) == 0 {
+                    self.scroll.row = self.scroll.row.saturating_sub(1);
+                    self.clear_buffer()?;
+                    self.draw_buffer()?;
+                }
                 self.draw_sidebar()?;
-                self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveDown) => {
-                if self.cursor.row - self.scroll.row >= self.dimensions.height {
+                if self.cursor.row.saturating_sub(self.scroll.row) >= self.dimensions.height {
                     self.scroll.row += 1;
                     self.clear_buffer()?;
                     self.draw_buffer()?;
-                    self.draw_sidebar()?;
                 }
                 self.draw_sidebar()?;
-                self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveLeft) => {
                 self.draw_sidebar()?;
-                self.draw_cursor()?;
             }
             Command::Cursor(CursorCommands::MoveRight) => {
                 self.draw_sidebar()?;
-                self.draw_cursor()?;
             }
             _ => (),
         }
+        self.draw_cursor()?;
         Ok(())
     }
 
@@ -201,7 +199,7 @@ impl Pane {
             };
             self.stdout.queue(crossterm::cursor::MoveTo(
                 col,
-                self.cursor.row - self.scroll.row,
+                self.cursor.row.saturating_sub(self.scroll.row),
             ))?;
         }
         Ok(())
