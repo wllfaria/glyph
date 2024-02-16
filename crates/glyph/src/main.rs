@@ -3,6 +3,7 @@ mod command;
 mod config;
 mod editor;
 mod events;
+mod highlight;
 mod pane;
 mod view;
 mod window;

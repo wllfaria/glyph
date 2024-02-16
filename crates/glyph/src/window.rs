@@ -6,7 +6,6 @@ use std::rc::Rc;
 use crate::command::Command;
 use crate::pane::Pane;
 
-#[derive(Debug)]
 pub struct Window {
     pub id: u16,
     panes: HashMap<u16, Rc<RefCell<Pane>>>,

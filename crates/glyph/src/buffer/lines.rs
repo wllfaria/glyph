@@ -36,7 +36,7 @@ mod tests {
         let text =
             "The quick brown fox\njumps over the lazy dog\nThe five boxing wizards\njump quickly.";
         let mut lines = Lines {
-            buffer: &text,
+            buffer: &text.chars().collect::<Vec<_>>(),
             start: 0,
             end: text.len(),
         };
@@ -65,7 +65,7 @@ mod tests {
         let text =
             "The quick brown fox\njumps over the lazy dog\nThe five boxing wizards\njump quickly.\n";
         let mut lines = Lines {
-            buffer: &text.chars().collect(),
+            buffer: &text.chars().collect::<Vec<_>>(),
             start: 0,
             end: text.len(),
         };
@@ -93,7 +93,7 @@ mod tests {
     fn test_return_none_with_empty_lines() {
         let text = "";
         let mut lines = Lines {
-            buffer: &text.chars().collect(),
+            buffer: &text.chars().collect::<Vec<_>>(),
             start: 0,
             end: text.len(),
         };
@@ -107,7 +107,7 @@ mod tests {
     fn test_return_empty_string_with_only_newlines() {
         let text = "\n\n\n\n";
         let mut lines = Lines {
-            buffer: &text.chars().collect(),
+            buffer: &text.chars().collect::<Vec<_>>(),
             start: 0,
             end: text.len(),
         };

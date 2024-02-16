@@ -1,11 +1,14 @@
+use crossterm::style::{Color, PrintStyledContent, Stylize};
 use crossterm::{self, style::Print, QueueableCommand};
 use std::cell::RefCell;
 use std::io::{stdout, Result, Stdout};
 use std::rc::Rc;
+use std::time::Instant;
 
 use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
 use crate::config::Config;
+use crate::highlight::{ColorInfo, Highlight};
 use crate::pane::cursor::Cursor;
 use crate::pane::line_drawer::LineDrawer;
 
@@ -37,10 +40,10 @@ impl From<(u16, u16)> for PaneDimensions {
     }
 }
 
-#[derive(Debug)]
 pub struct Pane {
     pub id: u16,
     pub cursor: Cursor,
+    highlight: Highlight,
     scroll: Position,
     buffer: Rc<RefCell<Buffer>>,
     config: &'static Config,
@@ -55,6 +58,7 @@ impl Pane {
             id,
             buffer,
             dimensions,
+            highlight: Highlight::new(),
             stdout: stdout(),
             config: Config::get(),
             cursor: Cursor::new(),
@@ -250,24 +254,31 @@ impl Pane {
     }
 
     fn draw_buffer(&mut self) -> Result<()> {
+        let start = Instant::now();
         self.stdout.queue(crossterm::cursor::SavePosition)?;
         let buffer = self.buffer.borrow();
-        let mut lines = buffer.lines_from(self.scroll.row as usize);
+        let lines = buffer.lines_from(self.scroll.row as usize);
         let height = self.dimensions.height;
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
 
-        for row in 0..height {
-            let line = match lines.next() {
-                Some(line) => line,
-                None => break,
-            };
+        for (line, row) in lines.zip(0..height) {
             let len = u16::min(self.dimensions.width - offset, line.len() as u16) as usize;
-            let line = &line[0..len].iter().collect::<String>();
+            let line = &line[..len].iter().collect::<String>();
+            let colors = self.highlight.colors(line);
 
             self.stdout
                 .queue(crossterm::cursor::MoveTo(offset, row))?
                 .queue(Print(line))?;
+
+            for color in colors {
+                let fragment = &line[color.start..color.end];
+                self.stdout
+                    .queue(crossterm::cursor::MoveTo(offset + color.start as u16, row))?
+                    .queue(PrintStyledContent(fragment.with(color.color)))?;
+            }
         }
+
+        logger::debug!("getting viewport took: {:?}", start.elapsed());
 
         self.stdout.queue(crossterm::cursor::RestorePosition)?;
 

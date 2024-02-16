@@ -7,6 +7,8 @@ edition = "2021"
 crossterm = "0.27.0"
 logger.workspace = true
 chrono.workspace = true
+tree-sitter = "0.20.10"
+tree-sitter-rust = "0.20.4"
 
 [[bin]]
 name = "editor"
