@@ -1,3 +1,4 @@
+use chrono::Local;
 use crossterm::cursor;
 use crossterm::style::{Color, Print, Stylize};
 use crossterm::{terminal, QueueableCommand};
@@ -9,7 +10,7 @@ use std::rc::Rc;
 use crate::buffer::Buffer;
 use crate::command::{Command, EditorCommands};
 use crate::config::Config;
-use crate::pane::{Pane, PaneDimensions};
+use crate::pane::{Pane, PaneDimensions, Position};
 use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
@@ -54,7 +55,8 @@ impl View {
         match command {
             Command::Editor(EditorCommands::Start) => self.initialize()?,
             Command::Editor(EditorCommands::Quit) => self.shutdown()?,
-            Command::Buffer(_) => self.active_window.borrow_mut().handle(command)?,
+            Command::Editor(EditorCommands::SecondElapsed) => self.draw_statusbar()?,
+            Command::Buffer(_) => self.handle_buffer(command)?,
             Command::Cursor(_) => self.handle_cursor(command)?,
             Command::Pane(_) => self.active_window.borrow_mut().handle(command)?,
             Command::Window(_) => self.active_window.borrow_mut().handle(command)?,
@@ -64,9 +66,13 @@ impl View {
 
     fn handle_cursor(&mut self, command: Command) -> Result<()> {
         self.active_window.borrow_mut().handle(command)?;
-        self.stdout.queue(cursor::SavePosition)?;
         self.draw_statusbar()?;
-        self.stdout.queue(cursor::RestorePosition)?;
+        Ok(())
+    }
+
+    fn handle_buffer(&mut self, command: Command) -> Result<()> {
+        self.active_window.borrow_mut().handle(command)?;
+        self.draw_statusbar()?;
         Ok(())
     }
 
@@ -93,15 +99,46 @@ impl View {
     }
 
     fn draw_statusbar(&mut self) -> Result<()> {
+        self.stdout
+            .queue(cursor::SavePosition)?
+            .queue(cursor::Hide)?;
+
         self.draw_statusbar_background()?;
+
         let active_pane = self.active_window.borrow_mut().get_active_pane();
         let cursor_position = active_pane.borrow().get_cursor_readable_position();
-        let (col, row) = cursor_position;
+        let Position { col, row } = cursor_position;
+        let lines = active_pane.borrow().get_buffer().borrow().marker.len() as u16;
+
         let cursor = format!("{}:{}", row, col);
-        let padding = self.size.width - cursor.len() as u16 - self.config.sidebar_width;
+        let percentage = match row {
+            1 => "TOP".into(),
+            _ if row == lines => "BOTTOM".into(),
+            _ => format!("{}%", (row as f64 / lines as f64 * 100.0) as usize),
+        };
+        let file_name = active_pane.borrow().get_buffer().borrow().file_name.clone();
+        let file_name = file_name.split('/').rev().nth(0).unwrap();
+        let file_name = format!("\u{eae9} {}", file_name);
+        let now = Local::now();
+        let time = format!("\u{f43a}  {}", now.format("%H:%M:%S"));
+
+        let cursor_pad = self.size.width - cursor.len() as u16 - self.config.sidebar_width;
+        let percentage_pad = cursor_pad - 2 - percentage.len() as u16;
+        let time_pad = 2;
+        let filename_pad = time_pad + time.len();
+
         self.stdout
-            .queue(cursor::MoveTo(padding as u16, self.size.height))?
-            .queue(Print(cursor.with(Color::White)))?;
+            .queue(cursor::MoveTo(cursor_pad as u16, self.size.height))?
+            .queue(Print(cursor.with(Color::Green)))?
+            .queue(cursor::MoveTo(percentage_pad as u16, self.size.height))?
+            .queue(Print(percentage.with(Color::Magenta)))?
+            .queue(cursor::MoveTo(time_pad as u16, self.size.height))?
+            .queue(Print(time.with(Color::DarkMagenta)))?
+            .queue(cursor::MoveTo(filename_pad as u16, self.size.height))?
+            .queue(Print(file_name.with(Color::White)))?
+            .queue(cursor::RestorePosition)?
+            .queue(cursor::Show)?;
+
         Ok(())
     }
 

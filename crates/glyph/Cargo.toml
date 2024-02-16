@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 crossterm = "0.27.0"
 logger.workspace = true
+chrono.workspace = true
 
 [[bin]]
 name = "editor"

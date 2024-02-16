@@ -7,6 +7,7 @@ pub enum WindowCommands {
 pub enum EditorCommands {
     Quit,
     Start,
+    SecondElapsed,
 }
 
 #[derive(Debug)]

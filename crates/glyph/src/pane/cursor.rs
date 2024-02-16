@@ -2,6 +2,8 @@ use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands};
 use logger;
 
+use super::Position;
+
 #[derive(Debug)]
 pub struct Cursor {
     pub absolute_position: usize,
@@ -29,6 +31,7 @@ impl Cursor {
                 self.col += 1;
             }
             Command::Buffer(BufferCommands::Backspace) => match self.col {
+                c if c == 0 && self.row == 0 => (),
                 0 => {
                     self.move_up(buffer);
                     self.move_to_end_of_line(buffer);
@@ -47,8 +50,11 @@ impl Cursor {
         }
     }
 
-    pub fn get_readable_position(&self) -> (u16, u16) {
-        (self.col + 1, self.row + 1)
+    pub fn get_readable_position(&self) -> Position {
+        Position {
+            row: self.row + 1,
+            col: self.col + 1,
+        }
     }
 
     fn move_up(&mut self, buffer: &mut Buffer) {
@@ -95,8 +101,8 @@ impl Cursor {
             }
         } else {
             let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
-            self.absolute_position = mark.start + mark.size - 1;
-            self.col = mark.size as u16;
+            self.absolute_position = mark.start + mark.size.saturating_sub(1);
+            self.col = mark.size.saturating_sub(1) as u16;
         }
     }
 
@@ -351,7 +357,7 @@ mod tests {
         cursor.move_down(&mut buffer);
 
         assert_eq!(cursor.col, 12);
-        assert_eq!(cursor.absolute_position, 12);
+        assert_eq!(cursor.absolute_position, 11);
         assert_eq!(cursor.row, 0);
     }
 
@@ -366,7 +372,7 @@ mod tests {
         cursor.move_right(&mut buffer);
 
         assert_eq!(cursor.col, 12);
-        assert_eq!(cursor.absolute_position, 12);
+        assert_eq!(cursor.absolute_position, 11);
         assert_eq!(cursor.row, 0);
     }
 }

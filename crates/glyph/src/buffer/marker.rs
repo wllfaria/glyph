@@ -1,6 +1,6 @@
 use super::vec_marker::VecMarker;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Mark {
     pub start: usize,
     pub line: usize,
@@ -26,8 +26,8 @@ impl Mark {
 pub trait Marker: std::fmt::Debug {
     fn add_mark(&mut self, mark: Mark, at: usize);
     fn del_mark(&mut self, at: usize);
-    fn get_by_cursor(&self, position: usize) -> Option<&Mark>;
-    fn get_by_line(&self, line: usize) -> Option<&Mark>;
+    fn get_by_cursor(&self, position: usize) -> Option<Mark>;
+    fn get_by_line(&self, line: usize) -> Option<Mark>;
     fn set_marks(&mut self, text: &Vec<char>);
     fn len(&self) -> usize;
 }

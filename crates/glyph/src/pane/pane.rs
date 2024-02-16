@@ -57,7 +57,7 @@ impl Pane {
         Ok(())
     }
 
-    pub fn get_cursor_readable_position(&self) -> (u16, u16) {
+    pub fn get_cursor_readable_position(&self) -> Position {
         self.cursor.get_readable_position()
     }
 
@@ -96,57 +96,49 @@ impl Pane {
     }
 
     fn handle_buffer_command(&mut self, command: Command) -> Result<()> {
+        let col = self.cursor.col;
+        let row = self.cursor.row;
+        let mark = {
+            let buffer = self.buffer.borrow_mut();
+            let mark = buffer.marker.get_by_line(self.cursor.row as usize);
+            mark.unwrap().clone()
+        };
+
+        self.buffer
+            .borrow_mut()
+            .handle(&command, self.cursor.absolute_position)?;
+        self.cursor.handle(&command, &mut self.buffer.borrow_mut());
+        self.maybe_redraw_sidebar()?;
+
+        let pos = self.get_cursor_readable_position();
+
         match command {
-            Command::Buffer(BufferCommands::Type(_)) => {
-                self.buffer
-                    .borrow_mut()
-                    .handle(&command, self.cursor.absolute_position)?;
-                self.cursor.handle(&command, &mut self.buffer.borrow_mut());
-                self.redraw_line(self.cursor.row - self.scroll.row, self.cursor.row + 1)?;
-                self.draw_sidebar()?;
-            }
-            Command::Buffer(BufferCommands::Backspace) => match self.cursor.col {
-                0 => {
-                    self.cursor.handle(&command, &mut self.buffer.borrow_mut());
-                    self.buffer
-                        .borrow_mut()
-                        .handle(&command, self.cursor.absolute_position + 1)?;
-                    let start = self.cursor.row - self.scroll.row;
-                    let mut i = 1;
-                    for pane_line in start..self.dimensions.height {
-                        self.redraw_line(pane_line, self.cursor.row + i)?;
-                        i += 1;
+            Command::Buffer(BufferCommands::Backspace) => {
+                let start = self.cursor.row - self.scroll.row.saturating_sub(1);
+
+                for pane_line in start..self.dimensions.height {
+                    self.redraw_line(pane_line, pos.row + pane_line - start)?;
+                }
+
+                match (col, row) {
+                    (0, 1..) => {
+                        self.cursor.col = mark.size.saturating_sub(1) as u16;
+                        self.cursor.absolute_position = mark.start + mark.size.saturating_sub(1);
                     }
-                    self.draw_sidebar()?;
+                    _ => {}
                 }
-                _ => {
-                    self.buffer
-                        .borrow_mut()
-                        .handle(&command, self.cursor.absolute_position)?;
-                    self.redraw_line(self.cursor.row - self.scroll.row, self.cursor.row + 1)?;
-                    self.cursor.handle(&command, &mut self.buffer.borrow_mut());
-                    self.draw_sidebar()?;
-                }
-            },
-            Command::Buffer(BufferCommands::NewLineBelow) => {
-                self.buffer
-                    .borrow_mut()
-                    .handle(&command, self.cursor.absolute_position)?;
-                self.cursor.handle(&command, &mut self.buffer.borrow_mut());
-                let start = self.cursor.row - self.scroll.row;
-                let mut i = 0;
-                for pane_line in start - 1..self.dimensions.height {
-                    self.redraw_line(pane_line, self.cursor.row + i)?;
-                    i += 1;
-                }
-                self.draw_sidebar()?;
             }
-            _ => self
-                .buffer
-                .borrow_mut()
-                .handle(&command, self.cursor.absolute_position)?,
-        }
+            Command::Buffer(BufferCommands::NewLineBelow) => {
+                let start = (self.cursor.row - self.scroll.row).saturating_sub(1);
+                for pane_line in start..self.dimensions.height {
+                    self.redraw_line(pane_line, self.cursor.row + pane_line - start)?;
+                }
+            }
+            _ => self.redraw_line(self.cursor.row - self.scroll.row, pos.row)?,
+        };
+
         self.draw_cursor()?;
+
         Ok(())
     }
 
@@ -158,7 +150,6 @@ impl Pane {
         }
         if let Some(mark) = buffer.marker.get_by_line(buffer_line as usize) {
             let line = buffer.line_from_mark(&mark);
-            logger::debug!("{} {} {} - {}", mark.start, mark.size, mark.line, line);
             let col = self.config.sidebar_gap + self.config.sidebar_width;
             self.stdout
                 .queue(crossterm::cursor::MoveTo(col, pane_line))?
@@ -260,5 +251,9 @@ impl Pane {
         self.stdout.queue(crossterm::cursor::RestorePosition)?;
 
         Ok(())
+    }
+
+    pub fn get_buffer(&self) -> Rc<RefCell<Buffer>> {
+        self.buffer.clone()
     }
 }

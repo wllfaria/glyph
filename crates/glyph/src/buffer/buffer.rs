@@ -14,7 +14,7 @@ pub struct Buffer {
     pub id: u16,
     pub buffer: Vec<char>,
     pub marker: Box<dyn Marker>,
-    file_name: String,
+    pub file_name: String,
     gap_start: usize,
     gap_end: usize,
     gap_size: usize,
@@ -73,6 +73,7 @@ impl Buffer {
     }
 
     pub fn delete_char(&mut self, cursor_pos: usize) {
+        logger::error!("cursor {}", cursor_pos);
         if cursor_pos == 0 {
             return;
         }
@@ -383,7 +384,7 @@ mod tests {
         let buffer = Buffer::from_string(1, "Hello, World!", gap);
 
         assert_eq!(buffer.marker.len(), 1);
-        assert_eq!(buffer.marker.get_by_line(0).unwrap(), &Mark::new(0, 1, 13));
+        assert_eq!(buffer.marker.get_by_line(0).unwrap(), Mark::new(0, 1, 13));
     }
 
     #[test]
@@ -449,7 +450,7 @@ mod tests {
         let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hell".chars().collect::<Vec<_>>();
 
-        buffer.handle(&Command::Buffer(BufferCommands::Backspace), 5);
+        let _ = buffer.handle(&Command::Buffer(BufferCommands::Backspace), 5);
 
         assert_eq!(buffer.gap_start, 4);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));
@@ -462,7 +463,7 @@ mod tests {
         let first_needle = &"Hello".chars().collect::<Vec<_>>();
         let second_needle = &", World!".chars().collect::<Vec<_>>();
 
-        buffer.handle(&Command::Buffer(BufferCommands::NewLineBelow), 5);
+        let _ = buffer.handle(&Command::Buffer(BufferCommands::NewLineBelow), 5);
 
         assert_eq!(buffer.gap_start, 6);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));

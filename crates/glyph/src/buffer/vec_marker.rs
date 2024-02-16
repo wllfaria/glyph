@@ -37,21 +37,21 @@ impl Marker for VecMarker {
         self.update_marks();
     }
 
-    fn get_by_cursor(&self, position: usize) -> Option<&Mark> {
+    fn get_by_cursor(&self, position: usize) -> Option<Mark> {
         let index = self
             .marks
             .iter()
             .position(|m| position >= m.start && position <= m.start + m.size);
         if let Some(index) = index {
-            return Some(&self.marks[index]);
+            return Some(self.marks[index]);
         }
         None
     }
 
-    fn get_by_line(&self, line: usize) -> Option<&Mark> {
+    fn get_by_line(&self, line: usize) -> Option<Mark> {
         let mark = self.marks.iter().nth(line.saturating_sub(1));
         if let Some(mark) = mark {
-            return Some(mark);
+            return Some(*mark);
         }
         None
     }
@@ -66,7 +66,7 @@ impl Marker for VecMarker {
         let mut i = 1;
         while let Some(line) = lines.next() {
             let default = Mark::default();
-            let prev = self.get_by_line(i).unwrap_or(&default);
+            let prev = self.get_by_line(i).unwrap_or(default);
             let start = prev.start + prev.size;
             self.add_mark(Mark::new(start, i, line.len()), i - 1);
             i += 1;
@@ -115,7 +115,7 @@ mod tests {
 
         let mark = marker.get_by_cursor(36).unwrap();
 
-        assert_eq!(mark, &Mark::new(30, 2, 10));
+        assert_eq!(mark, Mark::new(30, 2, 10));
     }
 
     #[test]
@@ -127,7 +127,7 @@ mod tests {
 
         let mark = marker.get_by_line(2).unwrap();
 
-        assert_eq!(mark, &Mark::new(30, 2, 10));
+        assert_eq!(mark, Mark::new(30, 2, 10));
     }
 
     #[test]
