@@ -39,18 +39,17 @@ impl LineDrawer for RelativeLineDrawer {
             scroll_row += 1;
             let mut line = u16::abs_diff(scroll_row, normalized_line).to_string();
 
-            match self.config.line_numbers {
-                LineNumbers::RelativeNumbered => match normalized_line {
+            if let LineNumbers::RelativeNumbered = self.config.line_numbers {
+                match normalized_line {
                     l if l == scroll_row => line = scroll_row.to_string(),
                     _ => (),
-                },
-                _ => (),
+                }
             }
 
             let offset = dimensions.col + self.config.sidebar_width - line.len() as u16;
 
             self.stdout
-                .queue(cursor::MoveTo(offset, i as u16))?
+                .queue(cursor::MoveTo(offset, i))?
                 .queue(Print(line.with(Color::DarkGrey)))?;
         }
 
@@ -58,7 +57,7 @@ impl LineDrawer for RelativeLineDrawer {
             for i in total_lines..dimensions.height {
                 let offset = dimensions.col + self.config.sidebar_width - 1;
                 self.stdout
-                    .queue(cursor::MoveTo(offset, i as u16))?
+                    .queue(cursor::MoveTo(offset, i))?
                     .queue(Print(self.config.empty_line_char))?;
             }
         }

@@ -1,6 +1,6 @@
 #[derive(Debug, PartialEq)]
 pub struct Lines<'a> {
-    pub buffer: &'a Vec<char>,
+    pub buffer: &'a [char],
     pub start: usize,
     pub end: usize,
 }
@@ -36,7 +36,7 @@ mod tests {
         let text =
             "The quick brown fox\njumps over the lazy dog\nThe five boxing wizards\njump quickly.";
         let mut lines = Lines {
-            buffer: &text.chars().collect(),
+            buffer: &text,
             start: 0,
             end: text.len(),
         };

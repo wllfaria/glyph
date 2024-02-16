@@ -19,7 +19,7 @@ impl Events {
             }) = read()?
             {
                 let command = match code {
-                    KeyCode::Enter => Some(Command::Buffer(BufferCommands::NewLineBelow)),
+                    KeyCode::Enter => Some(Command::Buffer(BufferCommands::NewLine)),
                     KeyCode::Backspace => Some(Command::Buffer(BufferCommands::Backspace)),
                     KeyCode::Left => Some(Command::Cursor(CursorCommands::MoveLeft)),
                     KeyCode::Down => Some(Command::Cursor(CursorCommands::MoveDown)),

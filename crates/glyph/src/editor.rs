@@ -37,7 +37,7 @@ impl Editor {
             if self.has_second_passed(last_time) {
                 last_time = Utc::now();
                 self.view
-                    .handle(Command::Editor(EditorCommands::SecondElapsed));
+                    .handle(Command::Editor(EditorCommands::SecondElapsed))?;
             }
             io::stdout().flush()?;
         }

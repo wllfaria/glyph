@@ -1,6 +1,5 @@
 use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands};
-use logger;
 
 use super::Position;
 
@@ -41,7 +40,7 @@ impl Cursor {
                     self.absolute_position = self.absolute_position.saturating_sub(1);
                 }
             },
-            Command::Buffer(BufferCommands::NewLineBelow) => {
+            Command::Buffer(BufferCommands::NewLine) => {
                 self.absolute_position += 1;
                 self.col = 0;
                 self.row += 1;

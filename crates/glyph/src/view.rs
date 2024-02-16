@@ -36,7 +36,7 @@ impl View {
     pub fn new(file_name: Option<String>) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
-        let mut window_size = size.clone();
+        let mut window_size = size;
         window_size.1 -= 1;
         let buffer = View::make_buffer(1, file_name)?;
         let pane = View::make_pane(1, buffer, window_size.into());

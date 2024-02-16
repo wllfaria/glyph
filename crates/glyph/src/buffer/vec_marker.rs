@@ -49,22 +49,22 @@ impl Marker for VecMarker {
     }
 
     fn get_by_line(&self, line: usize) -> Option<Mark> {
-        let mark = self.marks.iter().nth(line.saturating_sub(1));
+        let mark = self.marks.get(line.saturating_sub(1));
         if let Some(mark) = mark {
             return Some(*mark);
         }
         None
     }
 
-    fn set_marks(&mut self, buffer: &Vec<char>) {
+    fn set_marks(&mut self, buffer: &[char]) {
         self.marks.clear();
-        let mut lines = Lines {
-            buffer: &buffer,
+        let lines = Lines {
+            buffer,
             start: 0,
             end: buffer.len(),
         };
         let mut i = 1;
-        while let Some(line) = lines.next() {
+        for line in lines {
             let default = Mark::default();
             let prev = self.get_by_line(i).unwrap_or(default);
             let start = prev.start + prev.size;

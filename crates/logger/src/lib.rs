@@ -22,7 +22,7 @@ pub struct Logger {
 
 #[allow(dead_code)]
 impl Logger {
-    pub fn new<T>(writer: T, level: LogLevel) -> Result<(), LoggerError>
+    pub fn get<T>(writer: T, level: LogLevel) -> Result<(), LoggerError>
     where
         T: std::fmt::Write + Send + 'static,
     {

@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub enum LogLevel {
     None,

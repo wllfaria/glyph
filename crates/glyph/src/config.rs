@@ -33,9 +33,8 @@ impl Config {
     }
 
     fn set_sidebar_width_if_line_numbers_none(config: &mut Config) {
-        match config.line_numbers {
-            LineNumbers::None => config.sidebar_width = 1,
-            _ => (),
+        if let LineNumbers::None = config.line_numbers {
+            config.sidebar_width = 1;
         }
     }
 }

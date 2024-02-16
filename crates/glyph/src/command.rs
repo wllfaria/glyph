@@ -23,7 +23,7 @@ pub enum CursorCommands {
 
 #[derive(Debug)]
 pub enum BufferCommands {
-    NewLineBelow,
+    NewLine,
     Backspace,
     Type(char),
     Save,
