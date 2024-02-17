@@ -121,21 +121,16 @@ impl View {
         let file_name = active_pane.borrow().get_buffer().borrow().file_name.clone();
         let file_name = file_name.split('/').rev().nth(0).unwrap();
         let file_name = format!("\u{eae9} {}", file_name);
-        let now = Local::now();
-        let time = format!("\u{f43a}  {}", now.format("%H:%M:%S"));
 
         let cursor_pad = self.size.width - cursor.len() as u16 - self.config.sidebar_width;
         let percentage_pad = cursor_pad - 2 - percentage.len() as u16;
-        let time_pad = 2;
-        let filename_pad = time_pad + time.len();
+        let filename_pad = 2;
 
         self.stdout
             .queue(cursor::MoveTo(cursor_pad as u16, self.size.height))?
             .queue(Print(cursor.with(Color::Green)))?
             .queue(cursor::MoveTo(percentage_pad as u16, self.size.height))?
             .queue(Print(percentage.with(Color::Magenta)))?
-            .queue(cursor::MoveTo(time_pad as u16, self.size.height))?
-            .queue(Print(time.with(Color::DarkMagenta)))?
             .queue(cursor::MoveTo(filename_pad as u16, self.size.height))?
             .queue(Print(file_name.with(Color::White)))?
             .queue(cursor::RestorePosition)?

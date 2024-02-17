@@ -114,10 +114,11 @@ impl Buffer {
         }
     }
 
-    pub fn content_from(&self, line: usize) -> String {
+    pub fn content_from(&self, line: usize, height: usize) -> String {
         self.to_string()
             .lines()
             .skip(line)
+            .take(height)
             .collect::<Vec<&str>>()
             .join("\n")
     }
@@ -339,7 +340,7 @@ mod tests {
         let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hello!".chars().collect::<Vec<_>>();
 
-        buffer.handle(&Command::Buffer(BufferCommands::Type('!')), 5);
+        _ = buffer.handle(&Command::Buffer(BufferCommands::Type('!')), 5);
 
         assert_eq!(buffer.gap_start, 6);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));

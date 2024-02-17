@@ -106,8 +106,12 @@ impl Pane {
             Command::Cursor(CursorCommands::MoveDown) => {
                 if self.cursor.row.saturating_sub(self.scroll.row) >= self.dimensions.height {
                     self.scroll.row += 1;
+                    let now = Instant::now();
                     self.clear_buffer()?;
+                    logger::debug!("clearing the buffer took: {:?}", now.elapsed());
+                    let now = Instant::now();
                     self.draw_buffer()?;
+                    logger::debug!("render process took: {:?}", now.elapsed());
                 }
                 self.draw_sidebar()?;
             }
@@ -259,15 +263,19 @@ impl Pane {
         let height = self.dimensions.height;
         let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
 
+        logger::debug!("beginning render cycle");
         let start = Instant::now();
-        let lines = buffer.content_from(self.scroll.row as usize);
-        logger::debug!("getting viewport took: {:?}", start.elapsed());
+        let lines = buffer.content_from(self.scroll.row as usize, self.dimensions.height as usize);
+        logger::debug!("getting lines to display took: {:?}", start.elapsed());
+        let start = Instant::now();
         let colors_a = self.highlight.colors(&lines);
         logger::debug!("highlighting took: {:?}", start.elapsed());
 
         let mut x = offset;
         let mut y = 0;
 
+        let start = Instant::now();
+        logger::debug!("beginning of draw to buffer");
         for (p, c) in lines.chars().enumerate() {
             if c == '\n' {
                 x = offset;
@@ -289,7 +297,7 @@ impl Pane {
             }
             x += 1;
         }
-
+        logger::debug!("drawing the contents took: {:?}", start.elapsed());
         self.stdout.queue(crossterm::cursor::RestorePosition)?;
         Ok(())
     }
