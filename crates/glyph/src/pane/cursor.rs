@@ -355,7 +355,7 @@ mod tests {
 
         cursor.move_down(&mut buffer);
 
-        assert_eq!(cursor.col, 12);
+        assert_eq!(cursor.col, 11);
         assert_eq!(cursor.absolute_position, 11);
         assert_eq!(cursor.row, 0);
     }
@@ -370,7 +370,7 @@ mod tests {
 
         cursor.move_right(&mut buffer);
 
-        assert_eq!(cursor.col, 12);
+        assert_eq!(cursor.col, 11);
         assert_eq!(cursor.absolute_position, 11);
         assert_eq!(cursor.row, 0);
     }

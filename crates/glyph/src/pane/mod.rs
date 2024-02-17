@@ -8,7 +8,7 @@ use std::time::Instant;
 use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
 use crate::config::Config;
-use crate::highlight::{ColorInfo, Highlight};
+use crate::highlight::Highlight;
 use crate::pane::cursor::Cursor;
 use crate::pane::line_drawer::LineDrawer;
 

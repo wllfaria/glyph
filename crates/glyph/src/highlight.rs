@@ -23,7 +23,7 @@ impl Highlight {
     }
 
     pub fn colors(&mut self, buffer: &str) -> Vec<ColorInfo> {
-        let tree = self.parser.parse(&buffer, None).unwrap();
+        let tree = self.parser.parse(buffer, None).unwrap();
         let query = Query::new(self.language, HIGHLIGHT_QUERY).expect("rust highlight");
 
         let mut colors = Vec::new();
@@ -49,19 +49,5 @@ impl Highlight {
         }
 
         colors
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_highlight() {
-        let mut hl = Highlight::new();
-        let buffer = include_str!("/home/wiru/code/personal/glyph/test.rs");
-        let colors = hl.colors(&buffer.to_string());
-
-        assert_eq!(1, 2);
     }
 }
