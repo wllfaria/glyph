@@ -5,6 +5,7 @@ mod editor;
 mod events;
 mod highlight;
 mod pane;
+mod theme;
 mod view;
 mod window;
 

@@ -1,17 +1,19 @@
-use crossterm::style::Color;
 use tree_sitter::{Parser, Query, QueryCursor};
 use tree_sitter_rust::{language, HIGHLIGHT_QUERY};
+
+use crate::theme::{Style, Theme};
 
 pub struct Highlight {
     parser: Parser,
     query: Query,
+    theme: &'static Theme,
 }
 
 #[derive(Debug)]
-pub struct ColorInfo {
+pub struct ColorInfo<'a> {
     pub start: usize,
     pub end: usize,
-    pub color: Color,
+    pub style: &'a Style,
 }
 
 impl Highlight {
@@ -20,8 +22,13 @@ impl Highlight {
         let language = language();
         parser.set_language(language).expect("rust grammar");
         let query = Query::new(language, HIGHLIGHT_QUERY).expect("rust highlight");
+        let theme = Theme::get();
 
-        Self { parser, query }
+        Self {
+            parser,
+            query,
+            theme,
+        }
     }
 
     pub fn colors(&mut self, buffer: &str) -> Vec<ColorInfo> {
@@ -38,15 +45,11 @@ impl Highlight {
                 let start = node.start_byte();
                 let end = node.end_byte();
                 let capture_name = self.query.capture_names()[cap.index as usize].as_str();
-                let color = match capture_name {
-                    "string" => Color::Red,
-                    "function" => Color::Blue,
-                    "keyword" => Color::Green,
-                    "return" => Color::Magenta,
-                    "struct" => Color::Cyan,
-                    _ => Color::White,
-                };
-                colors.push(ColorInfo { start, end, color });
+                if let Some(style) = self.theme.tokens.get(capture_name) {
+                    colors.push(ColorInfo { start, end, style });
+                } else {
+                    logger::info!("missing capture name: {capture_name}");
+                }
             }
         }
 

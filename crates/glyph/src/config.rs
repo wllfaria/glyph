@@ -1,4 +1,4 @@
-use std::sync;
+use std::{path::PathBuf, sync};
 
 static CONFIG: sync::OnceLock<Config> = sync::OnceLock::new();
 
@@ -12,6 +12,7 @@ pub enum LineNumbers {
 
 #[derive(Debug)]
 pub struct Config {
+    pub theme_name: String,
     pub line_numbers: LineNumbers,
     pub sidebar_gap: u16,
     pub sidebar_width: u16,
@@ -21,6 +22,7 @@ pub struct Config {
 impl Config {
     pub fn get() -> &'static Self {
         let mut config = Self {
+            theme_name: "kanagawa-dragon".to_string(),
             line_numbers: LineNumbers::RelativeNumbered,
             sidebar_gap: 1,
             sidebar_width: 5,
@@ -30,6 +32,14 @@ impl Config {
         Config::set_sidebar_width_if_line_numbers_none(&mut config);
 
         CONFIG.get_or_init(|| config)
+    }
+
+    pub fn config_dir() -> PathBuf {
+        dirs::home_dir().unwrap().join(".config/glyph")
+    }
+
+    pub fn themes_dir() -> PathBuf {
+        Config::config_dir().join("themes")
     }
 
     fn set_sidebar_width_if_line_numbers_none(config: &mut Config) {

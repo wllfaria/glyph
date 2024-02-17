@@ -1,4 +1,4 @@
-use crossterm::style::{Color, PrintStyledContent, Stylize};
+use crossterm::style;
 use crossterm::{self, style::Print, QueueableCommand};
 use std::cell::RefCell;
 use std::io::{stdout, Result, Stdout};
@@ -11,6 +11,7 @@ use crate::config::Config;
 use crate::highlight::Highlight;
 use crate::pane::cursor::Cursor;
 use crate::pane::line_drawer::LineDrawer;
+use crate::theme::Theme;
 
 mod cursor;
 mod line_drawer;
@@ -276,8 +277,16 @@ impl Pane {
 
         let start = Instant::now();
         logger::debug!("beginning of draw to buffer");
-        for (p, c) in lines.chars().enumerate() {
-            if c == '\n' {
+        let default_style = &Theme::get().style;
+        let mut iter = lines.chars().enumerate().peekable();
+        while let Some((p, c)) = iter.next() {
+            if c == '\n' || iter.peek().is_none() {
+                let width = self.dimensions.width.saturating_sub(x) as usize;
+                let line_fill = " ".repeat(width);
+                self.stdout
+                    .queue(crossterm::cursor::MoveTo(x, y))?
+                    .queue(style::SetBackgroundColor(default_style.bg.unwrap()))?
+                    .queue(Print(line_fill))?;
                 x = offset;
                 y += 1;
                 if y > height {
@@ -287,13 +296,21 @@ impl Pane {
             }
 
             if x < self.dimensions.width {
-                let color = match colors_a.iter().find(|ci| ci.start <= p && ci.end > p) {
-                    Some(ci) => ci.color,
-                    None => Color::White,
+                let style = match colors_a.iter().find(|ci| ci.start <= p && ci.end > p) {
+                    Some(ci) => ci.style,
+                    None => default_style,
                 };
-                self.stdout
-                    .queue(crossterm::cursor::MoveTo(x, y))?
-                    .queue(PrintStyledContent(c.with(color)))?;
+                self.stdout.queue(crossterm::cursor::MoveTo(x, y))?;
+                if let Some(fg) = style.fg {
+                    self.stdout.queue(style::SetForegroundColor(fg))?;
+                }
+                if let Some(bg) = style.bg {
+                    self.stdout.queue(style::SetBackgroundColor(bg))?;
+                } else {
+                    self.stdout
+                        .queue(style::SetBackgroundColor(default_style.bg.unwrap()))?;
+                }
+                self.stdout.queue(Print(c))?;
             }
             x += 1;
         }

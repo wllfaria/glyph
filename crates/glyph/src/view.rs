@@ -1,4 +1,3 @@
-use chrono::Local;
 use crossterm::cursor;
 use crossterm::style::{Color, Print, Stylize};
 use crossterm::{terminal, QueueableCommand};
