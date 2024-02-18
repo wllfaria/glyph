@@ -1,12 +1,13 @@
 use std::io::{self, stdout};
 
 use crossterm::cursor;
-use crossterm::style::{Color, Print, Stylize};
+use crossterm::style::{self, Color, Print, Stylize};
 use crossterm::QueueableCommand;
 
 use crate::config::{Config, LineNumbers};
-use crate::pane::line_drawer::LineDrawer;
+use crate::pane::gutter::Gutter;
 use crate::pane::PaneDimensions;
+use crate::theme::Theme;
 
 #[derive(Debug)]
 pub struct RelativeLineDrawer {
@@ -23,8 +24,8 @@ impl RelativeLineDrawer {
     }
 }
 
-impl LineDrawer for RelativeLineDrawer {
-    fn draw_lines(
+impl Gutter for RelativeLineDrawer {
+    fn draw(
         &mut self,
         dimensions: &PaneDimensions,
         total_lines: u16,
@@ -34,6 +35,7 @@ impl LineDrawer for RelativeLineDrawer {
         let total_lines = u16::min(dimensions.height, total_lines);
         let normalized_line = current_line + 1;
         let mut scroll_row = scroll_row;
+        let theme = Theme::get();
 
         for i in 0..total_lines {
             scroll_row += 1;
@@ -46,18 +48,19 @@ impl LineDrawer for RelativeLineDrawer {
                 }
             }
 
-            let offset = dimensions.col + self.config.sidebar_width - line.len() as u16;
+            line = " ".repeat(self.config.gutter_width as usize - 1 - line.len()) + &line;
+            line.push_str(" ");
 
             self.stdout
-                .queue(cursor::MoveTo(offset, i))?
+                .queue(cursor::MoveTo(dimensions.col, i))?
+                .queue(style::SetBackgroundColor(theme.style.bg.unwrap()))?
                 .queue(Print(line.with(Color::DarkGrey)))?;
         }
 
         if total_lines < dimensions.height {
             for i in total_lines..dimensions.height {
-                let offset = dimensions.col + self.config.sidebar_width - 1;
                 self.stdout
-                    .queue(cursor::MoveTo(offset, i))?
+                    .queue(cursor::MoveTo(dimensions.col, i))?
                     .queue(Print(self.config.empty_line_char))?;
             }
         }

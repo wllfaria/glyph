@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn should_return_none_if_line_is_invalid() {
-        let mut marker = VecMarker::new();
+        let marker = VecMarker::new();
 
         let mark = marker.get_by_line(10);
 
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn should_return_none_if_cursor_is_invalid() {
-        let mut marker = VecMarker::new();
+        let marker = VecMarker::new();
 
         let mark = marker.get_by_cursor(10);
 

@@ -1,17 +1,17 @@
 use std::io::Result;
 
 use crate::config::{Config, LineNumbers};
-use crate::pane::line_drawer::absolute_line_drawer::AbsoluteLineDrawer;
-use crate::pane::line_drawer::noop_line_drawer::NoopLineDrawer;
-use crate::pane::line_drawer::relative_line_drawer::RelativeLineDrawer;
+use crate::pane::gutter::absolute_line_gutter::AbsoluteLineGutter;
+use crate::pane::gutter::noop_line_gutter::NoopLineDrawer;
+use crate::pane::gutter::relative_line_gutter::RelativeLineDrawer;
 use crate::pane::PaneDimensions;
 
-mod absolute_line_drawer;
-mod noop_line_drawer;
-mod relative_line_drawer;
+mod absolute_line_gutter;
+mod noop_line_gutter;
+mod relative_line_gutter;
 
-pub trait LineDrawer: std::fmt::Debug {
-    fn draw_lines(
+pub trait Gutter: std::fmt::Debug {
+    fn draw(
         &mut self,
         dimensions: &PaneDimensions,
         total_lines: u16,
@@ -20,11 +20,11 @@ pub trait LineDrawer: std::fmt::Debug {
     ) -> Result<()>;
 }
 
-impl dyn LineDrawer {
-    pub fn get_line_drawer() -> Box<dyn LineDrawer> {
+impl dyn Gutter {
+    pub fn get_gutter() -> Box<dyn Gutter> {
         let config = Config::get();
         match config.line_numbers {
-            LineNumbers::Absolute => Box::new(AbsoluteLineDrawer::new()),
+            LineNumbers::Absolute => Box::new(AbsoluteLineGutter::new()),
             LineNumbers::Relative => Box::new(RelativeLineDrawer::new()),
             LineNumbers::RelativeNumbered => Box::new(RelativeLineDrawer::new()),
             LineNumbers::None => Box::new(NoopLineDrawer::new()),

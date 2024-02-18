@@ -14,8 +14,7 @@ pub enum LineNumbers {
 pub struct Config {
     pub theme_name: String,
     pub line_numbers: LineNumbers,
-    pub sidebar_gap: u16,
-    pub sidebar_width: u16,
+    pub gutter_width: u16,
     pub empty_line_char: char,
 }
 
@@ -23,9 +22,8 @@ impl Config {
     pub fn get() -> &'static Self {
         let mut config = Self {
             theme_name: "kanagawa-dragon".to_string(),
-            line_numbers: LineNumbers::RelativeNumbered,
-            sidebar_gap: 1,
-            sidebar_width: 5,
+            line_numbers: LineNumbers::Absolute,
+            gutter_width: 6,
             empty_line_char: '~',
         };
 
@@ -44,7 +42,7 @@ impl Config {
 
     fn set_sidebar_width_if_line_numbers_none(config: &mut Config) {
         if let LineNumbers::None = config.line_numbers {
-            config.sidebar_width = 1;
+            config.gutter_width = 1;
         }
     }
 }

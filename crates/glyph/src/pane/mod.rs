@@ -3,18 +3,17 @@ use crossterm::{self, style::Print, QueueableCommand};
 use std::cell::RefCell;
 use std::io::{stdout, Result, Stdout};
 use std::rc::Rc;
-use std::time::Instant;
 
 use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
 use crate::config::Config;
 use crate::highlight::Highlight;
 use crate::pane::cursor::Cursor;
-use crate::pane::line_drawer::LineDrawer;
+use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
 
 mod cursor;
-mod line_drawer;
+mod gutter;
 
 #[derive(Debug, Default)]
 pub struct Position {
@@ -48,7 +47,7 @@ pub struct Pane {
     scroll: Position,
     buffer: Rc<RefCell<Buffer>>,
     config: &'static Config,
-    line_drawer: Box<dyn LineDrawer>,
+    gutter: Box<dyn Gutter>,
     dimensions: PaneDimensions,
     stdout: Stdout,
 }
@@ -64,7 +63,7 @@ impl Pane {
             config: Config::get(),
             cursor: Cursor::new(),
             scroll: Position::default(),
-            line_drawer: <dyn LineDrawer>::get_line_drawer(),
+            gutter: <dyn Gutter>::get_gutter(),
         }
     }
 
@@ -107,12 +106,8 @@ impl Pane {
             Command::Cursor(CursorCommands::MoveDown) => {
                 if self.cursor.row.saturating_sub(self.scroll.row) >= self.dimensions.height {
                     self.scroll.row += 1;
-                    let now = Instant::now();
                     self.clear_buffer()?;
-                    logger::debug!("clearing the buffer took: {:?}", now.elapsed());
-                    let now = Instant::now();
                     self.draw_buffer()?;
-                    logger::debug!("render process took: {:?}", now.elapsed());
                 }
                 self.draw_sidebar()?;
             }
@@ -180,7 +175,7 @@ impl Pane {
         }
         if let Some(mark) = buffer.marker.get_by_line(buffer_line as usize) {
             let line = buffer.line_from_mark(&mark);
-            let col = self.config.sidebar_gap + self.config.sidebar_width;
+            let col = self.config.gutter_width;
             self.stdout
                 .queue(crossterm::cursor::MoveTo(col, pane_line))?
                 .queue(crossterm::terminal::Clear(
@@ -199,7 +194,7 @@ impl Pane {
             .marker
             .get_by_line(self.cursor.row as usize + 1)
         {
-            let mut col = self.config.sidebar_width + self.config.sidebar_gap;
+            let mut col = self.config.gutter_width;
             match self.cursor.col {
                 c if c > mark.size.saturating_sub(1) as u16 => {
                     col += mark.size.saturating_sub(1) as u16
@@ -222,7 +217,7 @@ impl Pane {
     fn draw_sidebar(&mut self) -> Result<()> {
         self.clear_sidebar()?;
 
-        self.line_drawer.draw_lines(
+        self.gutter.draw(
             &self.dimensions,
             self.buffer.borrow().marker.len() as u16,
             self.cursor.row,
@@ -233,7 +228,7 @@ impl Pane {
 
     fn clear_sidebar(&mut self) -> Result<()> {
         for row in 0..self.dimensions.height {
-            for col in 0..self.config.sidebar_width {
+            for col in 0..self.config.gutter_width {
                 self.stdout
                     .queue(crossterm::cursor::MoveTo(col, row))?
                     .queue(Print(" "))?;
@@ -244,7 +239,7 @@ impl Pane {
 
     fn clear_buffer(&mut self) -> Result<()> {
         self.stdout.queue(crossterm::cursor::SavePosition)?;
-        let offset = self.config.sidebar_width + self.config.sidebar_gap;
+        let offset = self.config.gutter_width;
         for row in 0..self.dimensions.height {
             for col in offset..self.dimensions.width {
                 self.stdout
@@ -262,21 +257,14 @@ impl Pane {
         self.stdout.queue(crossterm::cursor::SavePosition)?;
         let buffer = self.buffer.borrow();
         let height = self.dimensions.height;
-        let offset = self.dimensions.col + self.config.sidebar_width + self.config.sidebar_gap;
+        let offset = self.dimensions.col + self.config.gutter_width;
 
-        logger::debug!("beginning render cycle");
-        let start = Instant::now();
         let lines = buffer.content_from(self.scroll.row as usize, self.dimensions.height as usize);
-        logger::debug!("getting lines to display took: {:?}", start.elapsed());
-        let start = Instant::now();
-        let colors_a = self.highlight.colors(&lines);
-        logger::debug!("highlighting took: {:?}", start.elapsed());
+        let colors = self.highlight.colors(&lines);
 
         let mut x = offset;
         let mut y = 0;
 
-        let start = Instant::now();
-        logger::debug!("beginning of draw to buffer");
         let default_style = &Theme::get().style;
         let mut iter = lines.chars().enumerate().peekable();
         while let Some((p, c)) = iter.next() {
@@ -296,7 +284,7 @@ impl Pane {
             }
 
             if x < self.dimensions.width {
-                let style = match colors_a.iter().find(|ci| ci.start <= p && ci.end > p) {
+                let style = match colors.iter().find(|ci| ci.start <= p && ci.end > p) {
                     Some(ci) => ci.style,
                     None => default_style,
                 };
@@ -314,7 +302,6 @@ impl Pane {
             }
             x += 1;
         }
-        logger::debug!("drawing the contents took: {:?}", start.elapsed());
         self.stdout.queue(crossterm::cursor::RestorePosition)?;
         Ok(())
     }

@@ -121,7 +121,7 @@ impl View {
         let file_name = file_name.split('/').rev().nth(0).unwrap();
         let file_name = format!("\u{eae9} {}", file_name);
 
-        let cursor_pad = self.size.width - cursor.len() as u16 - self.config.sidebar_width;
+        let cursor_pad = self.size.width - cursor.len() as u16 - self.config.gutter_width;
         let percentage_pad = cursor_pad - 2 - percentage.len() as u16;
         let filename_pad = 2;
 
