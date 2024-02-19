@@ -10,7 +10,7 @@ pub struct Theme {
     pub name: String,
     pub appearance: Appearance,
     pub statusline: Statusline,
-    pub gutter: Gutter,
+    pub gutter: Style,
     pub tokens: HashMap<String, Style>,
     pub style: Style,
 }
@@ -22,12 +22,13 @@ pub struct Appearance {
 
 #[derive(Debug)]
 pub struct Statusline {
-    pub bg: Color,
+    pub inner: Style,
 }
 
 #[derive(Debug)]
 pub struct Gutter {
     pub bg: Color,
+    pub fg: Color,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,7 +59,7 @@ impl Default for Theme {
         Self {
             name: "glyph-dark".to_string(),
             statusline: Statusline::default(),
-            gutter: Gutter::default(),
+            gutter: Style::new(appearance.bg),
             tokens: HashMap::new(),
             style: Style::new(appearance.bg),
             appearance,
@@ -93,7 +94,17 @@ impl Default for Appearance {
 impl Default for Statusline {
     fn default() -> Self {
         Self {
-            bg: Color::Rgb { r: 0, g: 0, b: 0 },
+            inner: Style {
+                bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+                fg: Some(Color::Rgb {
+                    r: 100,
+                    g: 100,
+                    b: 100,
+                }),
+                italic: None,
+                bold: None,
+                underline: None,
+            },
         }
     }
 }
@@ -102,6 +113,11 @@ impl Default for Gutter {
     fn default() -> Self {
         Self {
             bg: Color::Rgb { r: 0, g: 0, b: 0 },
+            fg: Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100,
+            },
         }
     }
 }

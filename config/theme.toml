@@ -6,9 +6,10 @@ fg = "#c8c093"
 
 [gutter]
 bg = "#2c2e34"
+fg = "#7e7e7e"
 
 [statusline]
-bg = "#3c3e44"
+inner = { fg = "#cecece", bg = "#3c3e44" }
 
 [tokens]
 function = { fg = "#7daea3" }

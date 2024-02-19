@@ -1,5 +1,5 @@
-use crossterm::cursor;
-use crossterm::style::{Color, Print, Stylize};
+use crossterm::style::Print;
+use crossterm::{cursor, style};
 use crossterm::{terminal, QueueableCommand};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -10,15 +10,17 @@ use crate::buffer::Buffer;
 use crate::command::{Command, EditorCommands};
 use crate::config::Config;
 use crate::pane::{Pane, PaneDimensions, Position};
+use crate::theme::Theme;
+use crate::viewport::{Change, Viewport};
 use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
-pub struct ViewSize {
+pub struct Size {
     pub height: u16,
     pub width: u16,
 }
 
-impl From<(u16, u16)> for ViewSize {
+impl From<(u16, u16)> for Size {
     fn from((width, height): (u16, u16)) -> Self {
         Self { width, height }
     }
@@ -26,16 +28,18 @@ impl From<(u16, u16)> for ViewSize {
 
 pub struct View {
     active_window: Rc<RefCell<Window>>,
-    size: ViewSize,
+    size: Size,
     stdout: Stdout,
     config: &'static Config,
+    viewport: Viewport,
+    theme: &'static Theme,
 }
 
 impl View {
     pub fn new(file_name: Option<String>) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
-        let mut window_size = size;
+        let mut window_size = size.clone();
         window_size.1 -= 1;
         let buffer = View::make_buffer(1, file_name)?;
         let pane = View::make_pane(1, buffer, window_size.into());
@@ -47,31 +51,39 @@ impl View {
             size: size.into(),
             active_window: window.clone(),
             config: Config::get(),
+            viewport: Viewport::new(size.0 as usize, 1),
+            theme: Theme::get(),
         })
     }
 
     pub fn handle(&mut self, command: Command) -> Result<()> {
+        let last_viewport = self.viewport.clone();
+        let mut viewport = Viewport::new(self.size.width as usize, 1);
         match command {
             Command::Editor(EditorCommands::Start) => self.initialize()?,
             Command::Editor(EditorCommands::Quit) => self.shutdown()?,
-            Command::Editor(EditorCommands::SecondElapsed) => self.draw_statusbar()?,
-            Command::Buffer(_) => self.handle_buffer(command)?,
-            Command::Cursor(_) => self.handle_cursor(command)?,
+            Command::Editor(EditorCommands::SecondElapsed) => self.draw_statusline(&mut viewport),
+            Command::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
+            Command::Cursor(_) => self.handle_cursor(command, &mut viewport)?,
             Command::Pane(_) => self.active_window.borrow_mut().handle(command)?,
             Command::Window(_) => self.active_window.borrow_mut().handle(command)?,
         };
+        self.stdout.queue(cursor::SavePosition)?;
+        self.render_statusline(viewport.diff(&last_viewport))?;
+        self.viewport = viewport;
+        self.stdout.queue(cursor::RestorePosition)?;
         Ok(())
     }
 
-    fn handle_cursor(&mut self, command: Command) -> Result<()> {
+    fn handle_cursor(&mut self, command: Command, viewport: &mut Viewport) -> Result<()> {
         self.active_window.borrow_mut().handle(command)?;
-        self.draw_statusbar()?;
+        self.draw_statusline(viewport);
         Ok(())
     }
 
-    fn handle_buffer(&mut self, command: Command) -> Result<()> {
+    fn handle_buffer(&mut self, command: Command, viewport: &mut Viewport) -> Result<()> {
         self.active_window.borrow_mut().handle(command)?;
-        self.draw_statusbar()?;
+        self.draw_statusline(viewport);
         Ok(())
     }
 
@@ -86,9 +98,40 @@ impl View {
     fn initialize(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
         self.stdout.queue(terminal::EnterAlternateScreen)?;
+
+        let last_viewport = self.viewport.clone();
+        let mut viewport = Viewport::new(self.size.width as usize, 1);
         self.clear_screen()?;
-        self.draw_statusbar()?;
+        self.draw_statusline(&mut viewport);
+        self.render_statusline(viewport.diff(&last_viewport))?;
+
         self.active_window.borrow_mut().initialize()?;
+        self.viewport = viewport;
+
+        Ok(())
+    }
+
+    fn render_statusline(&mut self, changes: Vec<Change>) -> Result<()> {
+        logger::trace!("{:?}", changes);
+        for change in changes {
+            self.stdout
+                .queue(cursor::MoveTo(change.col as u16, self.size.height))?;
+
+            if let Some(bg) = change.cell.style.bg {
+                self.stdout.queue(style::SetBackgroundColor(bg))?;
+            } else {
+                self.stdout
+                    .queue(style::SetBackgroundColor(self.theme.style.bg.unwrap()))?;
+            }
+            if let Some(fg) = change.cell.style.fg {
+                self.stdout.queue(style::SetForegroundColor(fg))?;
+            } else {
+                self.stdout
+                    .queue(style::SetForegroundColor(self.theme.style.fg.unwrap()))?;
+            }
+
+            self.stdout.queue(Print(change.cell.c))?;
+        }
         Ok(())
     }
 
@@ -99,52 +142,49 @@ impl View {
         Ok(())
     }
 
-    fn draw_statusbar(&mut self) -> Result<()> {
-        self.stdout
-            .queue(cursor::SavePosition)?
-            .queue(cursor::Hide)?;
-
-        self.draw_statusbar_background()?;
-
+    fn draw_statusline(&mut self, viewport: &mut Viewport) {
         let active_pane = self.active_window.borrow_mut().get_active_pane();
         let cursor_position = active_pane.borrow().get_cursor_readable_position();
         let Position { col, row } = cursor_position;
         let lines = active_pane.borrow().get_buffer().borrow().marker.len() as u16;
 
-        let cursor = format!("{}:{}", row, col);
+        let cursor = format!("{}:{} ", row, col);
         let percentage = match row {
-            1 => "TOP".into(),
-            _ if row == lines => "BOTTOM".into(),
-            _ => format!("{}%", (row as f64 / lines as f64 * 100.0) as usize),
+            1 => "TOP ".into(),
+            _ if row == lines => "BOT ".into(),
+            _ => format!("{}% ", (row as f64 / lines as f64 * 100.0) as usize),
         };
+
         let file_name = active_pane.borrow().get_buffer().borrow().file_name.clone();
         let file_name = file_name.split('/').rev().nth(0).unwrap();
-        let file_name = format!("\u{eae9} {}", file_name);
+        let file_name = format!(" {}", file_name);
 
-        let cursor_pad = self.size.width - cursor.len() as u16 - self.config.gutter_width;
-        let percentage_pad = cursor_pad - 2 - percentage.len() as u16;
-        let filename_pad = 2;
+        let padding = " "
+            .repeat(self.size.width as usize - file_name.len() - cursor.len() - percentage.len());
 
-        self.stdout
-            .queue(cursor::MoveTo(cursor_pad as u16, self.size.height))?
-            .queue(Print(cursor.with(Color::Green)))?
-            .queue(cursor::MoveTo(percentage_pad as u16, self.size.height))?
-            .queue(Print(percentage.with(Color::Magenta)))?
-            .queue(cursor::MoveTo(filename_pad as u16, self.size.height))?
-            .queue(Print(file_name.with(Color::White)))?
-            .queue(cursor::RestorePosition)?
-            .queue(cursor::Show)?;
+        viewport.set_text(0, 0, &file_name, &self.theme.statusline.inner);
+        viewport.set_text(file_name.len(), 0, &padding, &self.theme.statusline.inner);
 
-        Ok(())
-    }
+        viewport.set_text(
+            self.size.width as usize - 1 - cursor.len(),
+            0,
+            &cursor,
+            &self.theme.statusline.inner,
+        );
 
-    fn draw_statusbar_background(&mut self) -> Result<()> {
-        for col in 0..self.size.width {
-            self.stdout
-                .queue(cursor::MoveTo(col, self.size.height))?
-                .queue(Print(" ".to_string().with(Color::Black)))?;
-        }
-        Ok(())
+        viewport.set_text(
+            self.size.width as usize - cursor.len(),
+            0,
+            &cursor,
+            &self.theme.statusline.inner,
+        );
+
+        viewport.set_text(
+            self.size.width as usize - cursor.len() - percentage.len(),
+            0,
+            &percentage,
+            &self.theme.statusline.inner,
+        );
     }
 
     fn make_buffer(id: u16, file_name: Option<String>) -> Result<Rc<RefCell<Buffer>>> {

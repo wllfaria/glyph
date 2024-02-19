@@ -1,17 +1,18 @@
-use crossterm::style::{self, Color};
-use crossterm::{self, style::Print, QueueableCommand};
 use std::cell::RefCell;
 use std::io::{stdout, Result, Stdout};
-
 use std::rc::Rc;
+
+use crossterm::style;
+use crossterm::{self, style::Print, QueueableCommand};
 
 use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
 use crate::config::Config;
-use crate::highlight::{ColorInfo, Highlight};
+use crate::highlight::Highlight;
 use crate::pane::cursor::Cursor;
 use crate::pane::gutter::Gutter;
-use crate::theme::{Style, Theme};
+use crate::theme::Theme;
+use crate::viewport::{Change, Viewport};
 
 mod cursor;
 mod gutter;
@@ -41,74 +42,6 @@ impl From<(u16, u16)> for PaneDimensions {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Cell {
-    c: char,
-    style: Style,
-}
-
-impl Default for Cell {
-    fn default() -> Self {
-        Self {
-            c: ' ',
-            style: Theme::get().style.clone(),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct Viewport {
-    pub cells: Vec<Cell>,
-    dimensions: PaneDimensions,
-}
-
-#[derive(Debug)]
-pub struct Change<'a> {
-    cell: &'a Cell,
-    x: usize,
-    y: usize,
-}
-
-impl Viewport {
-    pub fn new(dimensions: PaneDimensions) -> Self {
-        Self {
-            cells: vec![Default::default(); (dimensions.width * dimensions.height) as usize],
-            dimensions,
-        }
-    }
-
-    pub fn set_cell(&mut self, x: usize, y: usize, c: char, style: &Style) {
-        let pos = y * self.dimensions.width as usize + x;
-        self.cells[pos] = Cell {
-            c,
-            style: style.clone(),
-        };
-    }
-
-    fn set_text(&mut self, x: usize, y: usize, text: &str, style: &Style) {
-        let pos = (y * self.dimensions.width as usize) + x;
-        for (i, c) in text.chars().enumerate() {
-            self.cells[pos + i] = Cell {
-                c,
-                style: style.clone(),
-            }
-        }
-    }
-
-    pub fn diff(&self, other: &Viewport) -> Vec<Change> {
-        let mut changes = vec![];
-        for (p, cell) in self.cells.iter().enumerate() {
-            if *cell != other.cells[p] {
-                let y = p / self.dimensions.width as usize;
-                let x = p % self.dimensions.width as usize;
-
-                changes.push(Change { x, y, cell });
-            }
-        }
-        changes
-    }
-}
-
 pub struct Pane {
     pub id: u16,
     cursor: Cursor,
@@ -130,7 +63,7 @@ impl Pane {
             buffer,
             highlight: Highlight::new(),
             stdout: stdout(),
-            viewport: Viewport::new(dimensions.clone()),
+            viewport: Viewport::new(dimensions.width as usize, dimensions.height as usize),
             dimensions,
             config: Config::get(),
             cursor: Cursor::new(),
@@ -142,7 +75,10 @@ impl Pane {
 
     pub fn handle(&mut self, command: Command) -> Result<()> {
         let last_viewport = self.viewport.clone();
-        let mut viewport = Viewport::new(self.dimensions.clone());
+        let mut viewport = Viewport::new(
+            self.dimensions.width as usize,
+            self.dimensions.height as usize,
+        );
 
         self.stdout.queue(crossterm::cursor::Hide)?;
         match command {
@@ -153,8 +89,8 @@ impl Pane {
             _ => (),
         };
 
-        self.draw_buffer(&mut viewport);
         self.draw_sidebar(&mut viewport);
+        self.draw_buffer(&mut viewport);
         self.draw_diff(viewport.diff(&last_viewport))?;
         self.draw_cursor()?;
         self.viewport = viewport;
@@ -163,7 +99,10 @@ impl Pane {
     }
 
     pub fn initialize(&mut self) -> Result<()> {
-        let mut viewport = Viewport::new(self.dimensions.clone());
+        let mut viewport = Viewport::new(
+            self.dimensions.width as usize,
+            self.dimensions.height as usize,
+        );
         self.draw_sidebar(&mut viewport);
         self.draw_buffer(&mut viewport);
         self.draw(&mut viewport)?;
@@ -177,9 +116,15 @@ impl Pane {
         for cell in &viewport.cells {
             if let Some(fg) = cell.style.fg {
                 self.stdout.queue(style::SetForegroundColor(fg))?;
+            } else {
+                self.stdout
+                    .queue(style::SetForegroundColor(self.theme.style.fg.unwrap()))?;
             }
             if let Some(bg) = cell.style.bg {
                 self.stdout.queue(style::SetBackgroundColor(bg))?;
+            } else {
+                self.stdout
+                    .queue(style::SetBackgroundColor(self.theme.style.bg.unwrap()))?;
             }
             self.stdout.queue(Print(cell.c))?;
         }
@@ -189,8 +134,10 @@ impl Pane {
     fn draw_diff(&mut self, changes: Vec<Change>) -> Result<()> {
         self.stdout.queue(crossterm::cursor::SavePosition)?;
         for change in changes {
-            self.stdout
-                .queue(crossterm::cursor::MoveTo(change.x as u16, change.y as u16))?;
+            self.stdout.queue(crossterm::cursor::MoveTo(
+                change.col as u16,
+                change.row as u16,
+            ))?;
             if let Some(bg) = change.cell.style.bg {
                 self.stdout.queue(style::SetBackgroundColor(bg))?;
             } else {
@@ -326,10 +273,6 @@ impl Pane {
         );
     }
 
-    fn highlight(&mut self, buffer: &str) -> Result<Vec<ColorInfo>> {
-        Ok(self.highlight.colors(buffer))
-    }
-
     fn draw_buffer(&mut self, viewport: &mut Viewport) {
         let height = self.dimensions.height;
         let width = self.dimensions.width;
@@ -340,7 +283,7 @@ impl Pane {
             .buffer
             .borrow()
             .content_from(self.scroll.row as usize, self.dimensions.height as usize);
-        let colors = self.highlight(&lines).unwrap();
+        let colors = self.highlight.colors(&lines);
 
         let mut x = offset;
         let mut y = 0;
@@ -372,25 +315,5 @@ impl Pane {
 
     pub fn get_buffer(&self) -> Rc<RefCell<Buffer>> {
         self.buffer.clone()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_test() {
-        let dimensions: PaneDimensions = (10, 10).into();
-        let mut vp_a = Viewport::new(dimensions.clone());
-        let mut vp_b = Viewport::new(dimensions.clone());
-
-        vp_a.set_text(0, 0, "Hello, World!", &Theme::get().style);
-        vp_b.set_text(0, 0, "Goodbye, mars!", &Theme::get().style);
-
-        let diff = vp_b.diff(&vp_a);
-
-        println!("{diff:#?}");
-
-        assert_eq!(1, 2);
     }
 }

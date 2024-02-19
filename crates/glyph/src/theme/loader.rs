@@ -22,12 +22,13 @@ struct AppearanceStyle {
 
 #[derive(Deserialize, Debug)]
 struct StatuslineStyle {
-    bg: String,
+    inner: TokenStyle,
 }
 
 #[derive(Deserialize, Debug)]
 struct GutterStyle {
     bg: String,
+    fg: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -35,7 +36,7 @@ pub struct ThemeLoader {
     name: String,
     appearance: AppearanceStyle,
     statusline: StatuslineStyle,
-    gutter: GutterStyle,
+    gutter: TokenStyle,
     tokens: HashMap<String, TokenStyle>,
 }
 
@@ -99,7 +100,7 @@ impl From<AppearanceStyle> for Appearance {
 impl From<StatuslineStyle> for Statusline {
     fn from(val: StatuslineStyle) -> Self {
         Statusline {
-            bg: ThemeLoader::hex_to_rgb(Some(val.bg)).unwrap().unwrap(),
+            inner: val.inner.into(),
         }
     }
 }
@@ -108,6 +109,7 @@ impl From<GutterStyle> for Gutter {
     fn from(val: GutterStyle) -> Self {
         Gutter {
             bg: ThemeLoader::hex_to_rgb(Some(val.bg)).unwrap().unwrap(),
+            fg: ThemeLoader::hex_to_rgb(Some(val.fg)).unwrap().unwrap(),
         }
     }
 }

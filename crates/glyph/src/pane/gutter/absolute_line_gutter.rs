@@ -19,9 +19,9 @@ impl AbsoluteLineGutter {
 
 impl Gutter for AbsoluteLineGutter {
     fn draw(&mut self, viewport: &mut Viewport, total_lines: usize, _: u16, scroll: u16) {
-        let total_lines = usize::min(viewport.dimensions.height as usize, total_lines);
+        let total_lines = usize::min(viewport.height as usize, total_lines);
         let mut scroll = scroll;
-        let theme = Theme::get();
+        let style = &Theme::get().gutter;
 
         for y in 0..total_lines {
             scroll += 1;
@@ -30,18 +30,18 @@ impl Gutter for AbsoluteLineGutter {
             line.push_str(" ");
 
             for (x, c) in line.chars().enumerate() {
-                viewport.set_cell(x, y, c, &Theme::get().style);
+                viewport.set_cell(x, y, c, style);
             }
         }
 
-        if total_lines < viewport.dimensions.height as usize {
-            for y in total_lines..viewport.dimensions.height as usize {
+        if total_lines < viewport.height as usize {
+            for y in total_lines..viewport.height as usize {
                 let mut line = " ".repeat(self.config.gutter_width as usize - 2);
                 line.push(self.config.empty_line_char);
                 line.push(' ');
 
                 for (x, c) in line.chars().enumerate() {
-                    viewport.set_cell(x, y, c, &Theme::get().style);
+                    viewport.set_cell(x, y, c, style);
                 }
             }
         }

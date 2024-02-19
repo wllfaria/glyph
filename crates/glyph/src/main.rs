@@ -7,6 +7,7 @@ mod highlight;
 mod pane;
 mod theme;
 mod view;
+mod viewport;
 mod window;
 
 use logger::{self, FileLogger, LogLevel, Logger};
