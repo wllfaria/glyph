@@ -1,23 +1,16 @@
-use std::io::Result;
-
 use crate::config::{Config, LineNumbers};
 use crate::pane::gutter::absolute_line_gutter::AbsoluteLineGutter;
 use crate::pane::gutter::noop_line_gutter::NoopLineDrawer;
 use crate::pane::gutter::relative_line_gutter::RelativeLineDrawer;
-use crate::pane::PaneDimensions;
+
+use super::Viewport;
 
 mod absolute_line_gutter;
 mod noop_line_gutter;
 mod relative_line_gutter;
 
 pub trait Gutter: std::fmt::Debug {
-    fn draw(
-        &mut self,
-        dimensions: &PaneDimensions,
-        total_lines: u16,
-        current_line: u16,
-        scroll_row: u16,
-    ) -> Result<()>;
+    fn draw(&mut self, viewport: &mut Viewport, total_lines: usize, line: u16, scroll: u16);
 }
 
 impl dyn Gutter {

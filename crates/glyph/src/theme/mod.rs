@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::OnceLock};
 
 use crossterm::style::Color;
-
 mod loader;
 
 pub static THEME: OnceLock<Theme> = OnceLock::new();
@@ -31,7 +30,7 @@ pub struct Gutter {
     pub bg: Color,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Style {
     pub fg: Option<Color>,
     pub bg: Option<Color>,
@@ -55,6 +54,7 @@ impl Theme {
 impl Default for Theme {
     fn default() -> Self {
         let appearance = Appearance::default();
+
         Self {
             name: "glyph-dark".to_string(),
             statusline: Statusline::default(),
@@ -85,11 +85,7 @@ impl Style {
 impl Default for Appearance {
     fn default() -> Self {
         Self {
-            bg: Color::Rgb {
-                r: 255,
-                g: 255,
-                b: 255,
-            },
+            bg: Color::Rgb { r: 0, g: 0, b: 0 },
         }
     }
 }
@@ -97,11 +93,7 @@ impl Default for Appearance {
 impl Default for Statusline {
     fn default() -> Self {
         Self {
-            bg: Color::Rgb {
-                r: 255,
-                g: 255,
-                b: 255,
-            },
+            bg: Color::Rgb { r: 0, g: 0, b: 0 },
         }
     }
 }
@@ -109,11 +101,7 @@ impl Default for Statusline {
 impl Default for Gutter {
     fn default() -> Self {
         Self {
-            bg: Color::Rgb {
-                r: 255,
-                g: 255,
-                b: 255,
-            },
+            bg: Color::Rgb { r: 0, g: 0, b: 0 },
         }
     }
 }

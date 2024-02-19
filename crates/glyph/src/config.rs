@@ -21,7 +21,7 @@ pub struct Config {
 impl Config {
     pub fn get() -> &'static Self {
         let mut config = Self {
-            theme_name: "kanagawa-dragon".to_string(),
+            theme_name: "theme".to_string(),
             line_numbers: LineNumbers::Absolute,
             gutter_width: 6,
             empty_line_char: '~',

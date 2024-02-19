@@ -1,43 +1,29 @@
-use std::io::{self, stdout};
-
-use crossterm::cursor;
-use crossterm::style::{self, Color, Print, Stylize};
-use crossterm::QueueableCommand;
-
 use crate::config::{Config, LineNumbers};
 use crate::pane::gutter::Gutter;
-use crate::pane::PaneDimensions;
+use crate::pane::Viewport;
 use crate::theme::Theme;
 
 #[derive(Debug)]
 pub struct RelativeLineDrawer {
-    stdout: io::Stdout,
     config: &'static Config,
 }
 
 impl RelativeLineDrawer {
     pub fn new() -> Self {
         Self {
-            stdout: stdout(),
             config: Config::get(),
         }
     }
 }
 
 impl Gutter for RelativeLineDrawer {
-    fn draw(
-        &mut self,
-        dimensions: &PaneDimensions,
-        total_lines: u16,
-        current_line: u16,
-        scroll_row: u16,
-    ) -> io::Result<()> {
-        let total_lines = u16::min(dimensions.height, total_lines);
-        let normalized_line = current_line + 1;
-        let mut scroll_row = scroll_row;
+    fn draw(&mut self, viewport: &mut Viewport, total_lines: usize, line: u16, scroll: u16) {
+        let total_lines = usize::min(viewport.dimensions.height as usize, total_lines);
+        let normalized_line = line + 1;
+        let mut scroll_row = scroll;
         let theme = Theme::get();
 
-        for i in 0..total_lines {
+        for y in 0..total_lines {
             scroll_row += 1;
             let mut line = u16::abs_diff(scroll_row, normalized_line).to_string();
 
@@ -51,20 +37,21 @@ impl Gutter for RelativeLineDrawer {
             line = " ".repeat(self.config.gutter_width as usize - 1 - line.len()) + &line;
             line.push_str(" ");
 
-            self.stdout
-                .queue(cursor::MoveTo(dimensions.col, i))?
-                .queue(style::SetBackgroundColor(theme.style.bg.unwrap()))?
-                .queue(Print(line.with(Color::DarkGrey)))?;
-        }
-
-        if total_lines < dimensions.height {
-            for i in total_lines..dimensions.height {
-                self.stdout
-                    .queue(cursor::MoveTo(dimensions.col, i))?
-                    .queue(Print(self.config.empty_line_char))?;
+            for (x, c) in line.chars().enumerate() {
+                viewport.set_cell(x, y, c, &Theme::get().style);
             }
         }
 
-        Ok(())
+        if total_lines < viewport.dimensions.height as usize {
+            let mut line = " ".repeat(self.config.gutter_width as usize - 2);
+            line.push(self.config.empty_line_char);
+            line.push(' ');
+
+            for y in total_lines..viewport.dimensions.height as usize {
+                for (x, c) in line.chars().enumerate() {
+                    viewport.set_cell(x, y, c, &Theme::get().style);
+                }
+            }
+        }
     }
 }

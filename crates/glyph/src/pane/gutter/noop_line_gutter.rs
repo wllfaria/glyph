@@ -1,7 +1,5 @@
-use std::io;
-
 use crate::pane::Gutter;
-use crate::pane::PaneDimensions;
+use crate::pane::Viewport;
 
 #[derive(Debug)]
 pub struct NoopLineDrawer {}
@@ -13,7 +11,5 @@ impl NoopLineDrawer {
 }
 
 impl Gutter for NoopLineDrawer {
-    fn draw(&mut self, _: &PaneDimensions, _: u16, _: u16, _: u16) -> io::Result<()> {
-        Ok(())
-    }
+    fn draw(&mut self, _: &mut Viewport, _: usize, _: u16, _: u16) {}
 }
