@@ -22,8 +22,8 @@ pub struct Editor<'a> {
 impl<'a> Editor<'a> {
     pub fn new(file_name: Option<String>, lsp: &'a LspClient) -> anyhow::Result<Self> {
         let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name)?));
-        let pane = Pane::new(1, buffer.clone());
-        let window = Window::new(1, pane);
+        let pane = Pane::new(1, buffer.clone(), lsp);
+        let window = Window::new(1, pane, lsp);
         Ok(Self {
             events: Events::new(),
             view: View::new(lsp, window)?,

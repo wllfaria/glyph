@@ -43,7 +43,7 @@ impl From<(u16, u16)> for PaneSize {
     }
 }
 
-pub struct Pane {
+pub struct Pane<'a> {
     pub id: usize,
     cursor: Cursor,
     highlight: Highlight,
@@ -55,10 +55,11 @@ pub struct Pane {
     size: PaneSize,
     stdout: Stdout,
     theme: &'static Theme,
+    lsp: &'a LspClient,
 }
 
-impl Pane {
-    pub fn new(id: usize, buffer: Rc<RefCell<Buffer>>) -> Self {
+impl<'a> Pane<'a> {
+    pub fn new(id: usize, buffer: Rc<RefCell<Buffer>>, lsp: &'a LspClient) -> Self {
         Self {
             id,
             buffer,
@@ -71,6 +72,7 @@ impl Pane {
             scroll: Position::default(),
             gutter: <dyn Gutter>::get_gutter(),
             theme: Theme::get(),
+            lsp,
         }
     }
 

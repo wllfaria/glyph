@@ -2,16 +2,18 @@ use std::collections::HashMap;
 use std::io;
 
 use crate::command::Command;
+use crate::lsp::LspClient;
 use crate::pane::{Pane, PaneSize};
 
-pub struct Window {
+pub struct Window<'a> {
     pub id: usize,
-    panes: HashMap<usize, Pane>,
+    panes: HashMap<usize, Pane<'a>>,
     active_pane: usize,
+    lsp: &'a LspClient,
 }
 
-impl Window {
-    pub fn new(id: usize, pane: Pane) -> Self {
+impl<'a> Window<'a> {
+    pub fn new(id: usize, pane: Pane<'a>, lsp: &'a LspClient) -> Self {
         let mut panes = HashMap::new();
         let pane_id = pane.id;
         panes.insert(pane.id, pane);
@@ -20,6 +22,7 @@ impl Window {
             id,
             active_pane: pane_id,
             panes,
+            lsp,
         }
     }
 

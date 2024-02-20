@@ -1,19 +1,16 @@
 use crossterm::style::Print;
 use crossterm::{cursor, style};
 use crossterm::{terminal, QueueableCommand};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{stdout, Result, Stdout, Write};
-use std::rc::Rc;
 
-use crate::buffer::Buffer;
 use crate::command::{Command, EditorCommands};
 use crate::config::Config;
 use crate::lsp::LspClient;
-use crate::pane::{Pane, PaneSize, Position};
+use crate::pane::Position;
 use crate::theme::Theme;
 use crate::viewport::{Change, Viewport};
-use crate::window::{self, Window};
+use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Size {
@@ -29,7 +26,7 @@ impl From<(u16, u16)> for Size {
 
 pub struct View<'a> {
     active_window: usize,
-    windows: HashMap<usize, Window>,
+    windows: HashMap<usize, Window<'a>>,
     size: Size,
     stdout: Stdout,
     config: &'static Config,
@@ -39,7 +36,7 @@ pub struct View<'a> {
 }
 
 impl<'a> View<'a> {
-    pub fn new(lsp: &'a LspClient, mut window: Window) -> Result<Self> {
+    pub fn new(lsp: &'a LspClient, mut window: Window<'a>) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
 

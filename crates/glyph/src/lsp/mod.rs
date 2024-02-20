@@ -5,12 +5,11 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter},
     process::{ChildStdin, Command},
     sync::mpsc::{self, error::TryRecvError},
-    time::timeout,
 };
 
 static ID: AtomicUsize = AtomicUsize::new(1);
