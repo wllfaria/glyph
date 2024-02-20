@@ -37,7 +37,6 @@ impl Highlight {
         let mut colors = Vec::new();
         let mut cursor = QueryCursor::new();
         let matches = cursor.matches(&self.query, tree.root_node(), buffer.as_bytes());
-        logger::debug!("render buffer with len {}", buffer.len());
 
         for m in matches {
             for cap in m.captures {
@@ -47,8 +46,6 @@ impl Highlight {
                 let capture_name = self.query.capture_names()[cap.index as usize].as_str();
                 if let Some(style) = self.theme.tokens.get(capture_name) {
                     colors.push(ColorInfo { start, end, style });
-                } else {
-                    logger::info!("missing capture name: {capture_name}");
                 }
             }
         }

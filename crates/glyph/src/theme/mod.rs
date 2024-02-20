@@ -43,10 +43,7 @@ pub struct Style {
 impl Theme {
     pub fn get() -> &'static Self {
         THEME.get_or_init(|| match loader::ThemeLoader::parse_theme() {
-            Ok(theme) => {
-                logger::debug!("{theme:?}");
-                theme
-            }
+            Ok(theme) => theme,
             Err(_) => Self::default(),
         })
     }

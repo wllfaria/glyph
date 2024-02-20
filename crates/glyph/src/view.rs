@@ -71,7 +71,8 @@ impl View {
         self.stdout.queue(cursor::SavePosition)?;
         self.render_statusline(viewport.diff(&last_viewport))?;
         self.viewport = viewport;
-        self.stdout.queue(cursor::RestorePosition)?;
+        self.stdout.queue(cursor::RestorePosition)?.flush()?;
+        
         Ok(())
     }
 
@@ -112,7 +113,6 @@ impl View {
     }
 
     fn render_statusline(&mut self, changes: Vec<Change>) -> Result<()> {
-        logger::trace!("{:?}", changes);
         for change in changes {
             self.stdout
                 .queue(cursor::MoveTo(change.col as u16, self.size.height))?;

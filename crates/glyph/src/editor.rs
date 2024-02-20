@@ -1,38 +1,63 @@
-use std::io::{self, Write};
+use std::time::Duration;
+
+use futures::{future::FutureExt, StreamExt};
 
 use crate::command::{Command, EditorCommands};
 use crate::events::Events;
+use crate::lsp::{IncomingMessage, LspClient};
 use crate::view::View;
+use crossterm::event::EventStream;
 
 pub struct Editor {
-    is_running: bool,
     events: Events,
     view: View,
 }
 
 impl Editor {
-    pub fn new(file_name: Option<String>) -> io::Result<Self> {
+    pub fn new(file_name: Option<String>) -> anyhow::Result<Self> {
         Ok(Self {
-            is_running: true,
             events: Events::new(),
             view: View::new(file_name)?,
         })
     }
 
-    pub fn start(&mut self) -> io::Result<()> {
+    pub async fn start(&mut self) -> anyhow::Result<()> {
         self.view.handle(Command::Editor(EditorCommands::Start))?;
 
-        while self.is_running {
-            match self.events.poll()? {
-                Some(Command::Editor(EditorCommands::Quit)) => {
-                    self.view.handle(Command::Editor(EditorCommands::Quit))?;
-                    self.is_running = false
+        let mut stream = EventStream::new();
+        let mut client = LspClient::start().await.unwrap();
+        client.initialize().await?;
+
+        loop {
+            let delay = futures_timer::Delay::new(Duration::from_millis(300)).fuse();
+            let event = stream.next().fuse();
+
+            tokio::select! {
+                _ = delay => {
+                    if let Some((_msg, _method)) = client.try_read_message().await? { }
                 }
-                Some(command) => self.view.handle(command)?,
-                _ => (),
+                maybe_event = event => {
+                    match maybe_event {
+                        Some(Ok(event)) => {
+                            match self.events.handle(event) {
+                                Some(command) => match command {
+                                    Command::Editor(EditorCommands::Quit) => {
+                                        self.view.handle(command)?;
+                                        break
+                                    }
+                                    _ => self.view.handle(command)?,
+
+                                }
+                                None => (),
+                            }
+                        }
+                        Some(Err(_)) => (),
+                        None => (),
+                    }
+                }
             }
-            io::stdout().flush()?;
         }
+
         Ok(())
     }
 }
