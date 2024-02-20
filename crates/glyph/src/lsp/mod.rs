@@ -1,4 +1,8 @@
-use std::{collections::HashMap, process::Stdio, sync::atomic::AtomicUsize};
+use std::{
+    collections::HashMap,
+    process::{self, Stdio},
+    sync::atomic::AtomicUsize,
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -87,6 +91,7 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
             match message {
                 OutgoingMessage::RequestMessage(req) => {
                     if let Err(err) = lsp_send_request(&mut stdin, &req).await {
+                        logger::error!("[LSP] failed to process request message: {err:?}");
                         rtx.send(IncomingMessage::ProcessingError(err.to_string()))
                             .await
                             .unwrap();
@@ -94,6 +99,7 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                 }
                 OutgoingMessage::NotificationMessage(req) => {
                     if let Err(err) = lsp_send_notification(&mut stdin, &req).await {
+                        logger::error!("[LSP] failed to process notification message");
                         rtx.send(IncomingMessage::ProcessingError(err.to_string()))
                             .await
                             .unwrap();
@@ -157,6 +163,7 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                     "[lsp] incoming message: {}",
                     res.to_string().chars().take(100).collect::<String>()
                 );
+
                 // im not doing anything with the response for now
                 // but i should check if it errored, and check wether it has
                 // an id or not. Notifications never have ids. requests have
@@ -235,9 +242,9 @@ pub struct ClientCapabilities {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TextDocumentClientCapabilities {
-    pub completion: Option<CompletionClientCapabilities>,
+    // pub completion: Option<CompletionClientCapabilities>,
     // syncrhonization: Option<TextDocumentSyncClientCapabilities>,
-    // hover: Option<HoverClientCapabilities>,
+    hover: Option<HoverClientCapabilities>,
     // signature_help: Option<SignatureHelpClientCapabilities>,
     // declaration: Option<DeclarationClientCapabilities>,
     // definition: Option<DefinitionClientCapabilities>,
@@ -268,9 +275,15 @@ pub struct TextDocumentClientCapabilities {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct HoverClientCapabilities {
+    dynamic_registration: Option<bool>,
+    content_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CompletionClientCapabilities {
     // dynamic_registration: Option<bool>,
-    pub completion_item: Option<CompletionItem>,
+    // pub completion_item: Option<CompletionItem>,
     // completion_item_kind: Option<CompletionItemKindCapabilities>,
     // context_support: Option<bool>,
     // insert_text_mode: Option<InsertTextMode>,
@@ -279,16 +292,16 @@ pub struct CompletionClientCapabilities {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct CompletionItem {
-    pub snippet_support: Option<bool>,
-    pub commit_characters_support: Option<bool>,
-    pub documentation_format: Option<Vec<MarkupKind>>,
-    pub deprecated_support: Option<bool>,
-    pub preselect_support: Option<bool>,
-    pub tag_support: Option<CompletionTag>,
-    pub insert_replace_support: Option<bool>,
-    pub resolve_support: Option<CompletionResolveSupport>,
-    pub insert_text_mode_support: Option<InsertTextMode>,
-    pub label_details_support: Option<bool>,
+    // pub snippet_support: Option<bool>,
+    // pub commit_characters_support: Option<bool>,
+    // pub documentation_format: Option<Vec<MarkupKind>>,
+    // pub deprecated_support: Option<bool>,
+    // pub preselect_support: Option<bool>,
+    // pub tag_support: Option<CompletionTag>,
+    // pub insert_replace_support: Option<bool>,
+    // pub resolve_support: Option<CompletionResolveSupport>,
+    // pub insert_text_mode_support: Option<InsertTextMode>,
+    // pub label_details_support: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -380,16 +393,50 @@ impl LspClient {
         }
     }
 
+    pub async fn request_hover(
+        &mut self,
+        file_path: String,
+        row: usize,
+        col: usize,
+    ) -> anyhow::Result<i64> {
+        let params = json!({
+            "textDocument": {
+                "uri": file_path,
+            },
+            "position": {
+                "line": row,
+                "character": col
+            }
+        });
+        Ok(self.send_request("textDocument/hover", params).await?)
+    }
+
     pub async fn initialize(&mut self) -> anyhow::Result<()> {
         self.send_request(
             "initialize",
             json!({
-                "processId": null,
+                "processId": process::id(),
                 "clientInfo": {
                     "name": "glyph",
                     "version": "0.1.0",
                 },
-                "capabilities": {}
+                "capabilities": {
+                    "textDocument": {
+                        "hover": {
+                            "dynamicRegistration": true,
+                            "contentFormat": ["markdown", "plaintext"]
+                        },
+                        "completion": {
+                            "completionItem": {
+                                "snippetSupport": true,
+                            }
+                        },
+                        "definition": {
+                            "dynamicRegistration": true,
+                            "linkSupport": false,
+                        }
+                    }
+                }
             }),
         )
         .await?;

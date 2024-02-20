@@ -46,6 +46,12 @@ impl Viewport {
         };
     }
 
+    pub fn resize(&mut self, width: usize, height: usize) {
+        self.width = width;
+        self.height = height;
+        self.cells = vec![Default::default(); width * height];
+    }
+
     pub fn set_text(&mut self, col: usize, row: usize, text: &str, style: &Style) {
         let pos = (row * self.width) + col;
         for (i, c) in text.chars().enumerate() {

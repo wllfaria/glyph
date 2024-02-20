@@ -11,5 +11,5 @@ impl NoopLineDrawer {
 }
 
 impl Gutter for NoopLineDrawer {
-    fn draw(&mut self, _: &mut Viewport, _: usize, _: u16, _: u16) {}
+    fn draw(&self, _: &mut Viewport, _: usize, _: usize, _: usize) {}
 }

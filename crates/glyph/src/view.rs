@@ -9,10 +9,11 @@ use std::rc::Rc;
 use crate::buffer::Buffer;
 use crate::command::{Command, EditorCommands};
 use crate::config::Config;
-use crate::pane::{Pane, PaneDimensions, Position};
+use crate::lsp::LspClient;
+use crate::pane::{Pane, PaneSize, Position};
 use crate::theme::Theme;
 use crate::viewport::{Change, Viewport};
-use crate::window::Window;
+use crate::window::{self, Window};
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Size {
@@ -26,64 +27,73 @@ impl From<(u16, u16)> for Size {
     }
 }
 
-pub struct View {
-    active_window: Rc<RefCell<Window>>,
+pub struct View<'a> {
+    active_window: usize,
+    windows: HashMap<usize, Window>,
     size: Size,
     stdout: Stdout,
     config: &'static Config,
     viewport: Viewport,
     theme: &'static Theme,
+    lsp: &'a LspClient,
 }
 
-impl View {
-    pub fn new(file_name: Option<String>) -> Result<Self> {
+impl<'a> View<'a> {
+    pub fn new(lsp: &'a LspClient, mut window: Window) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
-        let mut window_size = size;
-        window_size.1 -= 1;
-        let buffer = View::make_buffer(1, file_name)?;
-        let pane = View::make_pane(1, buffer, window_size.into());
-        let window = View::make_window(1, pane);
-        windows.insert(window.borrow().id, window.clone());
+
+        let id = window.id;
+        window.resize((size.0, size.1 - 1).into());
+        windows.insert(window.id, window);
 
         Ok(Self {
             stdout: stdout(),
             size: size.into(),
-            active_window: window.clone(),
+            active_window: id,
+            windows,
             config: Config::get(),
             viewport: Viewport::new(size.0 as usize, 1),
             theme: Theme::get(),
+            lsp,
         })
     }
 
     pub fn handle(&mut self, command: Command) -> Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width as usize, 1);
+        let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match command {
             Command::Editor(EditorCommands::Start) => self.initialize()?,
             Command::Editor(EditorCommands::Quit) => self.shutdown()?,
             Command::Editor(EditorCommands::SecondElapsed) => self.draw_statusline(&mut viewport),
             Command::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
             Command::Cursor(_) => self.handle_cursor(command, &mut viewport)?,
-            Command::Pane(_) => self.active_window.borrow_mut().handle(command)?,
-            Command::Window(_) => self.active_window.borrow_mut().handle(command)?,
+            Command::Pane(_) => active_window.handle(command)?,
+            Command::Window(_) => active_window.handle(command)?,
         };
         self.stdout.queue(cursor::SavePosition)?;
         self.render_statusline(viewport.diff(&last_viewport))?;
         self.viewport = viewport;
         self.stdout.queue(cursor::RestorePosition)?.flush()?;
-        
+
         Ok(())
     }
 
+    fn get_active_window(&self) -> &Window {
+        self.windows.get(&self.active_window).unwrap()
+    }
+
     fn handle_cursor(&mut self, command: Command, viewport: &mut Viewport) -> Result<()> {
-        self.active_window.borrow_mut().handle(command)?;
+        let active_window = self.windows.get_mut(&self.active_window).unwrap();
+        active_window.handle(command)?;
         self.draw_statusline(viewport);
         Ok(())
     }
 
     fn handle_buffer(&mut self, command: Command, viewport: &mut Viewport) -> Result<()> {
-        self.active_window.borrow_mut().handle(command)?;
+        let active_window = self.windows.get_mut(&self.active_window).unwrap();
+        active_window.handle(command)?;
         self.draw_statusline(viewport);
         Ok(())
     }
@@ -106,7 +116,10 @@ impl View {
         self.draw_statusline(&mut viewport);
         self.render_statusline(viewport.diff(&last_viewport))?;
 
-        self.active_window.borrow_mut().initialize()?;
+        self.windows
+            .get_mut(&self.active_window)
+            .unwrap()
+            .initialize()?;
         self.viewport = viewport;
 
         Ok(())
@@ -143,10 +156,10 @@ impl View {
     }
 
     fn draw_statusline(&mut self, viewport: &mut Viewport) {
-        let active_pane = self.active_window.borrow_mut().get_active_pane();
-        let cursor_position = active_pane.borrow().get_cursor_readable_position();
+        let active_pane = self.get_active_window().get_active_pane();
+        let cursor_position = active_pane.get_cursor_readable_position();
         let Position { col, row } = cursor_position;
-        let lines = active_pane.borrow().get_buffer().borrow().marker.len() as u16;
+        let lines = active_pane.get_buffer().borrow().marker.len();
 
         let cursor = format!("{}:{} ", row, col);
         let percentage = match row {
@@ -155,7 +168,7 @@ impl View {
             _ => format!("{}% ", (row as f64 / lines as f64 * 100.0) as usize),
         };
 
-        let file_name = active_pane.borrow().get_buffer().borrow().file_name.clone();
+        let file_name = active_pane.get_buffer().borrow().file_name.clone();
         let file_name = file_name.split('/').rev().nth(0).unwrap();
         let file_name = format!(" {}", file_name);
 
@@ -185,22 +198,5 @@ impl View {
             &percentage,
             &self.theme.statusline.inner,
         );
-    }
-
-    fn make_buffer(id: u16, file_name: Option<String>) -> Result<Rc<RefCell<Buffer>>> {
-        let buffer = Buffer::new(id, file_name)?;
-        Ok(Rc::new(RefCell::new(buffer)))
-    }
-
-    fn make_pane(
-        id: u16,
-        buffer: Rc<RefCell<Buffer>>,
-        dimensions: PaneDimensions,
-    ) -> Rc<RefCell<Pane>> {
-        Rc::new(RefCell::new(Pane::new(id, buffer, dimensions)))
-    }
-
-    fn make_window(id: u16, pane: Rc<RefCell<Pane>>) -> Rc<RefCell<Window>> {
-        Rc::new(RefCell::new(Window::new(id, pane)))
     }
 }

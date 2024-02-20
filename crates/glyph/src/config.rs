@@ -14,7 +14,7 @@ pub enum LineNumbers {
 pub struct Config {
     pub theme_name: String,
     pub line_numbers: LineNumbers,
-    pub gutter_width: u16,
+    pub gutter_width: usize,
     pub empty_line_char: char,
 }
 

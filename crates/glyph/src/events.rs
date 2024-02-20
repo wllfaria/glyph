@@ -23,10 +23,13 @@ impl Events {
                 KeyCode::Down => Some(Command::Cursor(CursorCommands::MoveDown)),
                 KeyCode::Up => Some(Command::Cursor(CursorCommands::MoveUp)),
                 KeyCode::Right => Some(Command::Cursor(CursorCommands::MoveRight)),
-                c if c == KeyCode::Char('s') && modifiers == KeyModifiers::CONTROL => {
+                KeyCode::Char('K') if modifiers == KeyModifiers::SHIFT => {
+                    Some(Command::Buffer(BufferCommands::Hover))
+                }
+                KeyCode::Char('s') if modifiers == KeyModifiers::CONTROL => {
                     Some(Command::Buffer(BufferCommands::Save))
                 }
-                c if c == KeyCode::Char('q') && modifiers == KeyModifiers::CONTROL => {
+                KeyCode::Char('q') if modifiers == KeyModifiers::CONTROL => {
                     Some(Command::Editor(EditorCommands::Quit))
                 }
                 KeyCode::Char(c) => Some(Command::Buffer(BufferCommands::Type(c))),

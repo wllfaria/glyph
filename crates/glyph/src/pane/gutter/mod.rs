@@ -10,7 +10,7 @@ mod noop_line_gutter;
 mod relative_line_gutter;
 
 pub trait Gutter: std::fmt::Debug {
-    fn draw(&mut self, viewport: &mut Viewport, total_lines: usize, line: u16, scroll: u16);
+    fn draw(&self, viewport: &mut Viewport, total_lines: usize, line: usize, scroll: usize);
 }
 
 impl dyn Gutter {

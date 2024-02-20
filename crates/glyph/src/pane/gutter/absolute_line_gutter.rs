@@ -18,7 +18,7 @@ impl AbsoluteLineGutter {
 }
 
 impl Gutter for AbsoluteLineGutter {
-    fn draw(&mut self, viewport: &mut Viewport, total_lines: usize, _: u16, scroll: u16) {
+    fn draw(&self, viewport: &mut Viewport, total_lines: usize, _: usize, scroll: usize) {
         let total_lines = usize::min(viewport.height, total_lines);
         let mut scroll = scroll;
         let style = &Theme::get().gutter;

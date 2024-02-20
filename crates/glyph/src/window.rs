@@ -1,33 +1,40 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
-use std::rc::Rc;
 
 use crate::command::Command;
-use crate::pane::Pane;
+use crate::pane::{Pane, PaneSize};
 
 pub struct Window {
-    pub id: u16,
-    panes: HashMap<u16, Rc<RefCell<Pane>>>,
-    active_pane: Rc<RefCell<Pane>>,
+    pub id: usize,
+    panes: HashMap<usize, Pane>,
+    active_pane: usize,
 }
 
 impl Window {
-    pub fn new(id: u16, pane: Rc<RefCell<Pane>>) -> Self {
+    pub fn new(id: usize, pane: Pane) -> Self {
         let mut panes = HashMap::new();
-        panes.insert(pane.borrow().id, pane.clone());
+        let pane_id = pane.id;
+        panes.insert(pane.id, pane);
+
         Self {
             id,
+            active_pane: pane_id,
             panes,
-            active_pane: pane.clone(),
         }
     }
 
-    pub fn handle(&self, command: Command) -> io::Result<()> {
+    pub fn resize(&mut self, new_size: PaneSize) {
+        for pane in self.panes.values_mut() {
+            pane.resize(new_size.clone());
+        }
+    }
+
+    pub fn handle(&mut self, command: Command) -> io::Result<()> {
+        let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
         match command {
-            Command::Pane(_) => self.active_pane.borrow_mut().handle(command)?,
-            Command::Buffer(_) => self.active_pane.borrow_mut().handle(command)?,
-            Command::Cursor(_) => self.active_pane.borrow_mut().handle(command)?,
+            Command::Pane(_) => active_pane.handle(command)?,
+            Command::Buffer(_) => active_pane.handle(command)?,
+            Command::Cursor(_) => active_pane.handle(command)?,
             Command::Window(_) => (),
             _ => {}
         }
@@ -39,13 +46,13 @@ impl Window {
         Ok(())
     }
 
-    pub fn get_active_pane(&self) -> Rc<RefCell<Pane>> {
-        self.active_pane.clone()
+    pub fn get_active_pane(&self) -> &Pane {
+        self.panes.get(&self.active_pane).unwrap()
     }
 
     fn render_panes(&mut self) -> io::Result<()> {
-        for pane in self.panes.values() {
-            pane.borrow_mut().initialize()?;
+        for pane in self.panes.values_mut() {
+            pane.initialize()?;
         }
         Ok(())
     }

@@ -1,23 +1,33 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::Duration;
 
 use futures::{future::FutureExt, StreamExt};
 
+use crate::buffer::Buffer;
 use crate::command::{Command, EditorCommands};
 use crate::events::Events;
 use crate::lsp::LspClient;
+use crate::pane::Pane;
 use crate::view::View;
+use crate::window::Window;
 use crossterm::event::EventStream;
 
-pub struct Editor {
+pub struct Editor<'a> {
     events: Events,
-    view: View,
+    view: View<'a>,
+    lsp: &'a LspClient,
 }
 
-impl Editor {
-    pub fn new(file_name: Option<String>) -> anyhow::Result<Self> {
+impl<'a> Editor<'a> {
+    pub fn new(file_name: Option<String>, lsp: &'a LspClient) -> anyhow::Result<Self> {
+        let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name)?));
+        let pane = Pane::new(1, buffer.clone());
+        let window = Window::new(1, pane);
         Ok(Self {
             events: Events::new(),
-            view: View::new(file_name)?,
+            view: View::new(lsp, window)?,
+            lsp,
         })
     }
 
@@ -34,7 +44,9 @@ impl Editor {
 
             tokio::select! {
                 _ = delay => {
-                    if let Some((_msg, _method)) = client.try_read_message().await? { }
+                    if let Some((msg, _method)) = client.try_read_message().await? {
+                        logger::trace!("[LSP] received message {msg:?}");
+                    }
                 }
                 maybe_event = event => {
                     match maybe_event {

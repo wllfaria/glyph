@@ -9,6 +9,7 @@ use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
 use crate::config::Config;
 use crate::highlight::Highlight;
+use crate::lsp::LspClient;
 use crate::pane::cursor::Cursor;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
@@ -19,31 +20,31 @@ mod gutter;
 
 #[derive(Debug, Default)]
 pub struct Position {
-    pub row: u16,
-    pub col: u16,
+    pub row: usize,
+    pub col: usize,
 }
 
 #[derive(Debug, Clone)]
-pub struct PaneDimensions {
-    pub row: u16,
-    pub col: u16,
-    pub height: u16,
-    pub width: u16,
+pub struct PaneSize {
+    pub row: usize,
+    pub col: usize,
+    pub height: usize,
+    pub width: usize,
 }
 
-impl From<(u16, u16)> for PaneDimensions {
+impl From<(u16, u16)> for PaneSize {
     fn from((width, height): (u16, u16)) -> Self {
         Self {
             col: 0,
             row: 0,
-            width,
-            height,
+            width: width as usize,
+            height: height as usize,
         }
     }
 }
 
 pub struct Pane {
-    pub id: u16,
+    pub id: usize,
     cursor: Cursor,
     highlight: Highlight,
     scroll: Position,
@@ -51,20 +52,20 @@ pub struct Pane {
     viewport: Viewport,
     config: &'static Config,
     gutter: Box<dyn Gutter>,
-    dimensions: PaneDimensions,
+    size: PaneSize,
     stdout: Stdout,
     theme: &'static Theme,
 }
 
 impl Pane {
-    pub fn new(id: u16, buffer: Rc<RefCell<Buffer>>, dimensions: PaneDimensions) -> Self {
+    pub fn new(id: usize, buffer: Rc<RefCell<Buffer>>) -> Self {
         Self {
             id,
             buffer,
             highlight: Highlight::new(),
             stdout: stdout(),
-            viewport: Viewport::new(dimensions.width as usize, dimensions.height as usize),
-            dimensions,
+            size: (0, 0).into(),
+            viewport: Viewport::new(0, 0),
             config: Config::get(),
             cursor: Cursor::new(),
             scroll: Position::default(),
@@ -73,12 +74,14 @@ impl Pane {
         }
     }
 
+    pub fn resize(&mut self, new_size: PaneSize) {
+        self.viewport.resize(new_size.width, new_size.height);
+        self.size = new_size;
+    }
+
     pub fn handle(&mut self, command: Command) -> Result<()> {
         let last_viewport = self.viewport.clone();
-        let mut viewport = Viewport::new(
-            self.dimensions.width as usize,
-            self.dimensions.height as usize,
-        );
+        let mut viewport = Viewport::new(self.size.width as usize, self.size.height as usize);
 
         self.stdout.queue(crossterm::cursor::Hide)?;
         match command {
@@ -99,10 +102,7 @@ impl Pane {
     }
 
     pub fn initialize(&mut self) -> Result<()> {
-        let mut viewport = Viewport::new(
-            self.dimensions.width as usize,
-            self.dimensions.height as usize,
-        );
+        let mut viewport = Viewport::new(self.size.width as usize, self.size.height as usize);
         self.draw_sidebar(&mut viewport);
         self.draw_buffer(&mut viewport);
         self.draw(&mut viewport)?;
@@ -170,7 +170,7 @@ impl Pane {
                 }
             }
             Command::Cursor(CursorCommands::MoveDown) => {
-                if self.cursor.row.saturating_sub(self.scroll.row) >= self.dimensions.height {
+                if self.cursor.row.saturating_sub(self.scroll.row) >= self.size.height {
                     self.scroll.row += 1;
                 }
             }
@@ -200,18 +200,18 @@ impl Pane {
             Command::Buffer(BufferCommands::Backspace) => {
                 let start = self.cursor.row - self.scroll.row.saturating_sub(1);
 
-                for pane_line in start..self.dimensions.height {
+                for pane_line in start..self.size.height {
                     self.redraw_line(pane_line, pos.row + pane_line - start);
                 }
 
                 if let (0, 1..) = (col, row) {
-                    self.cursor.col = mark.size.saturating_sub(1) as u16;
+                    self.cursor.col = mark.size.saturating_sub(1);
                     self.cursor.absolute_position = mark.start + mark.size.saturating_sub(1);
                 }
             }
             Command::Buffer(BufferCommands::NewLine) => {
                 let start = (self.cursor.row - self.scroll.row).saturating_sub(1);
-                for pane_line in start..self.dimensions.height {
+                for pane_line in start..self.size.height {
                     self.redraw_line(pane_line, self.cursor.row + pane_line - start);
                 }
             }
@@ -223,7 +223,7 @@ impl Pane {
         Ok(())
     }
 
-    fn redraw_line(&mut self, pane_line: u16, buffer_line: u16) {
+    fn redraw_line(&mut self, pane_line: usize, buffer_line: usize) {
         let buffer = self.buffer.borrow();
         let len = buffer.marker.len();
         if pane_line as usize > len {
@@ -251,14 +251,12 @@ impl Pane {
         {
             let mut col = self.config.gutter_width;
             match self.cursor.col {
-                c if c > mark.size.saturating_sub(1) as u16 => {
-                    col += mark.size.saturating_sub(1) as u16
-                }
+                c if c > mark.size.saturating_sub(1) => col += mark.size.saturating_sub(1),
                 _ => col += self.cursor.col,
             };
             self.stdout.queue(crossterm::cursor::MoveTo(
-                col,
-                self.cursor.row.saturating_sub(self.scroll.row),
+                col as u16,
+                self.cursor.row.saturating_sub(self.scroll.row) as u16,
             ))?;
         }
         Ok(())
@@ -274,15 +272,15 @@ impl Pane {
     }
 
     fn draw_buffer(&mut self, viewport: &mut Viewport) {
-        let height = self.dimensions.height;
-        let width = self.dimensions.width;
-        let offset = self.dimensions.col + self.config.gutter_width;
+        let height = self.size.height;
+        let width = self.size.width;
+        let offset = self.size.col + self.config.gutter_width;
 
         let default_style = self.theme.style.clone();
         let lines = self
             .buffer
             .borrow()
-            .content_from(self.scroll.row as usize, self.dimensions.height as usize);
+            .content_from(self.scroll.row as usize, self.size.height as usize);
         let colors = self.highlight.colors(&lines);
 
         let mut x = offset;

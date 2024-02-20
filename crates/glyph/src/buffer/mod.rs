@@ -50,7 +50,6 @@ impl Buffer {
     }
 
     pub fn insert_char(&mut self, char: char, cursor_pos: usize) {
-        logger::debug!("Inserting char at {}", cursor_pos);
         self.move_gap(cursor_pos);
         self.buffer[self.gap_start] = char;
         self.gap_start += 1;
@@ -73,7 +72,6 @@ impl Buffer {
     }
 
     pub fn delete_char(&mut self, cursor_pos: usize) {
-        logger::error!("cursor {}", cursor_pos);
         if cursor_pos == 0 {
             return;
         }

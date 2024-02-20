@@ -27,6 +27,7 @@ pub enum BufferCommands {
     Backspace,
     Type(char),
     Save,
+    Hover,
 }
 
 #[derive(Debug)]

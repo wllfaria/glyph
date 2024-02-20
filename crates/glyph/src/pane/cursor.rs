@@ -6,8 +6,8 @@ use super::Position;
 #[derive(Debug)]
 pub struct Cursor {
     pub absolute_position: usize,
-    pub row: u16,
-    pub col: u16,
+    pub row: usize,
+    pub col: usize,
 }
 
 impl Cursor {
@@ -101,7 +101,7 @@ impl Cursor {
         } else {
             let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
             self.absolute_position = mark.start + mark.size.saturating_sub(1);
-            self.col = mark.size.saturating_sub(1) as u16;
+            self.col = mark.size.saturating_sub(1);
         }
     }
 
@@ -117,7 +117,7 @@ impl Cursor {
                 self.col = self.col.saturating_sub(1);
                 let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
                 if self.col as usize >= mark.size {
-                    self.col = mark.size.saturating_sub(2) as u16;
+                    self.col = mark.size.saturating_sub(2);
                 }
                 self.absolute_position -= 1;
             }
@@ -126,7 +126,7 @@ impl Cursor {
 
     fn move_to_end_of_line(&mut self, buffer: &mut Buffer) {
         let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
-        self.col = mark.size.saturating_sub(1) as u16;
+        self.col = mark.size.saturating_sub(1);
         self.absolute_position = mark.start + mark.size.saturating_sub(1);
     }
 }
