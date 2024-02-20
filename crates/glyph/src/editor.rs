@@ -4,7 +4,7 @@ use futures::{future::FutureExt, StreamExt};
 
 use crate::command::{Command, EditorCommands};
 use crate::events::Events;
-use crate::lsp::{IncomingMessage, LspClient};
+use crate::lsp::LspClient;
 use crate::view::View;
 use crossterm::event::EventStream;
 
@@ -39,8 +39,8 @@ impl Editor {
                 maybe_event = event => {
                     match maybe_event {
                         Some(Ok(event)) => {
-                            match self.events.handle(event) {
-                                Some(command) => match command {
+                            if let Some(command) =  self.events.handle(event) {
+                                match command {
                                     Command::Editor(EditorCommands::Quit) => {
                                         self.view.handle(command)?;
                                         break
@@ -48,7 +48,6 @@ impl Editor {
                                     _ => self.view.handle(command)?,
 
                                 }
-                                None => (),
                             }
                         }
                         Some(Err(_)) => (),

@@ -18,7 +18,7 @@ impl RelativeLineDrawer {
 
 impl Gutter for RelativeLineDrawer {
     fn draw(&mut self, viewport: &mut Viewport, total_lines: usize, line: u16, scroll: u16) {
-        let total_lines = usize::min(viewport.height as usize, total_lines);
+        let total_lines = usize::min(viewport.height, total_lines);
         let normalized_line = line + 1;
         let mut scroll_row = scroll;
         let style = &Theme::get().gutter;
@@ -35,19 +35,19 @@ impl Gutter for RelativeLineDrawer {
             }
 
             line = " ".repeat(self.config.gutter_width as usize - 1 - line.len()) + &line;
-            line.push_str(" ");
+            line.push(' ');
 
             for (x, c) in line.chars().enumerate() {
                 viewport.set_cell(x, y, c, style);
             }
         }
 
-        if total_lines < viewport.height as usize {
+        if total_lines < viewport.height {
             let mut line = " ".repeat(self.config.gutter_width as usize - 2);
             line.push(self.config.empty_line_char);
             line.push(' ');
 
-            for y in total_lines..viewport.height as usize {
+            for y in total_lines..viewport.height {
                 for (x, c) in line.chars().enumerate() {
                     viewport.set_cell(x, y, c, style);
                 }

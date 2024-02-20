@@ -341,7 +341,7 @@ impl LspClient {
 
     pub async fn send_request(&mut self, method: &str, params: Value) -> anyhow::Result<i64> {
         let req = RequestMessage::new(method, params);
-        let id = req.id.clone();
+        let id = req.id;
 
         self.pending_responses.insert(id, method.to_string());
         self.request_tx

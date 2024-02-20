@@ -288,10 +288,9 @@ impl Pane {
         let mut x = offset;
         let mut y = 0;
 
-        let mut iter = lines.chars().enumerate().peekable();
-        while let Some((p, c)) = iter.next() {
+        for (p, c) in lines.chars().enumerate() {
             if c == '\n' {
-                let fill_width = width.saturating_sub(x as u16) as usize;
+                let fill_width = width.saturating_sub(x) as usize;
                 let line_fill = " ".repeat(fill_width);
                 viewport.set_text(x as usize, y as usize, &line_fill, &default_style);
                 x = offset;
@@ -302,9 +301,9 @@ impl Pane {
                 continue;
             }
 
-            if x < width as u16 {
+            if x < width {
                 if let Some(color) = colors.iter().find(|ci| ci.start <= p && ci.end > p) {
-                    viewport.set_cell(x as usize, y as usize, c, &color.style);
+                    viewport.set_cell(x as usize, y as usize, c, color.style);
                 } else {
                     viewport.set_cell(x as usize, y as usize, c, &default_style)
                 }

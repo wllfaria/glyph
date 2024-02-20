@@ -39,7 +39,7 @@ impl Viewport {
     }
 
     pub fn set_cell(&mut self, col: usize, row: usize, c: char, style: &Style) {
-        let pos = row * self.width as usize + col;
+        let pos = row * self.width + col;
         self.cells[pos] = Cell {
             c,
             style: style.clone(),
@@ -47,7 +47,7 @@ impl Viewport {
     }
 
     pub fn set_text(&mut self, col: usize, row: usize, text: &str, style: &Style) {
-        let pos = (row * self.width as usize) + col;
+        let pos = (row * self.width) + col;
         for (i, c) in text.chars().enumerate() {
             self.cells[pos + i] = Cell {
                 c,
@@ -60,8 +60,8 @@ impl Viewport {
         let mut changes = vec![];
         for (p, cell) in self.cells.iter().enumerate() {
             if *cell != other.cells[p] {
-                let row = p / self.width as usize;
-                let col = p % self.width as usize;
+                let row = p / self.width;
+                let col = p % self.width;
 
                 changes.push(Change { row, col, cell });
             }
