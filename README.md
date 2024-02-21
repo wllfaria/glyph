@@ -31,7 +31,7 @@ architecture, design, algorithms and all other intricacies that come along the
 way and soon started to become a project in which I wanted to make an actual
 useful software.
 
-## Gettins Started
+## Getting Started
 
 This is a simple guide to get started using the editor and will be heavily 
 expanded as time goes on. But this will be enough to give you direction onto how
