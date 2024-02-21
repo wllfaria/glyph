@@ -1,5 +1,4 @@
 mod buffer;
-mod command;
 mod config;
 mod editor;
 mod events;

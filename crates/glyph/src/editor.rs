@@ -7,8 +7,7 @@ use futures::{future::FutureExt, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::buffer::Buffer;
-use crate::command::{Command, EditorCommands};
-use crate::config::{Config, LineNumbers};
+use crate::config::{Action, Config, KeyAction};
 use crate::events::Events;
 use crate::lsp::LspClient;
 use crate::pane::Pane;
@@ -25,11 +24,12 @@ pub enum Mode {
 }
 
 pub struct Editor<'a> {
-    events: Events,
+    events: Events<'a>,
     view: View<'a>,
     lsp: &'a LspClient,
     config: &'a Config,
     theme: &'a Theme,
+    mode: Mode,
 }
 
 impl<'a> Editor<'a> {
@@ -43,16 +43,17 @@ impl<'a> Editor<'a> {
         let pane = Pane::new(1, buffer.clone(), lsp, &theme, &config);
         let window = Window::new(1, pane, lsp);
         Ok(Self {
-            events: Events::new(),
+            events: Events::new(&config),
             view: View::new(lsp, &config, &theme, window)?,
             theme,
             config,
             lsp,
+            mode: Mode::Normal,
         })
     }
 
     pub async fn start(&mut self) -> anyhow::Result<()> {
-        self.view.handle(Command::Editor(EditorCommands::Start))?;
+        self.view.initialize()?;
 
         let mut stream = EventStream::new();
         let mut client = LspClient::start().await.unwrap();
@@ -71,13 +72,14 @@ impl<'a> Editor<'a> {
                 maybe_event = event => {
                     match maybe_event {
                         Some(Ok(event)) => {
-                            if let Some(command) =  self.events.handle(event) {
-                                match command {
-                                    Command::Editor(EditorCommands::Quit) => {
-                                        self.view.handle(command)?;
+                            if let Some(action) = self.events.handle(&event, &self.mode) {
+                                match action {
+                                    KeyAction::Single(Action::Quit) => {
+                                        logger::trace!("user exiting session");
+                                        self.view.handle(action)?;
                                         break
                                     }
-                                    _ => self.view.handle(command)?,
+                                    _ => self.view.handle(action)?,
 
                                 }
                             }

@@ -48,6 +48,7 @@ pub enum Action {
     FindPrevious,
     CenterLine,
     InsertTab,
+    InsertChar(char),
 
     NextWord,
     PreviousWord,
@@ -90,7 +91,7 @@ pub enum KeyAction {
 
 fn default_normal() -> HashMap<String, KeyAction> {
     HashMap::from([
-        ("n".to_string(), KeyAction::Multiple(vec![Action::FindNext])),
+        ("n".to_string(), KeyAction::Single(Action::FindNext)),
         (
             "N".to_string(),
             KeyAction::Multiple(vec![Action::FindPrevious]),

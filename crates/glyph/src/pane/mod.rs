@@ -6,8 +6,7 @@ use crossterm::style;
 use crossterm::{self, style::Print, QueueableCommand};
 
 use crate::buffer::Buffer;
-use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
-use crate::config::{Config, LineNumbers};
+use crate::config::{Action, Config, KeyAction, LineNumbers};
 use crate::highlight::Highlight;
 use crate::lsp::LspClient;
 use crate::pane::cursor::Cursor;
@@ -104,16 +103,20 @@ impl<'a> Pane<'a> {
         self.size = new_size;
     }
 
-    pub fn handle(&mut self, command: Command) -> Result<()> {
+    pub fn handle(&mut self, action: KeyAction) -> Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width as usize, self.size.height as usize);
 
         self.stdout.queue(crossterm::cursor::Hide)?;
-        match command {
-            Command::Editor(EditorCommands::Start) => self.initialize()?,
-            Command::Cursor(_) => self.handle_cursor_command(command)?,
-            Command::Buffer(_) => self.handle_buffer_command(command)?,
-            Command::Pane(_) => (),
+        match action {
+            KeyAction::Single(Action::MoveLeft) => self.handle_cursor_command(&action)?,
+            KeyAction::Single(Action::MoveDown) => self.handle_cursor_command(&action)?,
+            KeyAction::Single(Action::MoveUp) => self.handle_cursor_command(&action)?,
+            KeyAction::Single(Action::MoveRight) => self.handle_cursor_command(&action)?,
+            KeyAction::Single(Action::InsertChar(_)) => {
+                self.handle_cursor_command(&action)?;
+                self.handle_buffer_command(&action)?;
+            }
             _ => (),
         };
 
@@ -185,16 +188,16 @@ impl<'a> Pane<'a> {
         self.cursor.get_readable_position()
     }
 
-    fn handle_cursor_command(&mut self, command: Command) -> Result<()> {
-        self.cursor.handle(&command, &mut self.buffer.borrow_mut());
-        match command {
-            Command::Cursor(CursorCommands::MoveUp) => {
+    fn handle_cursor_command(&mut self, action: &KeyAction) -> Result<()> {
+        self.cursor.handle(&action, &mut self.buffer.borrow_mut());
+        match action {
+            KeyAction::Single(Action::MoveUp) => {
                 let Position { row, .. } = self.get_cursor_readable_position();
                 if row.saturating_sub(self.scroll.row) == 0 {
                     self.scroll.row = self.scroll.row.saturating_sub(1);
                 }
             }
-            Command::Cursor(CursorCommands::MoveDown) => {
+            KeyAction::Single(Action::MoveDown) => {
                 if self.cursor.row.saturating_sub(self.scroll.row) >= self.size.height {
                     self.scroll.row += 1;
                 }
@@ -205,7 +208,7 @@ impl<'a> Pane<'a> {
         Ok(())
     }
 
-    fn handle_buffer_command(&mut self, command: Command) -> Result<()> {
+    fn handle_buffer_command(&mut self, command: &KeyAction) -> Result<()> {
         let col = self.cursor.col;
         let row = self.cursor.row;
         let mark = {
@@ -222,7 +225,7 @@ impl<'a> Pane<'a> {
         let pos = self.get_cursor_readable_position();
 
         match command {
-            Command::Buffer(BufferCommands::Backspace) => {
+            KeyAction::Single(Action::DeletePreviousChar) => {
                 let start = self.cursor.row - self.scroll.row.saturating_sub(1);
 
                 for pane_line in start..self.size.height {
@@ -234,7 +237,7 @@ impl<'a> Pane<'a> {
                     self.cursor.absolute_position = mark.start + mark.size.saturating_sub(1);
                 }
             }
-            Command::Buffer(BufferCommands::NewLine) => {
+            KeyAction::Single(Action::InsertLine) => {
                 let start = (self.cursor.row - self.scroll.row).saturating_sub(1);
                 for pane_line in start..self.size.height {
                     self.redraw_line(pane_line, self.cursor.row + pane_line - start);

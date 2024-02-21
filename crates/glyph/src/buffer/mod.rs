@@ -6,7 +6,7 @@ use std::io;
 
 use crate::buffer::lines::Lines;
 use crate::buffer::marker::Marker;
-use crate::command::{BufferCommands, Command};
+use crate::config::{Action, KeyAction};
 use marker::Mark;
 
 #[derive(Debug)]
@@ -143,12 +143,12 @@ impl Buffer {
         Ok(())
     }
 
-    pub fn handle(&mut self, command: &Command, cursor_pos: usize) -> std::io::Result<()> {
-        match command {
-            Command::Buffer(BufferCommands::Type(c)) => self.insert_char(*c, cursor_pos),
-            Command::Buffer(BufferCommands::Backspace) => self.delete_char(cursor_pos),
-            Command::Buffer(BufferCommands::NewLine) => self.insert_char('\n', cursor_pos),
-            Command::Buffer(BufferCommands::Save) => self.try_save()?,
+    pub fn handle(&mut self, action: &KeyAction, cursor_pos: usize) -> std::io::Result<()> {
+        match action {
+            KeyAction::Single(Action::InsertChar(c)) => self.insert_char(*c, cursor_pos),
+            KeyAction::Single(Action::DeletePreviousChar) => self.delete_char(cursor_pos),
+            KeyAction::Single(Action::InsertLine) => self.insert_char('\n', cursor_pos),
+            // KeyAction::Single(Action::Save) => self.try_save()?,
             _ => (),
         };
         Ok(())
@@ -168,8 +168,6 @@ impl std::fmt::Display for Buffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::command::*;
-
     use super::*;
     use crate::buffer::marker::Mark;
 
@@ -338,7 +336,7 @@ mod tests {
         let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hello!".chars().collect::<Vec<_>>();
 
-        _ = buffer.handle(&Command::Buffer(BufferCommands::Type('!')), 5);
+        _ = buffer.handle(&KeyAction::Single(Action::InsertChar('!')), 5);
 
         assert_eq!(buffer.gap_start, 6);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));
@@ -368,7 +366,7 @@ mod tests {
         let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hell".chars().collect::<Vec<_>>();
 
-        let _ = buffer.handle(&Command::Buffer(BufferCommands::Backspace), 5);
+        let _ = buffer.handle(&KeyAction::Single(Action::DeletePreviousChar), 5);
 
         assert_eq!(buffer.gap_start, 4);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));
@@ -381,7 +379,7 @@ mod tests {
         let first_needle = &"Hello".chars().collect::<Vec<_>>();
         let second_needle = &", World!".chars().collect::<Vec<_>>();
 
-        let _ = buffer.handle(&Command::Buffer(BufferCommands::NewLine), 5);
+        let _ = buffer.handle(&KeyAction::Single(Action::InsertLine), 5);
 
         assert_eq!(buffer.gap_start, 6);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));

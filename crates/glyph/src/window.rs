@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io;
 
-use crate::command::Command;
+use crate::config::{Action, KeyAction};
 use crate::lsp::LspClient;
 use crate::pane::{Pane, PaneSize};
 
@@ -32,13 +32,14 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn handle(&mut self, command: Command) -> io::Result<()> {
+    pub fn handle(&mut self, action: KeyAction) -> io::Result<()> {
         let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
-        match command {
-            Command::Pane(_) => active_pane.handle(command)?,
-            Command::Buffer(_) => active_pane.handle(command)?,
-            Command::Cursor(_) => active_pane.handle(command)?,
-            Command::Window(_) => (),
+        match action {
+            KeyAction::Single(Action::MoveLeft) => active_pane.handle(action)?,
+            KeyAction::Single(Action::MoveDown) => active_pane.handle(action)?,
+            KeyAction::Single(Action::MoveUp) => active_pane.handle(action)?,
+            KeyAction::Single(Action::MoveRight) => active_pane.handle(action)?,
+            KeyAction::Single(Action::InsertChar(_)) => active_pane.handle(action)?,
             _ => {}
         }
         Ok(())

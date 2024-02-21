@@ -4,8 +4,7 @@ use crossterm::{terminal, QueueableCommand};
 use std::collections::HashMap;
 use std::io::{stdout, Result, Stdout, Write};
 
-use crate::command::{Command, EditorCommands};
-use crate::config::Config;
+use crate::config::{Action, Config, KeyAction};
 use crate::lsp::LspClient;
 use crate::pane::Position;
 use crate::theme::Theme;
@@ -61,18 +60,24 @@ impl<'a> View<'a> {
         })
     }
 
-    pub fn handle(&mut self, command: Command) -> Result<()> {
+    pub fn handle(&mut self, action: KeyAction) -> Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width as usize, 1);
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        match command {
-            Command::Editor(EditorCommands::Start) => self.initialize()?,
-            Command::Editor(EditorCommands::Quit) => self.shutdown()?,
-            Command::Editor(EditorCommands::SecondElapsed) => self.draw_statusline(&mut viewport),
-            Command::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
-            Command::Cursor(_) => self.handle_cursor(command, &mut viewport)?,
-            Command::Pane(_) => active_window.handle(command)?,
-            Command::Window(_) => active_window.handle(command)?,
+        match action {
+            // Command::Editor(EditorCommands::Start) => self.initialize()?,
+            KeyAction::Single(Action::Quit) => self.shutdown()?,
+            KeyAction::Single(Action::MoveLeft) => active_window.handle(action)?,
+            KeyAction::Single(Action::MoveDown) => active_window.handle(action)?,
+            KeyAction::Single(Action::MoveUp) => active_window.handle(action)?,
+            KeyAction::Single(Action::MoveRight) => active_window.handle(action)?,
+            KeyAction::Single(Action::InsertChar(_)) => active_window.handle(action)?,
+            _ => (),
+            // Command::Editor(EditorCommands::SecondElapsed) => self.draw_statusline(&mut viewport),
+            // Command::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
+            // Command::Cursor(_) => self.handle_cursor(command, &mut viewport)?,
+            // Command::Pane(_) => active_window.handle(command)?,
+            // Command::Window(_) => active_window.handle(command)?,
         };
         self.stdout.queue(cursor::SavePosition)?;
         self.render_statusline(viewport.diff(&last_viewport))?;
@@ -86,16 +91,16 @@ impl<'a> View<'a> {
         self.windows.get(&self.active_window).unwrap()
     }
 
-    fn handle_cursor(&mut self, command: Command, viewport: &mut Viewport) -> Result<()> {
+    fn handle_cursor(&mut self, action: KeyAction, viewport: &mut Viewport) -> Result<()> {
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle(command)?;
+        active_window.handle(action)?;
         self.draw_statusline(viewport);
         Ok(())
     }
 
-    fn handle_buffer(&mut self, command: Command, viewport: &mut Viewport) -> Result<()> {
+    fn handle_buffer(&mut self, action: KeyAction, viewport: &mut Viewport) -> Result<()> {
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle(command)?;
+        active_window.handle(action)?;
         self.draw_statusline(viewport);
         Ok(())
     }
@@ -108,7 +113,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn initialize(&mut self) -> Result<()> {
+    pub fn initialize(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
         self.stdout.queue(terminal::EnterAlternateScreen)?;
 
@@ -123,6 +128,7 @@ impl<'a> View<'a> {
             .unwrap()
             .initialize()?;
         self.viewport = viewport;
+        self.stdout.flush()?;
 
         Ok(())
     }

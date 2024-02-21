@@ -1,5 +1,5 @@
 use crate::buffer::Buffer;
-use crate::command::{BufferCommands, Command, CursorCommands};
+use crate::config::{Action, KeyAction};
 
 use super::Position;
 
@@ -19,17 +19,17 @@ impl Cursor {
         }
     }
 
-    pub fn handle(&mut self, command: &Command, buffer: &mut Buffer) {
+    pub fn handle(&mut self, command: &KeyAction, buffer: &mut Buffer) {
         match command {
-            Command::Cursor(CursorCommands::MoveUp) => self.move_up(buffer),
-            Command::Cursor(CursorCommands::MoveRight) => self.move_right(buffer),
-            Command::Cursor(CursorCommands::MoveDown) => self.move_down(buffer),
-            Command::Cursor(CursorCommands::MoveLeft) => self.move_left(buffer),
-            Command::Buffer(BufferCommands::Type(_)) => {
+            KeyAction::Single(Action::MoveUp) => self.move_up(buffer),
+            KeyAction::Single(Action::MoveRight) => self.move_right(buffer),
+            KeyAction::Single(Action::MoveDown) => self.move_down(buffer),
+            KeyAction::Single(Action::MoveLeft) => self.move_left(buffer),
+            KeyAction::Single(Action::InsertChar(_)) => {
                 self.absolute_position += 1;
                 self.col += 1;
             }
-            Command::Buffer(BufferCommands::Backspace) => match self.col {
+            KeyAction::Single(Action::DeletePreviousChar) => match self.col {
                 c if c == 0 && self.row == 0 => (),
                 0 => {
                     self.move_up(buffer);
@@ -40,7 +40,7 @@ impl Cursor {
                     self.absolute_position = self.absolute_position.saturating_sub(1);
                 }
             },
-            Command::Buffer(BufferCommands::NewLine) => {
+            KeyAction::Single(Action::InsertLine) => {
                 self.absolute_position += 1;
                 self.col = 0;
                 self.row += 1;
