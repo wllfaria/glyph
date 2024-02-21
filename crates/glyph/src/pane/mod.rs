@@ -58,14 +58,12 @@ pub struct Pane<'a> {
     size: PaneSize,
     stdout: Stdout,
     theme: &'a Theme,
-    lsp: &'a LspClient,
 }
 
 impl<'a> Pane<'a> {
     pub fn new(
         id: usize,
         buffer: Rc<RefCell<Buffer>>,
-        lsp: &'a LspClient,
         theme: &'a Theme,
         config: &'a Config,
     ) -> Self {
@@ -94,7 +92,6 @@ impl<'a> Pane<'a> {
             gutter,
             config,
             theme,
-            lsp,
         }
     }
 
@@ -103,16 +100,19 @@ impl<'a> Pane<'a> {
         self.size = new_size;
     }
 
-    pub fn handle(&mut self, action: KeyAction) -> Result<()> {
+    pub fn handle(&mut self, action: &KeyAction) -> Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, self.size.height);
 
         self.stdout.queue(crossterm::cursor::Hide)?;
         match action {
-            KeyAction::Single(Action::MoveLeft) => self.handle_cursor_action(&action)?,
-            KeyAction::Single(Action::MoveDown) => self.handle_cursor_action(&action)?,
-            KeyAction::Single(Action::MoveUp) => self.handle_cursor_action(&action)?,
-            KeyAction::Single(Action::MoveRight) => self.handle_cursor_action(&action)?,
+            KeyAction::Single(Action::MoveToLineStart) => self.handle_cursor_action(action)?,
+            KeyAction::Single(Action::MoveToLineEnd) => self.handle_cursor_action(action)?,
+            KeyAction::Single(Action::NextWord) => self.handle_cursor_action(action)?,
+            KeyAction::Single(Action::MoveLeft) => self.handle_cursor_action(action)?,
+            KeyAction::Single(Action::MoveDown) => self.handle_cursor_action(action)?,
+            KeyAction::Single(Action::MoveUp) => self.handle_cursor_action(action)?,
+            KeyAction::Single(Action::MoveRight) => self.handle_cursor_action(action)?,
             KeyAction::Single(Action::InsertChar(_)) => {
                 self.handle_cursor_action(&action)?;
                 self.handle_buffer_action(&action)?;

@@ -1,19 +1,17 @@
 use std::collections::HashMap;
 use std::io;
 
-use crate::config::{Action, KeyAction};
-use crate::lsp::LspClient;
+use crate::config::KeyAction;
 use crate::pane::{Pane, PaneSize};
 
 pub struct Window<'a> {
     pub id: usize,
     panes: HashMap<usize, Pane<'a>>,
     active_pane: usize,
-    lsp: &'a LspClient,
 }
 
 impl<'a> Window<'a> {
-    pub fn new(id: usize, pane: Pane<'a>, lsp: &'a LspClient) -> Self {
+    pub fn new(id: usize, pane: Pane<'a>) -> Self {
         let mut panes = HashMap::new();
         let pane_id = pane.id;
         panes.insert(pane.id, pane);
@@ -22,7 +20,6 @@ impl<'a> Window<'a> {
             id,
             active_pane: pane_id,
             panes,
-            lsp,
         }
     }
 
@@ -32,14 +29,10 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn handle(&mut self, action: KeyAction) -> io::Result<()> {
+    pub fn handle(&mut self, action: &KeyAction) -> io::Result<()> {
         let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
         match action {
-            KeyAction::Single(Action::MoveLeft) => active_pane.handle(action)?,
-            KeyAction::Single(Action::MoveDown) => active_pane.handle(action)?,
-            KeyAction::Single(Action::MoveUp) => active_pane.handle(action)?,
-            KeyAction::Single(Action::MoveRight) => active_pane.handle(action)?,
-            KeyAction::Single(Action::InsertChar(_)) => active_pane.handle(action)?,
+            KeyAction::Single(_) => active_pane.handle(action)?,
             _ => {}
         }
         Ok(())

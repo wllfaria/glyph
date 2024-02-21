@@ -26,7 +26,7 @@ pub enum Mode {
 pub struct Editor<'a> {
     events: Events<'a>,
     view: View<'a>,
-    lsp: &'a LspClient,
+    lsp: LspClient,
     config: &'a Config,
     theme: &'a Theme,
     mode: Mode,
@@ -36,15 +36,15 @@ impl<'a> Editor<'a> {
     pub fn new(
         config: &'a Config,
         theme: &'a Theme,
-        lsp: &'a LspClient,
+        lsp: LspClient,
         file_name: Option<String>,
     ) -> anyhow::Result<Self> {
         let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name)?));
-        let pane = Pane::new(1, buffer.clone(), lsp, theme, config);
-        let window = Window::new(1, pane, lsp);
+        let pane = Pane::new(1, buffer.clone(), theme, config);
+        let window = Window::new(1, pane);
         Ok(Self {
             events: Events::new(config),
-            view: View::new(lsp, config, theme, window)?,
+            view: View::new(config, theme, window)?,
             theme,
             config,
             lsp,
@@ -56,8 +56,7 @@ impl<'a> Editor<'a> {
         self.view.initialize()?;
 
         let mut stream = EventStream::new();
-        let mut client = LspClient::start().await.unwrap();
-        client.initialize().await?;
+        self.lsp.initialize().await?;
 
         loop {
             let delay = futures_timer::Delay::new(Duration::from_millis(300)).fuse();
@@ -65,28 +64,24 @@ impl<'a> Editor<'a> {
 
             tokio::select! {
                 _ = delay => {
-                    if let Some((msg, _method)) = client.try_read_message().await? {
+                    if let Some((msg, _method)) = self.lsp.try_read_message().await? {
                         logger::trace!("[LSP] received message {msg:?}");
                     }
                 }
                 maybe_event = event => {
-                    match maybe_event {
-                        Some(Ok(event)) => {
-                            if let Some(action) = self.events.handle(&event, &self.mode) {
-                                match action {
-                                    KeyAction::Single(Action::Quit) => {
-                                        logger::trace!("user exiting session");
-                                        self.view.handle(action)?;
-                                        break
-                                    }
-                                    _ => self.view.handle(action)?,
-
+                    if let Some(Ok(event)) = maybe_event {
+                        if let Some(action) = self.events.handle(&event, &self.mode) {
+                            match action {
+                                KeyAction::Single(Action::Quit) => {
+                                    logger::trace!("user exiting session");
+                                    self.view.handle(action)?;
+                                    break
                                 }
+                                _ => self.view.handle(action)?,
+
                             }
                         }
-                        Some(Err(_)) => (),
-                        None => (),
-                    }
+                    };
                 }
             }
         }

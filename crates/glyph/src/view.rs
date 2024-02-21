@@ -34,16 +34,10 @@ pub struct View<'a> {
     config: &'a Config,
     viewport: Viewport,
     theme: &'a Theme,
-    lsp: &'a LspClient,
 }
 
 impl<'a> View<'a> {
-    pub fn new(
-        lsp: &'a LspClient,
-        config: &'a Config,
-        theme: &'a Theme,
-        mut window: Window<'a>,
-    ) -> Result<Self> {
+    pub fn new(config: &'a Config, theme: &'a Theme, mut window: Window<'a>) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
 
@@ -59,28 +53,21 @@ impl<'a> View<'a> {
             config,
             viewport: Viewport::new(size.0 as usize, 1),
             theme,
-            lsp,
         })
     }
 
-    pub fn handle(&mut self, action: KeyAction) -> Result<()> {
+    pub fn handle(&mut self, action: KeyAction) -> anyhow::Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, 1);
-        let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
-            // Command::Editor(EditorCommands::Start) => self.initialize()?,
-            KeyAction::Single(Action::Quit) => self.shutdown()?,
-            KeyAction::Single(Action::MoveLeft) => active_window.handle(action)?,
-            KeyAction::Single(Action::MoveDown) => active_window.handle(action)?,
-            KeyAction::Single(Action::MoveUp) => active_window.handle(action)?,
-            KeyAction::Single(Action::MoveRight) => active_window.handle(action)?,
-            KeyAction::Single(Action::InsertChar(_)) => active_window.handle(action)?,
+            KeyAction::Single(_) => self.handle_single_action(&action)?,
+            KeyAction::Multiple(actions) => {
+                for action in actions {
+                    self.handle_single_action(&KeyAction::Single(action))?;
+                }
+            }
             _ => (),
-            // Command::Editor(EditorCommands::SecondElapsed) => self.draw_statusline(&mut viewport),
             // KeyAction::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
-            // Command::Cursor(_) => self.handle_cursor(command, &mut viewport)?,
-            // Command::Pane(_) => active_window.handle(command)?,
-            // Command::Window(_) => active_window.handle(command)?,
         };
         self.stdout.queue(cursor::SavePosition)?;
         self.draw_statusline(&mut viewport);
@@ -91,20 +78,30 @@ impl<'a> View<'a> {
         Ok(())
     }
 
+    fn handle_single_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
+        let active_window = self.windows.get_mut(&self.active_window).unwrap();
+        match action {
+            KeyAction::Single(Action::Quit) => self.shutdown()?,
+            KeyAction::Single(_) => active_window.handle(action)?,
+            _ => (),
+        };
+        Ok(())
+    }
+
     fn get_active_window(&self) -> &Window {
         self.windows.get(&self.active_window).unwrap()
     }
 
     fn handle_cursor(&mut self, action: KeyAction, viewport: &mut Viewport) -> Result<()> {
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle(action)?;
+        active_window.handle(&action)?;
         self.draw_statusline(viewport);
         Ok(())
     }
 
     fn handle_buffer(&mut self, action: KeyAction, viewport: &mut Viewport) -> Result<()> {
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle(action)?;
+        active_window.handle(&action)?;
         self.draw_statusline(viewport);
         Ok(())
     }

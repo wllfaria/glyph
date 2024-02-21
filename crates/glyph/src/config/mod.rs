@@ -92,15 +92,9 @@ pub enum KeyAction {
 fn default_normal() -> HashMap<String, KeyAction> {
     HashMap::from([
         ("n".to_string(), KeyAction::Single(Action::FindNext)),
-        (
-            "N".to_string(),
-            KeyAction::Multiple(vec![Action::FindPrevious]),
-        ),
-        ("w".to_string(), KeyAction::Multiple(vec![Action::NextWord])),
-        (
-            "b".to_string(),
-            KeyAction::Multiple(vec![Action::PreviousWord]),
-        ),
+        ("N".to_string(), KeyAction::Single(Action::FindPrevious)),
+        ("w".to_string(), KeyAction::Single(Action::NextWord)),
+        ("b".to_string(), KeyAction::Single(Action::PreviousWord)),
         ("p".to_string(), KeyAction::Single(Action::PasteBelow)),
         (
             "a".to_string(),

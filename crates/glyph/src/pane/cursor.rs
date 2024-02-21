@@ -19,12 +19,15 @@ impl Cursor {
         }
     }
 
-    pub fn handle(&mut self, command: &KeyAction, buffer: &mut Buffer) {
-        match command {
+    pub fn handle(&mut self, action: &KeyAction, buffer: &mut Buffer) {
+        match action {
             KeyAction::Single(Action::MoveUp) => self.move_up(buffer),
             KeyAction::Single(Action::MoveRight) => self.move_right(buffer),
             KeyAction::Single(Action::MoveDown) => self.move_down(buffer),
             KeyAction::Single(Action::MoveLeft) => self.move_left(buffer),
+            KeyAction::Single(Action::MoveToLineStart) => self.move_to_line_start(buffer),
+            KeyAction::Single(Action::MoveToLineEnd) => self.move_to_line_end(buffer),
+            KeyAction::Single(Action::NextWord) => self.move_to_next_word(buffer),
             KeyAction::Single(Action::InsertChar(_)) => {
                 self.absolute_position += 1;
                 self.col += 1;
@@ -33,7 +36,7 @@ impl Cursor {
                 c if c == 0 && self.row == 0 => (),
                 0 => {
                     self.move_up(buffer);
-                    self.move_to_end_of_line(buffer);
+                    self.move_to_line_end(buffer);
                 }
                 _ => {
                     self.col = self.col.saturating_sub(1);
@@ -111,7 +114,7 @@ impl Cursor {
             0 => {
                 assert!(self.row > 0);
                 self.move_up(buffer);
-                self.move_to_end_of_line(buffer);
+                self.move_to_line_end(buffer);
             }
             _ => {
                 self.col = self.col.saturating_sub(1);
@@ -124,10 +127,60 @@ impl Cursor {
         }
     }
 
-    fn move_to_end_of_line(&mut self, buffer: &mut Buffer) {
+    fn move_to_line_end(&mut self, buffer: &mut Buffer) {
+        logger::trace!("moving to lien end");
+        let Position { row, .. } = self.get_readable_position();
+        let mark = buffer.marker.get_by_line(row).unwrap();
+        self.col = mark.size.saturating_sub(2);
+        self.absolute_position = mark.start + mark.size.saturating_sub(2);
+    }
+
+    fn move_to_line_start(&mut self, buffer: &mut Buffer) {
         let mark = buffer.marker.get_by_line(self.row + 1).unwrap();
-        self.col = mark.size.saturating_sub(1);
-        self.absolute_position = mark.start + mark.size.saturating_sub(1);
+        self.col = 0;
+        self.absolute_position = mark.start;
+    }
+
+    fn move_to_next_word(&mut self, buffer: &mut Buffer) {
+        let content = buffer.to_string();
+        let mut pos = self.absolute_position;
+        while pos < content.len() && !self.is_separator(content[pos..].chars().next().unwrap()) {
+            logger::trace!("next char is not a separator");
+            pos += content[pos..].chars().next().unwrap().len_utf8();
+        }
+
+        while pos < content.len() && self.is_skippable(content[pos..].chars().next().unwrap()) {
+            logger::trace!(
+                "next char is a separator {}",
+                content[pos..].chars().next().unwrap()
+            );
+            pos += content[pos..].chars().next().unwrap().len_utf8();
+        }
+
+        let mark = buffer.marker.get_by_cursor(pos).unwrap();
+        let offset = pos - mark.start;
+        self.col = offset;
+        self.row = mark.line - 1;
+        self.absolute_position = pos;
+    }
+
+    fn is_skippable(&self, c: char) -> bool {
+        match c {
+            ' ' => true,
+            ':' => true,
+            _ => false,
+        }
+    }
+
+    fn is_separator(&self, c: char) -> bool {
+        match c {
+            ' ' => true,
+            ':' => true,
+            '-' => true,
+            ';' => true,
+            '\n' => true,
+            _ => false,
+        }
     }
 }
 

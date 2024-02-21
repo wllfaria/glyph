@@ -40,7 +40,27 @@ impl<'a> Events<'a> {
                     KeyCode::Char('0') => self.action_modifier *= 10,
                     // if it is not a number, we either execute the action
                     // or cancel it.
-                    _ => {}
+                    _ => {
+                        let action = self.action_being_composed.clone().unwrap();
+                        let action = self.config.keys.normal.get(&action).unwrap();
+                        let key = match code {
+                            KeyCode::Char(c) => *c,
+                            _ => ' ',
+                        };
+
+                        match action {
+                            KeyAction::Nested(nested) => {
+                                let action = nested.get(key.to_string().as_str());
+                                logger::trace!("{action:?}");
+                                if let Some(action) = action {
+                                    self.action_being_composed = None;
+                                    return Some(action.clone());
+                                }
+                                self.action_being_composed = None;
+                            }
+                            _ => (),
+                        }
+                    }
                 },
                 _ => {
                     self.action_being_composed = None;
@@ -57,11 +77,17 @@ impl<'a> Events<'a> {
         }
     }
 
-    pub fn handle_normal_event(&self, event: &Event) -> Option<KeyAction> {
-        if let Some(action) = self.map_event_to_key_action(&self.config.keys.normal, event) {
+    pub fn handle_normal_event(&mut self, event: &Event) -> Option<KeyAction> {
+        let (key, action) = self.map_event_to_key_action(&self.config.keys.normal, event);
+        if let Some(action) = action {
+            logger::trace!("normal event: {action:?}");
             match action {
                 KeyAction::Single(_) => return Some(action),
                 KeyAction::Multiple(_) => return Some(action),
+                KeyAction::Nested(_) => {
+                    self.action_being_composed = key;
+                    return None;
+                }
                 _ => return None,
             };
         };
@@ -81,7 +107,7 @@ impl<'a> Events<'a> {
         &self,
         mappings: &HashMap<String, KeyAction>,
         event: &Event,
-    ) -> Option<KeyAction> {
+    ) -> (Option<String>, Option<KeyAction>) {
         match event {
             Event::Key(KeyEvent {
                 code, modifiers, ..
@@ -91,7 +117,6 @@ impl<'a> Events<'a> {
                     _ => format!("{code:?}"),
                 };
 
-                logger::debug!("{key}");
                 let key = match *modifiers {
                     KeyModifiers::ALT => format!("A-{key}"),
                     KeyModifiers::CONTROL => format!("C-{key}"),
@@ -99,9 +124,9 @@ impl<'a> Events<'a> {
                     _ => key,
                 };
 
-                mappings.get(&key).cloned()
+                (Some(key.clone()), mappings.get(&key).cloned())
             }
-            _ => None,
+            _ => (None, None),
         }
     }
 }
