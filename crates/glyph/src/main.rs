@@ -21,13 +21,16 @@ use theme::{loader::ThemeLoader, Theme};
 
 fn load_config() -> anyhow::Result<Config> {
     let mut default = Config::default();
-    let config_file = Config::get_path().join("glyph.toml");
+    let config_dir = Config::get_path();
+    if !config_dir.exists() {
+        std::fs::create_dir(&config_dir)?;
+    }
+    let config_file = config_dir.join("glyph.toml");
     let config_file = Path::new(&config_file);
     match config_file.exists() {
         false => {
             let config_contents = toml::to_string(&default)?;
             std::fs::write(config_file, &config_contents[..])?;
-
             Ok(default)
         }
         true => {
@@ -45,7 +48,10 @@ fn load_theme(
     theme_name: &str,
     themes_dir: PathBuf,
 ) -> anyhow::Result<Theme> {
-    logger::warn!("{background:?}");
+    if !themes_dir.exists() {
+        std::fs::create_dir(&themes_dir)?;
+        // TODO: install themes when first loading
+    }
     let default = match background {
         EditorBackground::Light => Theme::light()?,
         EditorBackground::Dark => Theme::dark()?,

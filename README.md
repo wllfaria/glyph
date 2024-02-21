@@ -4,6 +4,8 @@
 
 Lightweight terminal based text editor written in rust.
 
+<img src="./.github/assets/banner.png" />
+
 </div>
 
 ---

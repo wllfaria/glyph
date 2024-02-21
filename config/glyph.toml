@@ -1,0 +1,142 @@
+theme = ""
+mouse_scroll_lines = 3
+gutter_width = 6
+line_numbers = "Absolute"
+background = "Dark"
+empty_line_char = "~"
+show_diagnostics = false
+
+[keys.normal.Home]
+Single = "MoveToLineStart"
+
+[keys.normal.Down]
+Single = "MoveDown"
+
+[keys.normal.O]
+Multiple = ["InsertLine", { EnterMode = "Insert" }]
+
+[keys.normal.h]
+Single = "MoveLeft"
+
+[keys.normal.Left]
+Single = "MoveLeft"
+
+[keys.normal.A]
+Multiple = [{ EnterMode = "Insert" }, "MoveToLineEnd"]
+
+[keys.normal.Right]
+Single = "MoveRight"
+
+[keys.normal.Up]
+Single = "MoveUp"
+
+[keys.normal.j]
+Single = "MoveDown"
+
+[keys.normal.I]
+Multiple = ["MoveToLineStart", { EnterMode = "Insert" }]
+
+[keys.normal.w]
+Multiple = ["NextWord"]
+
+[keys.normal.i.Single]
+EnterMode = "Insert"
+
+[keys.normal.x]
+Single = "DeleteCurrentChar"
+
+[keys.normal.d.Nested.b]
+Single = "DeleteBack"
+
+[keys.normal.d.Nested.d]
+Single = "DeleteLine"
+
+[keys.normal.d.Nested.w]
+Single = "DeleteWord"
+
+[keys.normal.p]
+Single = "PasteBelow"
+
+[keys.normal.o]
+Multiple = ["InsertLineBelow", { EnterMode = "Insert" }]
+
+[keys.normal.End]
+Single = "MoveToLineEnd"
+
+[keys.normal.b]
+Multiple = ["PreviousWord"]
+
+[keys.normal.C-u]
+Single = "PageUp"
+
+[keys.normal.G]
+Single = "MoveToBottom"
+
+[keys.normal.l]
+Single = "MoveRight"
+
+[keys.normal."/".Single]
+EnterMode = "Search"
+
+[keys.normal.g.Nested.d]
+Single = "GoToDefinition"
+
+[keys.normal.g.Nested.g]
+Single = "MoveToTop"
+
+[keys.normal.a]
+Multiple = [{ EnterMode = "Insert" }, "MoveRight"]
+
+[keys.normal.u]
+Single = "Undo"
+
+[keys.normal.C-d]
+Single = "PageDown"
+
+[keys.normal.z.Nested.z]
+Single = "CenterLine"
+
+[keys.normal.k]
+Single = "MoveUp"
+
+[keys.normal.q]
+Single = "Quit"
+
+[keys.normal."$"]
+Single = "MoveToLineEnd"
+
+[keys.normal.0]
+Single = "MoveToLineStart"
+
+[keys.normal.":".Single]
+EnterMode = "Command"
+
+[keys.normal.N]
+Multiple = ["FindPrevious"]
+
+[keys.normal.n]
+Multiple = ["FindNext"]
+
+[keys.insert.Esc.Single]
+EnterMode = "Normal"
+
+[keys.insert.Caps.Single]
+EnterMode = "Normal"
+
+[keys.insert.j.Nested.k.Single]
+EnterMode = "Normal"
+
+[keys.insert.Enter]
+Single = "InsertLine"
+
+[keys.insert.Backspace]
+Single = "DeletePreviousChar"
+
+[keys.insert.Tab]
+Single = "InsertTab"
+
+[keys.command.Esc.Single]
+EnterMode = "Normal"
+
+[keys.command.C-c.Single]
+EnterMode = "Normal"
