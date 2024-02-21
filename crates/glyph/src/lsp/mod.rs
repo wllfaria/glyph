@@ -407,7 +407,8 @@ impl LspClient {
                 "character": col
             }
         });
-        Ok(self.send_request("textDocument/hover", params).await?)
+
+        self.send_request("textDocument/hover", params).await
     }
 
     pub async fn initialize(&mut self) -> anyhow::Result<()> {

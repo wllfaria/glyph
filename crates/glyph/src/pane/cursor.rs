@@ -62,44 +62,44 @@ impl Cursor {
             self.col = 0;
             return;
         }
-        if let Some(mark) = buffer.marker.get_by_line(self.row as usize) {
+        if let Some(mark) = buffer.marker.get_by_line(self.row) {
             match self.col {
                 0 => self.absolute_position = mark.start,
-                _ if self.col as usize > mark.size => {
+                _ if self.col > mark.size => {
                     self.absolute_position = mark.start + mark.size - 1;
                 }
-                _ => self.absolute_position = mark.start + self.col as usize,
+                _ => self.absolute_position = mark.start + self.col,
             }
             self.row = self.row.saturating_sub(1);
         }
     }
 
     fn move_right(&mut self, buffer: &mut Buffer) {
-        if let Some(mark) = buffer.marker.get_by_line(self.row as usize + 1) {
+        if let Some(mark) = buffer.marker.get_by_line(self.row + 1) {
             self.col += 1;
             match self.col {
-                col if col as usize >= mark.size => {
+                col if col >= mark.size => {
                     self.col = 0;
                     self.move_down(buffer);
                 }
-                _ => self.absolute_position = mark.start + self.col as usize,
+                _ => self.absolute_position = mark.start + self.col,
             }
         }
     }
 
     fn move_down(&mut self, buffer: &mut Buffer) {
-        let next_line = 2 + self.row as usize;
+        let next_line = 2 + self.row;
         if let Some(mark) = buffer.marker.get_by_line(next_line) {
             self.row += 1;
             match self.col {
                 0 => self.absolute_position = mark.start,
-                col if col as usize > mark.size => {
+                col if col > mark.size => {
                     self.absolute_position = mark.start + mark.size.saturating_sub(1);
                 }
-                _ => self.absolute_position = mark.start + self.col as usize,
+                _ => self.absolute_position = mark.start + self.col,
             }
         } else {
-            let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
+            let mark = buffer.marker.get_by_line(self.row + 1).unwrap();
             self.absolute_position = mark.start + mark.size.saturating_sub(1);
             self.col = mark.size.saturating_sub(1);
         }
@@ -115,8 +115,8 @@ impl Cursor {
             }
             _ => {
                 self.col = self.col.saturating_sub(1);
-                let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
-                if self.col as usize >= mark.size {
+                let mark = buffer.marker.get_by_line(self.row + 1).unwrap();
+                if self.col >= mark.size {
                     self.col = mark.size.saturating_sub(2);
                 }
                 self.absolute_position -= 1;
@@ -125,7 +125,7 @@ impl Cursor {
     }
 
     fn move_to_end_of_line(&mut self, buffer: &mut Buffer) {
-        let mark = buffer.marker.get_by_line(self.row as usize + 1).unwrap();
+        let mark = buffer.marker.get_by_line(self.row + 1).unwrap();
         self.col = mark.size.saturating_sub(1);
         self.absolute_position = mark.start + mark.size.saturating_sub(1);
     }
@@ -296,7 +296,7 @@ mod tests {
             cursor.move_right(&mut buffer);
         }
 
-        let mark = buffer.marker.get_by_line(cursor.row as usize + 1).unwrap();
+        let mark = buffer.marker.get_by_line(cursor.row + 1).unwrap();
 
         assert_eq!(cursor.col, 0);
         assert_eq!(cursor.absolute_position, mark.start);
@@ -312,7 +312,7 @@ mod tests {
 
         cursor.move_left(&mut buffer);
 
-        let mark = buffer.marker.get_by_line(cursor.row as usize + 1).unwrap();
+        let mark = buffer.marker.get_by_line(cursor.row + 1).unwrap();
 
         assert_eq!(cursor.col, 5);
         assert_eq!(cursor.absolute_position, mark.size - 1);

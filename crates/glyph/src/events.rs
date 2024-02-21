@@ -37,7 +37,7 @@ impl<'a> Events<'a> {
                     KeyCode::Char('7') => self.action_modifier = self.action_modifier * 10 + 7,
                     KeyCode::Char('8') => self.action_modifier = self.action_modifier * 10 + 8,
                     KeyCode::Char('9') => self.action_modifier = self.action_modifier * 10 + 9,
-                    KeyCode::Char('0') => self.action_modifier = self.action_modifier * 10,
+                    KeyCode::Char('0') => self.action_modifier *= 10,
                     // if it is not a number, we either execute the action
                     // or cancel it.
                     _ => {}

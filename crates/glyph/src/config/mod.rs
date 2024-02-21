@@ -233,8 +233,8 @@ impl Default for Config {
         Self {
             theme: "".to_string(),
             log_file: None,
-            mouse_scroll_lines: Some(3 as usize),
-            show_diagnostics: false,
+            mouse_scroll_lines: Some(3),
+            show_diagnostics: true,
             gutter_width: 6,
             background: EditorBackground::Dark,
             line_numbers: LineNumbers::Absolute,
@@ -292,13 +292,11 @@ impl Config {
 
     pub fn get_path() -> PathBuf {
         let home = dirs::home_dir().unwrap();
-        let config_path = home.join(".config/glyph");
-        config_path
+        home.join(".config/glyph")
     }
 
     pub fn themes_path() -> PathBuf {
         let config_path = Config::get_path();
-        let themes_path = config_path.join("themes");
-        themes_path
+        config_path.join("themes")
     }
 }

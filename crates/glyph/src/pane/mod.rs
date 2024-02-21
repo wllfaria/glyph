@@ -105,17 +105,17 @@ impl<'a> Pane<'a> {
 
     pub fn handle(&mut self, action: KeyAction) -> Result<()> {
         let last_viewport = self.viewport.clone();
-        let mut viewport = Viewport::new(self.size.width as usize, self.size.height as usize);
+        let mut viewport = Viewport::new(self.size.width, self.size.height);
 
         self.stdout.queue(crossterm::cursor::Hide)?;
         match action {
-            KeyAction::Single(Action::MoveLeft) => self.handle_cursor_command(&action)?,
-            KeyAction::Single(Action::MoveDown) => self.handle_cursor_command(&action)?,
-            KeyAction::Single(Action::MoveUp) => self.handle_cursor_command(&action)?,
-            KeyAction::Single(Action::MoveRight) => self.handle_cursor_command(&action)?,
+            KeyAction::Single(Action::MoveLeft) => self.handle_cursor_action(&action)?,
+            KeyAction::Single(Action::MoveDown) => self.handle_cursor_action(&action)?,
+            KeyAction::Single(Action::MoveUp) => self.handle_cursor_action(&action)?,
+            KeyAction::Single(Action::MoveRight) => self.handle_cursor_action(&action)?,
             KeyAction::Single(Action::InsertChar(_)) => {
-                self.handle_cursor_command(&action)?;
-                self.handle_buffer_command(&action)?;
+                self.handle_cursor_action(&action)?;
+                self.handle_buffer_action(&action)?;
             }
             _ => (),
         };
@@ -130,7 +130,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn initialize(&mut self) -> Result<()> {
-        let mut viewport = Viewport::new(self.size.width as usize, self.size.height as usize);
+        let mut viewport = Viewport::new(self.size.width, self.size.height);
         self.draw_sidebar(&mut viewport);
         self.draw_buffer(&mut viewport);
         self.draw(&mut viewport)?;
@@ -188,8 +188,8 @@ impl<'a> Pane<'a> {
         self.cursor.get_readable_position()
     }
 
-    fn handle_cursor_command(&mut self, action: &KeyAction) -> Result<()> {
-        self.cursor.handle(&action, &mut self.buffer.borrow_mut());
+    fn handle_cursor_action(&mut self, action: &KeyAction) -> Result<()> {
+        self.cursor.handle(action, &mut self.buffer.borrow_mut());
         match action {
             KeyAction::Single(Action::MoveUp) => {
                 let Position { row, .. } = self.get_cursor_readable_position();
@@ -208,23 +208,23 @@ impl<'a> Pane<'a> {
         Ok(())
     }
 
-    fn handle_buffer_command(&mut self, command: &KeyAction) -> Result<()> {
+    fn handle_buffer_action(&mut self, action: &KeyAction) -> Result<()> {
         let col = self.cursor.col;
         let row = self.cursor.row;
         let mark = {
             let buffer = self.buffer.borrow_mut();
-            let mark = buffer.marker.get_by_line(self.cursor.row as usize);
+            let mark = buffer.marker.get_by_line(self.cursor.row);
             mark.unwrap()
         };
 
         self.buffer
             .borrow_mut()
-            .handle(&command, self.cursor.absolute_position)?;
-        self.cursor.handle(&command, &mut self.buffer.borrow_mut());
+            .handle(action, self.cursor.absolute_position)?;
+        self.cursor.handle(action, &mut self.buffer.borrow_mut());
 
         let pos = self.get_cursor_readable_position();
 
-        match command {
+        match action {
             KeyAction::Single(Action::DeletePreviousChar) => {
                 let start = self.cursor.row - self.scroll.row.saturating_sub(1);
 
@@ -254,15 +254,15 @@ impl<'a> Pane<'a> {
     fn redraw_line(&mut self, pane_line: usize, buffer_line: usize) {
         let buffer = self.buffer.borrow();
         let len = buffer.marker.len();
-        if pane_line as usize > len {
+        if pane_line > len {
             return;
         }
-        if let Some(mark) = buffer.marker.get_by_line(buffer_line as usize) {
+        if let Some(mark) = buffer.marker.get_by_line(buffer_line) {
             let line = buffer.line_from_mark(&mark);
             for (x, c) in line.chars().enumerate() {
                 self.viewport.set_cell(
-                    x + self.config.gutter_width as usize,
-                    pane_line as usize,
+                    x + self.config.gutter_width,
+                    pane_line,
                     c,
                     &self.theme.style,
                 )
@@ -275,7 +275,7 @@ impl<'a> Pane<'a> {
             .buffer
             .borrow_mut()
             .marker
-            .get_by_line(self.cursor.row as usize + 1)
+            .get_by_line(self.cursor.row + 1)
         {
             let mut col = self.config.gutter_width;
             match self.cursor.col {
@@ -308,7 +308,7 @@ impl<'a> Pane<'a> {
         let lines = self
             .buffer
             .borrow()
-            .content_from(self.scroll.row as usize, self.size.height as usize);
+            .content_from(self.scroll.row, self.size.height);
         let colors = self.highlight.colors(&lines);
 
         let mut x = offset;
@@ -316,9 +316,9 @@ impl<'a> Pane<'a> {
 
         for (p, c) in lines.chars().enumerate() {
             if c == '\n' {
-                let fill_width = width.saturating_sub(x) as usize;
+                let fill_width = width.saturating_sub(x);
                 let line_fill = " ".repeat(fill_width);
-                viewport.set_text(x as usize, y as usize, &line_fill, &default_style);
+                viewport.set_text(x, y, &line_fill, &default_style);
                 x = offset;
                 y += 1;
                 if y > height {
@@ -329,9 +329,9 @@ impl<'a> Pane<'a> {
 
             if x < width {
                 if let Some(color) = colors.iter().find(|ci| ci.start <= p && ci.end > p) {
-                    viewport.set_cell(x as usize, y as usize, c, color.style);
+                    viewport.set_cell(x, y, c, color.style);
                 } else {
-                    viewport.set_cell(x as usize, y as usize, c, &default_style)
+                    viewport.set_cell(x, y, c, &default_style)
                 }
             }
             x += 1;

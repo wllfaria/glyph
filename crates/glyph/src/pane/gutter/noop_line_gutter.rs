@@ -5,13 +5,16 @@ use crate::theme::Theme;
 
 #[derive(Debug)]
 pub struct NoopLineDrawer {
-    config: Config,
-    theme: Theme,
+    _config: Config,
+    _theme: Theme,
 }
 
-impl<'a> NoopLineDrawer {
+impl NoopLineDrawer {
     pub fn new(config: Config, theme: Theme) -> Self {
-        Self { config, theme }
+        Self {
+            _config: config,
+            _theme: theme,
+        }
     }
 }
 

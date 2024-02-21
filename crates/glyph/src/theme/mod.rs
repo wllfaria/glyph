@@ -29,7 +29,7 @@ pub struct Gutter {
     pub fg: Color,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Style {
     pub fg: Option<Color>,
     pub bg: Option<Color>,
@@ -72,18 +72,6 @@ impl Style {
                 b: 255,
             }),
             bg: Some(bg),
-            bold: None,
-            italic: None,
-            underline: None,
-        }
-    }
-}
-
-impl Default for Style {
-    fn default() -> Self {
-        Self {
-            fg: None,
-            bg: None,
             bold: None,
             italic: None,
             underline: None,

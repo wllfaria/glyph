@@ -50,7 +50,7 @@ fn load_theme(
         EditorBackground::Light => Theme::light()?,
         EditorBackground::Dark => Theme::dark()?,
     };
-    if theme_name == "" {
+    if theme_name.is_empty() {
         return Ok(default);
     }
     let theme_path = themes_dir.join(theme_name);

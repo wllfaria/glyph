@@ -13,13 +13,16 @@ use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Size {
-    pub height: u16,
-    pub width: u16,
+    pub height: usize,
+    pub width: usize,
 }
 
 impl From<(u16, u16)> for Size {
     fn from((width, height): (u16, u16)) -> Self {
-        Self { width, height }
+        Self {
+            width: width as usize,
+            height: height as usize,
+        }
     }
 }
 
@@ -62,7 +65,7 @@ impl<'a> View<'a> {
 
     pub fn handle(&mut self, action: KeyAction) -> Result<()> {
         let last_viewport = self.viewport.clone();
-        let mut viewport = Viewport::new(self.size.width as usize, 1);
+        let mut viewport = Viewport::new(self.size.width, 1);
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
             // Command::Editor(EditorCommands::Start) => self.initialize()?,
@@ -74,12 +77,13 @@ impl<'a> View<'a> {
             KeyAction::Single(Action::InsertChar(_)) => active_window.handle(action)?,
             _ => (),
             // Command::Editor(EditorCommands::SecondElapsed) => self.draw_statusline(&mut viewport),
-            // Command::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
+            // KeyAction::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
             // Command::Cursor(_) => self.handle_cursor(command, &mut viewport)?,
             // Command::Pane(_) => active_window.handle(command)?,
             // Command::Window(_) => active_window.handle(command)?,
         };
         self.stdout.queue(cursor::SavePosition)?;
+        self.draw_statusline(&mut viewport);
         self.render_statusline(viewport.diff(&last_viewport))?;
         self.viewport = viewport;
         self.stdout.queue(cursor::RestorePosition)?.flush()?;
@@ -118,7 +122,7 @@ impl<'a> View<'a> {
         self.stdout.queue(terminal::EnterAlternateScreen)?;
 
         let last_viewport = self.viewport.clone();
-        let mut viewport = Viewport::new(self.size.width as usize, 1);
+        let mut viewport = Viewport::new(self.size.width, 1);
         self.clear_screen()?;
         self.draw_statusline(&mut viewport);
         self.render_statusline(viewport.diff(&last_viewport))?;
@@ -136,7 +140,7 @@ impl<'a> View<'a> {
     fn render_statusline(&mut self, changes: Vec<Change>) -> Result<()> {
         for change in changes {
             self.stdout
-                .queue(cursor::MoveTo(change.col as u16, self.size.height))?;
+                .queue(cursor::MoveTo(change.col as u16, self.size.height as u16))?;
 
             if let Some(bg) = change.cell.style.bg {
                 self.stdout.queue(style::SetBackgroundColor(bg))?;
@@ -180,28 +184,28 @@ impl<'a> View<'a> {
         let file_name = file_name.split('/').rev().nth(0).unwrap();
         let file_name = format!(" {}", file_name);
 
-        let padding = " "
-            .repeat(self.size.width as usize - file_name.len() - cursor.len() - percentage.len());
+        let padding =
+            " ".repeat(self.size.width - file_name.len() - cursor.len() - percentage.len());
 
         viewport.set_text(0, 0, &file_name, &self.theme.statusline.inner);
         viewport.set_text(file_name.len(), 0, &padding, &self.theme.statusline.inner);
 
         viewport.set_text(
-            self.size.width as usize - 1 - cursor.len(),
+            self.size.width - 1 - cursor.len(),
             0,
             &cursor,
             &self.theme.statusline.inner,
         );
 
         viewport.set_text(
-            self.size.width as usize - cursor.len(),
+            self.size.width - cursor.len(),
             0,
             &cursor,
             &self.theme.statusline.inner,
         );
 
         viewport.set_text(
-            self.size.width as usize - cursor.len() - percentage.len(),
+            self.size.width - cursor.len() - percentage.len(),
             0,
             &percentage,
             &self.theme.statusline.inner,

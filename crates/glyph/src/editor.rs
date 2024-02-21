@@ -40,11 +40,11 @@ impl<'a> Editor<'a> {
         file_name: Option<String>,
     ) -> anyhow::Result<Self> {
         let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name)?));
-        let pane = Pane::new(1, buffer.clone(), lsp, &theme, &config);
+        let pane = Pane::new(1, buffer.clone(), lsp, theme, config);
         let window = Window::new(1, pane, lsp);
         Ok(Self {
-            events: Events::new(&config),
-            view: View::new(lsp, &config, &theme, window)?,
+            events: Events::new(config),
+            view: View::new(lsp, config, theme, window)?,
             theme,
             config,
             lsp,
