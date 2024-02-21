@@ -7,13 +7,17 @@ use crossterm::{self, style::Print, QueueableCommand};
 
 use crate::buffer::Buffer;
 use crate::command::{BufferCommands, Command, CursorCommands, EditorCommands};
-use crate::config::Config;
+use crate::config::{Config, LineNumbers};
 use crate::highlight::Highlight;
 use crate::lsp::LspClient;
 use crate::pane::cursor::Cursor;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
 use crate::viewport::{Change, Viewport};
+
+use self::gutter::absolute_line_gutter::AbsoluteLineGutter;
+use self::gutter::noop_line_gutter::NoopLineDrawer;
+use self::gutter::relative_line_gutter::RelativeLineDrawer;
 
 mod cursor;
 mod gutter;
@@ -46,32 +50,51 @@ impl From<(u16, u16)> for PaneSize {
 pub struct Pane<'a> {
     pub id: usize,
     cursor: Cursor,
-    highlight: Highlight,
+    highlight: Highlight<'a>,
     scroll: Position,
     buffer: Rc<RefCell<Buffer>>,
     viewport: Viewport,
-    config: &'static Config,
+    config: &'a Config,
     gutter: Box<dyn Gutter>,
     size: PaneSize,
     stdout: Stdout,
-    theme: &'static Theme,
+    theme: &'a Theme,
     lsp: &'a LspClient,
 }
 
 impl<'a> Pane<'a> {
-    pub fn new(id: usize, buffer: Rc<RefCell<Buffer>>, lsp: &'a LspClient) -> Self {
+    pub fn new(
+        id: usize,
+        buffer: Rc<RefCell<Buffer>>,
+        lsp: &'a LspClient,
+        theme: &'a Theme,
+        config: &'a Config,
+    ) -> Self {
+        let gutter: Box<dyn Gutter> = match config.line_numbers {
+            LineNumbers::Absolute => {
+                Box::new(AbsoluteLineGutter::new(config.clone(), theme.clone()))
+            }
+            LineNumbers::Relative => {
+                Box::new(RelativeLineDrawer::new(config.clone(), theme.clone()))
+            }
+            LineNumbers::RelativeNumbered => {
+                Box::new(RelativeLineDrawer::new(config.clone(), theme.clone()))
+            }
+            LineNumbers::None => Box::new(NoopLineDrawer::new(config.clone(), theme.clone())),
+        };
+
         Self {
             id,
             buffer,
-            highlight: Highlight::new(),
+            highlight: Highlight::new(theme),
             stdout: stdout(),
             size: (0, 0).into(),
             viewport: Viewport::new(0, 0),
-            config: Config::get(),
             cursor: Cursor::new(),
             scroll: Position::default(),
-            gutter: <dyn Gutter>::get_gutter(),
-            theme: Theme::get(),
+            gutter,
+            config,
+            theme,
             lsp,
         }
     }

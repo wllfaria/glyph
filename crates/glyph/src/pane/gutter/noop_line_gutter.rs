@@ -1,12 +1,17 @@
+use crate::config::Config;
 use crate::pane::Gutter;
 use crate::pane::Viewport;
+use crate::theme::Theme;
 
 #[derive(Debug)]
-pub struct NoopLineDrawer {}
+pub struct NoopLineDrawer {
+    config: Config,
+    theme: Theme,
+}
 
-impl NoopLineDrawer {
-    pub fn new() -> Self {
-        Self {}
+impl<'a> NoopLineDrawer {
+    pub fn new(config: Config, theme: Theme) -> Self {
+        Self { config, theme }
     }
 }
 

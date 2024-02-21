@@ -3,10 +3,10 @@ use tree_sitter_rust::{language, HIGHLIGHT_QUERY};
 
 use crate::theme::{Style, Theme};
 
-pub struct Highlight {
+pub struct Highlight<'a> {
     parser: Parser,
     query: Query,
-    theme: &'static Theme,
+    theme: &'a Theme,
 }
 
 #[derive(Debug)]
@@ -16,13 +16,12 @@ pub struct ColorInfo<'a> {
     pub style: &'a Style,
 }
 
-impl Highlight {
-    pub fn new() -> Self {
+impl<'a> Highlight<'a> {
+    pub fn new(theme: &'a Theme) -> Self {
         let mut parser = Parser::new();
         let language = language();
         parser.set_language(language).expect("rust grammar");
         let query = Query::new(language, HIGHLIGHT_QUERY).expect("rust highlight");
-        let theme = Theme::get();
 
         Self {
             parser,

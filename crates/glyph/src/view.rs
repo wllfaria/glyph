@@ -29,14 +29,19 @@ pub struct View<'a> {
     windows: HashMap<usize, Window<'a>>,
     size: Size,
     stdout: Stdout,
-    config: &'static Config,
+    config: &'a Config,
     viewport: Viewport,
-    theme: &'static Theme,
+    theme: &'a Theme,
     lsp: &'a LspClient,
 }
 
 impl<'a> View<'a> {
-    pub fn new(lsp: &'a LspClient, mut window: Window<'a>) -> Result<Self> {
+    pub fn new(
+        lsp: &'a LspClient,
+        config: &'a Config,
+        theme: &'a Theme,
+        mut window: Window<'a>,
+    ) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
 
@@ -49,9 +54,9 @@ impl<'a> View<'a> {
             size: size.into(),
             active_window: id,
             windows,
-            config: Config::get(),
+            config,
             viewport: Viewport::new(size.0 as usize, 1),
-            theme: Theme::get(),
+            theme,
             lsp,
         })
     }

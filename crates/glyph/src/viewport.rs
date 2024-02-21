@@ -1,4 +1,4 @@
-use crate::theme::{Style, Theme};
+use crate::theme::Style;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cell {
@@ -10,7 +10,7 @@ impl Default for Cell {
     fn default() -> Self {
         Self {
             c: ' ',
-            style: Theme::get().style.clone(),
+            style: Style::default(),
         }
     }
 }

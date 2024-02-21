@@ -2,31 +2,51 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
+use crossterm::event::EventStream;
 use futures::{future::FutureExt, StreamExt};
+use serde::{Deserialize, Serialize};
 
 use crate::buffer::Buffer;
 use crate::command::{Command, EditorCommands};
+use crate::config::{Config, LineNumbers};
 use crate::events::Events;
 use crate::lsp::LspClient;
 use crate::pane::Pane;
+use crate::theme::Theme;
 use crate::view::View;
 use crate::window::Window;
-use crossterm::event::EventStream;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Mode {
+    Normal,
+    Insert,
+    Command,
+    Search,
+}
 
 pub struct Editor<'a> {
     events: Events,
     view: View<'a>,
     lsp: &'a LspClient,
+    config: &'a Config,
+    theme: &'a Theme,
 }
 
 impl<'a> Editor<'a> {
-    pub fn new(file_name: Option<String>, lsp: &'a LspClient) -> anyhow::Result<Self> {
+    pub fn new(
+        config: &'a Config,
+        theme: &'a Theme,
+        lsp: &'a LspClient,
+        file_name: Option<String>,
+    ) -> anyhow::Result<Self> {
         let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name)?));
-        let pane = Pane::new(1, buffer.clone(), lsp);
+        let pane = Pane::new(1, buffer.clone(), lsp, &theme, &config);
         let window = Window::new(1, pane, lsp);
         Ok(Self {
             events: Events::new(),
-            view: View::new(lsp, window)?,
+            view: View::new(lsp, &config, &theme, window)?,
+            theme,
+            config,
             lsp,
         })
     }

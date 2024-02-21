@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crossterm::style::Color;
 use serde::Deserialize;
@@ -15,8 +16,9 @@ struct TokenStyle {
     underline: Option<bool>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct AppearanceStyle {
+    fg: String,
     bg: String,
 }
 
@@ -41,33 +43,35 @@ pub struct ThemeLoader {
 }
 
 impl ThemeLoader {
-    pub fn parse_theme() -> std::io::Result<Theme> {
-        let mut theme_name = Config::get().theme_name.clone();
-        theme_name.push_str(".toml");
-        let theme_path = Config::themes_dir().join(theme_name);
-        if !theme_path.exists() {
-            println!("no theme");
-        }
+    pub fn default_dark() -> anyhow::Result<Theme> {
+        let theme_path = Config::themes_path().join("glyph-dark-default.toml");
         let toml = std::fs::read_to_string(theme_path)?;
         let theme: ThemeLoader = toml::from_str(&toml).unwrap();
         Ok(theme.into())
     }
 
-    pub fn hex_to_rgb(hex: Option<String>) -> Result<Option<Color>, &'static str> {
-        match hex {
-            Some(hex) => {
-                if hex.starts_with('#') && hex.len() == 7 {
-                    let r = u8::from_str_radix(&hex[1..3], 16).expect("Invalid red component");
-                    let g = u8::from_str_radix(&hex[3..5], 16).expect("Invalid green component");
-                    let b = u8::from_str_radix(&hex[5..7], 16).expect("Invalid blue component");
+    pub fn default_light() -> anyhow::Result<Theme> {
+        let theme_path = Config::themes_path().join("glyph-light-default.toml");
+        let toml = std::fs::read_to_string(theme_path)?;
+        let theme: ThemeLoader = toml::from_str(&toml).unwrap();
+        Ok(theme.into())
+    }
+}
 
-                    Ok(Some(Color::Rgb { r, g, b }))
-                } else {
-                    Err("Invalid hex color format")
-                }
+pub fn hex_to_rgb(hex: Option<String>) -> Result<Option<Color>, &'static str> {
+    match hex {
+        Some(hex) => {
+            if hex.starts_with('#') && hex.len() == 7 {
+                let r = u8::from_str_radix(&hex[1..3], 16).expect("Invalid red component");
+                let g = u8::from_str_radix(&hex[3..5], 16).expect("Invalid green component");
+                let b = u8::from_str_radix(&hex[5..7], 16).expect("Invalid blue component");
+
+                Ok(Some(Color::Rgb { r, g, b }))
+            } else {
+                Err("Invalid hex color format")
             }
-            None => Ok(None),
         }
+        None => Ok(None),
     }
 }
 
@@ -77,14 +81,25 @@ impl From<ThemeLoader> for Theme {
             acc.insert(k.clone(), (*v).clone().into());
             acc
         });
-        let appearance: Appearance = val.appearance.into();
         Theme {
             name: val.name,
             statusline: val.statusline.into(),
             gutter: val.gutter.into(),
             tokens,
-            style: Style::new(appearance.bg),
-            appearance,
+            style: val.appearance.clone().into(),
+            appearance: val.appearance.into(),
+        }
+    }
+}
+
+impl From<AppearanceStyle> for Style {
+    fn from(value: AppearanceStyle) -> Self {
+        Self {
+            fg: hex_to_rgb(Some(value.fg)).unwrap(),
+            bg: hex_to_rgb(Some(value.bg)).unwrap(),
+            bold: None,
+            italic: None,
+            underline: None,
         }
     }
 }
@@ -92,7 +107,7 @@ impl From<ThemeLoader> for Theme {
 impl From<AppearanceStyle> for Appearance {
     fn from(val: AppearanceStyle) -> Self {
         Appearance {
-            bg: ThemeLoader::hex_to_rgb(Some(val.bg)).unwrap().unwrap(),
+            bg: hex_to_rgb(Some(val.bg)).unwrap().unwrap(),
         }
     }
 }
@@ -108,8 +123,8 @@ impl From<StatuslineStyle> for Statusline {
 impl From<GutterStyle> for Gutter {
     fn from(val: GutterStyle) -> Self {
         Gutter {
-            bg: ThemeLoader::hex_to_rgb(Some(val.bg)).unwrap().unwrap(),
-            fg: ThemeLoader::hex_to_rgb(Some(val.fg)).unwrap().unwrap(),
+            bg: hex_to_rgb(Some(val.bg)).unwrap().unwrap(),
+            fg: hex_to_rgb(Some(val.fg)).unwrap().unwrap(),
         }
     }
 }
@@ -117,8 +132,8 @@ impl From<GutterStyle> for Gutter {
 impl From<TokenStyle> for Style {
     fn from(val: TokenStyle) -> Self {
         Style {
-            fg: ThemeLoader::hex_to_rgb(val.fg).unwrap(),
-            bg: ThemeLoader::hex_to_rgb(val.bg).unwrap(),
+            fg: hex_to_rgb(val.fg).unwrap(),
+            bg: hex_to_rgb(val.bg).unwrap(),
             bold: val.bold,
             italic: val.italic,
             underline: val.underline,

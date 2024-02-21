@@ -5,14 +5,13 @@ use crate::theme::Theme;
 
 #[derive(Debug)]
 pub struct RelativeLineDrawer {
-    config: &'static Config,
+    config: Config,
+    theme: Theme,
 }
 
 impl RelativeLineDrawer {
-    pub fn new() -> Self {
-        Self {
-            config: Config::get(),
-        }
+    pub fn new(config: Config, theme: Theme) -> Self {
+        Self { config, theme }
     }
 }
 
@@ -21,7 +20,7 @@ impl Gutter for RelativeLineDrawer {
         let total_lines = usize::min(viewport.height, total_lines);
         let normalized_line = line + 1;
         let mut scroll_row = scroll;
-        let style = &Theme::get().gutter;
+        let style = &self.theme.gutter;
 
         for y in 0..total_lines {
             scroll_row += 1;

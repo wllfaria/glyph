@@ -4,16 +4,15 @@ use crate::theme::Theme;
 
 use crate::pane::gutter::Gutter;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AbsoluteLineGutter {
-    config: &'static Config,
+    config: Config,
+    theme: Theme,
 }
 
 impl AbsoluteLineGutter {
-    pub fn new() -> Self {
-        Self {
-            config: Config::get(),
-        }
+    pub fn new(config: Config, theme: Theme) -> Self {
+        Self { config, theme }
     }
 }
 
@@ -21,7 +20,7 @@ impl Gutter for AbsoluteLineGutter {
     fn draw(&self, viewport: &mut Viewport, total_lines: usize, _: usize, scroll: usize) {
         let total_lines = usize::min(viewport.height, total_lines);
         let mut scroll = scroll;
-        let style = &Theme::get().gutter;
+        let style = &self.theme.gutter;
 
         for y in 0..total_lines {
             scroll += 1;

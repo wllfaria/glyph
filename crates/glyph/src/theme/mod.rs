@@ -1,11 +1,9 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::collections::HashMap;
 
 use crossterm::style::Color;
-mod loader;
+pub mod loader;
 
-pub static THEME: OnceLock<Theme> = OnceLock::new();
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Theme {
     pub name: String,
     pub appearance: Appearance,
@@ -15,12 +13,12 @@ pub struct Theme {
     pub style: Style,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Appearance {
     pub bg: Color,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Statusline {
     pub inner: Style,
 }
@@ -41,11 +39,12 @@ pub struct Style {
 }
 
 impl Theme {
-    pub fn get() -> &'static Self {
-        THEME.get_or_init(|| match loader::ThemeLoader::parse_theme() {
-            Ok(theme) => theme,
-            Err(_) => Self::default(),
-        })
+    pub fn dark() -> anyhow::Result<Self> {
+        loader::ThemeLoader::default_dark()
+    }
+
+    pub fn light() -> anyhow::Result<Self> {
+        loader::ThemeLoader::default_light()
     }
 }
 
@@ -73,6 +72,18 @@ impl Style {
                 b: 255,
             }),
             bg: Some(bg),
+            bold: None,
+            italic: None,
+            underline: None,
+        }
+    }
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Self {
+            fg: None,
+            bg: None,
             bold: None,
             italic: None,
             underline: None,
