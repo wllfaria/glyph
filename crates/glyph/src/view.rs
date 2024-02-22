@@ -4,8 +4,7 @@ use crossterm::{terminal, QueueableCommand};
 use std::collections::HashMap;
 use std::io::{stdout, Result, Stdout, Write};
 
-use crate::config::{Action, Config, KeyAction};
-use crate::lsp::LspClient;
+use crate::config::{Config, KeyAction};
 use crate::pane::Position;
 use crate::theme::Theme;
 use crate::viewport::{Change, Viewport};
@@ -56,14 +55,15 @@ impl<'a> View<'a> {
         })
     }
 
-    pub fn handle(&mut self, action: KeyAction) -> anyhow::Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, 1);
+        let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
-            KeyAction::Single(_) => self.handle_single_action(&action)?,
+            KeyAction::Simple(_) => active_window.handle_action(&action)?,
             KeyAction::Multiple(actions) => {
                 for action in actions {
-                    self.handle_single_action(&KeyAction::Single(action))?;
+                    self.handle_action(&KeyAction::Simple(action.clone()))?;
                 }
             }
             _ => (),
@@ -78,35 +78,11 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn handle_single_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
-        let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        match action {
-            KeyAction::Single(Action::Quit) => self.shutdown()?,
-            KeyAction::Single(_) => active_window.handle(action)?,
-            _ => (),
-        };
-        Ok(())
-    }
-
     fn get_active_window(&self) -> &Window {
         self.windows.get(&self.active_window).unwrap()
     }
 
-    fn handle_cursor(&mut self, action: KeyAction, viewport: &mut Viewport) -> Result<()> {
-        let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle(&action)?;
-        self.draw_statusline(viewport);
-        Ok(())
-    }
-
-    fn handle_buffer(&mut self, action: KeyAction, viewport: &mut Viewport) -> Result<()> {
-        let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle(&action)?;
-        self.draw_statusline(viewport);
-        Ok(())
-    }
-
-    fn shutdown(&mut self) -> Result<()> {
+    pub fn shutdown(&mut self) -> Result<()> {
         self.clear_screen()?;
         self.stdout.queue(terminal::LeaveAlternateScreen)?.flush()?;
         terminal::disable_raw_mode()?;

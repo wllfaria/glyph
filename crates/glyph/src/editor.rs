@@ -72,12 +72,11 @@ impl<'a> Editor<'a> {
                     if let Some(Ok(event)) = maybe_event {
                         if let Some(action) = self.events.handle(&event, &self.mode) {
                             match action {
-                                KeyAction::Single(Action::Quit) => {
-                                    logger::trace!("user exiting session");
-                                    self.view.handle(action)?;
+                                KeyAction::Simple(Action::Quit) => {
+                                    self.view.shutdown()?;
                                     break
                                 }
-                                _ => self.view.handle(action)?,
+                                _ => self.view.handle_action(&action)?,
 
                             }
                         }

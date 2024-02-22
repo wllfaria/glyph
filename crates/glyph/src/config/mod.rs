@@ -24,6 +24,7 @@ pub enum EditorBackground {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[serde()]
     pub keys: Keys,
     pub theme: String,
     pub log_file: Option<String>,
@@ -84,18 +85,18 @@ pub struct Keys {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum KeyAction {
-    Single(Action),
+    Simple(Action),
     Multiple(Vec<Action>),
-    Nested(HashMap<String, KeyAction>),
+    Complex(HashMap<String, KeyAction>),
 }
 
 fn default_normal() -> HashMap<String, KeyAction> {
     HashMap::from([
-        ("n".to_string(), KeyAction::Single(Action::FindNext)),
-        ("N".to_string(), KeyAction::Single(Action::FindPrevious)),
-        ("w".to_string(), KeyAction::Single(Action::NextWord)),
-        ("b".to_string(), KeyAction::Single(Action::PreviousWord)),
-        ("p".to_string(), KeyAction::Single(Action::PasteBelow)),
+        ("n".to_string(), KeyAction::Simple(Action::FindNext)),
+        ("N".to_string(), KeyAction::Simple(Action::FindPrevious)),
+        ("w".to_string(), KeyAction::Simple(Action::NextWord)),
+        ("b".to_string(), KeyAction::Simple(Action::PreviousWord)),
+        ("p".to_string(), KeyAction::Simple(Action::PasteBelow)),
         (
             "a".to_string(),
             KeyAction::Multiple(vec![Action::EnterMode(Mode::Insert), Action::MoveRight]),
@@ -115,27 +116,27 @@ fn default_normal() -> HashMap<String, KeyAction> {
                 Action::EnterMode(Mode::Insert),
             ]),
         ),
-        ("q".to_string(), KeyAction::Single(Action::Quit)),
-        ("u".to_string(), KeyAction::Single(Action::Undo)),
-        ("k".to_string(), KeyAction::Single(Action::MoveUp)),
-        ("Up".to_string(), KeyAction::Single(Action::MoveUp)),
-        ("j".to_string(), KeyAction::Single(Action::MoveDown)),
-        ("h".to_string(), KeyAction::Single(Action::MoveLeft)),
-        ("l".to_string(), KeyAction::Single(Action::MoveRight)),
-        ("G".to_string(), KeyAction::Single(Action::MoveToBottom)),
-        ("$".to_string(), KeyAction::Single(Action::MoveToLineEnd)),
-        ("0".to_string(), KeyAction::Single(Action::MoveToLineStart)),
+        ("q".to_string(), KeyAction::Simple(Action::Quit)),
+        ("u".to_string(), KeyAction::Simple(Action::Undo)),
+        ("k".to_string(), KeyAction::Simple(Action::MoveUp)),
+        ("Up".to_string(), KeyAction::Simple(Action::MoveUp)),
+        ("j".to_string(), KeyAction::Simple(Action::MoveDown)),
+        ("h".to_string(), KeyAction::Simple(Action::MoveLeft)),
+        ("l".to_string(), KeyAction::Simple(Action::MoveRight)),
+        ("S-G".to_string(), KeyAction::Simple(Action::MoveToBottom)),
+        ("$".to_string(), KeyAction::Simple(Action::MoveToLineEnd)),
+        ("0".to_string(), KeyAction::Simple(Action::MoveToLineStart)),
         (
             "x".to_string(),
-            KeyAction::Single(Action::DeleteCurrentChar),
+            KeyAction::Simple(Action::DeleteCurrentChar),
         ),
         (
             "/".to_string(),
-            KeyAction::Single(Action::EnterMode(Mode::Search)),
+            KeyAction::Simple(Action::EnterMode(Mode::Search)),
         ),
         (
             "i".to_string(),
-            KeyAction::Single(Action::EnterMode(Mode::Insert)),
+            KeyAction::Simple(Action::EnterMode(Mode::Insert)),
         ),
         (
             "I".to_string(),
@@ -146,38 +147,38 @@ fn default_normal() -> HashMap<String, KeyAction> {
         ),
         (
             ":".to_string(),
-            KeyAction::Single(Action::EnterMode(Mode::Command)),
+            KeyAction::Simple(Action::EnterMode(Mode::Command)),
         ),
-        ("Down".to_string(), KeyAction::Single(Action::MoveDown)),
-        ("Left".to_string(), KeyAction::Single(Action::MoveLeft)),
-        ("Right".to_string(), KeyAction::Single(Action::MoveRight)),
-        ("C-d".to_string(), KeyAction::Single(Action::PageDown)),
-        ("C-u".to_string(), KeyAction::Single(Action::PageUp)),
-        ("End".to_string(), KeyAction::Single(Action::MoveToLineEnd)),
+        ("Down".to_string(), KeyAction::Simple(Action::MoveDown)),
+        ("Left".to_string(), KeyAction::Simple(Action::MoveLeft)),
+        ("Right".to_string(), KeyAction::Simple(Action::MoveRight)),
+        ("C-d".to_string(), KeyAction::Simple(Action::PageDown)),
+        ("C-u".to_string(), KeyAction::Simple(Action::PageUp)),
+        ("End".to_string(), KeyAction::Simple(Action::MoveToLineEnd)),
         (
             "Home".to_string(),
-            KeyAction::Single(Action::MoveToLineStart),
+            KeyAction::Simple(Action::MoveToLineStart),
         ),
         (
             "g".to_string(),
-            KeyAction::Nested(HashMap::from([
-                ("g".to_string(), KeyAction::Single(Action::MoveToTop)),
-                ("d".to_string(), KeyAction::Single(Action::GoToDefinition)),
+            KeyAction::Complex(HashMap::from([
+                ("g".to_string(), KeyAction::Simple(Action::MoveToTop)),
+                ("d".to_string(), KeyAction::Simple(Action::GoToDefinition)),
             ])),
         ),
         (
             "d".to_string(),
-            KeyAction::Nested(HashMap::from([
-                ("b".to_string(), KeyAction::Single(Action::DeleteBack)),
-                ("w".to_string(), KeyAction::Single(Action::DeleteWord)),
-                ("d".to_string(), KeyAction::Single(Action::DeleteLine)),
+            KeyAction::Complex(HashMap::from([
+                ("b".to_string(), KeyAction::Simple(Action::DeleteBack)),
+                ("w".to_string(), KeyAction::Simple(Action::DeleteWord)),
+                ("d".to_string(), KeyAction::Simple(Action::DeleteLine)),
             ])),
         ),
         (
             "z".to_string(),
-            KeyAction::Nested(HashMap::from([(
+            KeyAction::Complex(HashMap::from([(
                 "z".to_string(),
-                KeyAction::Single(Action::CenterLine),
+                KeyAction::Simple(Action::CenterLine),
             )])),
         ),
     ])
@@ -185,25 +186,25 @@ fn default_normal() -> HashMap<String, KeyAction> {
 
 fn default_insert() -> HashMap<String, KeyAction> {
     HashMap::from([
-        ("Enter".to_string(), KeyAction::Single(Action::InsertLine)),
+        ("Enter".to_string(), KeyAction::Simple(Action::InsertLine)),
         (
             "Backspace".to_string(),
-            KeyAction::Single(Action::DeletePreviousChar),
+            KeyAction::Simple(Action::DeletePreviousChar),
         ),
-        ("Tab".to_string(), KeyAction::Single(Action::InsertTab)),
+        ("Tab".to_string(), KeyAction::Simple(Action::InsertTab)),
         (
             "Esc".to_string(),
-            KeyAction::Single(Action::EnterMode(Mode::Normal)),
+            KeyAction::Simple(Action::EnterMode(Mode::Normal)),
         ),
         (
             "Caps".to_string(),
-            KeyAction::Single(Action::EnterMode(Mode::Normal)),
+            KeyAction::Simple(Action::EnterMode(Mode::Normal)),
         ),
         (
             "j".to_string(),
-            KeyAction::Nested(HashMap::from([(
+            KeyAction::Complex(HashMap::from([(
                 "k".to_string(),
-                KeyAction::Single(Action::EnterMode(Mode::Normal)),
+                KeyAction::Simple(Action::EnterMode(Mode::Normal)),
             )])),
         ),
     ])
@@ -213,11 +214,11 @@ fn default_command() -> HashMap<String, KeyAction> {
     HashMap::from([
         (
             "Esc".to_string(),
-            KeyAction::Single(Action::EnterMode(Mode::Normal)),
+            KeyAction::Simple(Action::EnterMode(Mode::Normal)),
         ),
         (
             "C-c".to_string(),
-            KeyAction::Single(Action::EnterMode(Mode::Normal)),
+            KeyAction::Simple(Action::EnterMode(Mode::Normal)),
         ),
     ])
 }

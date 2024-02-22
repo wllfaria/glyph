@@ -143,12 +143,11 @@ impl Buffer {
         Ok(())
     }
 
-    pub fn handle(&mut self, action: &KeyAction, cursor_pos: usize) -> std::io::Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction, cursor_pos: usize) -> std::io::Result<()> {
         match action {
-            KeyAction::Single(Action::InsertChar(c)) => self.insert_char(*c, cursor_pos),
-            KeyAction::Single(Action::DeletePreviousChar) => self.delete_char(cursor_pos),
-            KeyAction::Single(Action::InsertLine) => self.insert_char('\n', cursor_pos),
-            // KeyAction::Single(Action::Save) => self.try_save()?,
+            KeyAction::Simple(Action::InsertChar(c)) => self.insert_char(*c, cursor_pos),
+            KeyAction::Simple(Action::DeletePreviousChar) => self.delete_char(cursor_pos),
+            KeyAction::Simple(Action::InsertLine) => self.insert_char('\n', cursor_pos),
             _ => (),
         };
         Ok(())
@@ -336,7 +335,7 @@ mod tests {
         let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hello!".chars().collect::<Vec<_>>();
 
-        _ = buffer.handle(&KeyAction::Single(Action::InsertChar('!')), 5);
+        _ = buffer.handle_action(&KeyAction::Simple(Action::InsertChar('!')), 5);
 
         assert_eq!(buffer.gap_start, 6);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));
@@ -366,7 +365,7 @@ mod tests {
         let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hell".chars().collect::<Vec<_>>();
 
-        let _ = buffer.handle(&KeyAction::Single(Action::DeletePreviousChar), 5);
+        let _ = buffer.handle_action(&KeyAction::Simple(Action::DeletePreviousChar), 5);
 
         assert_eq!(buffer.gap_start, 4);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));
@@ -379,7 +378,7 @@ mod tests {
         let first_needle = &"Hello".chars().collect::<Vec<_>>();
         let second_needle = &", World!".chars().collect::<Vec<_>>();
 
-        let _ = buffer.handle(&KeyAction::Single(Action::InsertLine), 5);
+        let _ = buffer.handle_action(&KeyAction::Simple(Action::InsertLine), 5);
 
         assert_eq!(buffer.gap_start, 6);
         assert!(buffer.buffer[0..buffer.gap_start].starts_with(first_needle));

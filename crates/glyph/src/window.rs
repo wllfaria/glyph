@@ -29,10 +29,10 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn handle(&mut self, action: &KeyAction) -> io::Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction) -> io::Result<()> {
         let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
         match action {
-            KeyAction::Single(_) => active_pane.handle(action)?,
+            KeyAction::Simple(_) => active_pane.handle_action(action)?,
             _ => {}
         }
         Ok(())

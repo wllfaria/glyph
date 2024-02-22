@@ -4,139 +4,139 @@ gutter_width = 6
 line_numbers = "Absolute"
 background = "Dark"
 empty_line_char = "~"
-show_diagnostics = false
+show_diagnostics = true
 
-[keys.normal.Home]
-Single = "MoveToLineStart"
-
-[keys.normal.Down]
-Single = "MoveDown"
-
-[keys.normal.O]
-Multiple = ["InsertLine", { EnterMode = "Insert" }]
-
-[keys.normal.h]
-Single = "MoveLeft"
-
-[keys.normal.Left]
-Single = "MoveLeft"
-
-[keys.normal.A]
-Multiple = [{ EnterMode = "Insert" }, "MoveToLineEnd"]
-
-[keys.normal.Right]
-Single = "MoveRight"
-
-[keys.normal.Up]
-Single = "MoveUp"
-
-[keys.normal.j]
-Single = "MoveDown"
-
-[keys.normal.I]
-Multiple = ["MoveToLineStart", { EnterMode = "Insert" }]
-
-[keys.normal.w]
-Multiple = ["NextWord"]
-
-[keys.normal.i.Single]
-EnterMode = "Insert"
+[keys.normal.z.Complex.z]
+Simple = "CenterLine"
 
 [keys.normal.x]
-Single = "DeleteCurrentChar"
+Simple = "DeleteCurrentChar"
 
-[keys.normal.d.Nested.b]
-Single = "DeleteBack"
-
-[keys.normal.d.Nested.d]
-Single = "DeleteLine"
-
-[keys.normal.d.Nested.w]
-Single = "DeleteWord"
-
-[keys.normal.p]
-Single = "PasteBelow"
+[keys.normal.w]
+Simple = "NextWord"
 
 [keys.normal.o]
 Multiple = ["InsertLineBelow", { EnterMode = "Insert" }]
 
+[keys.normal.u]
+Simple = "Undo"
+
+[keys.normal.":".Simple]
+EnterMode = "Command"
+
+[keys.normal.g.Complex.d]
+Simple = "GoToDefinition"
+
+[keys.normal.g.Complex.g]
+Simple = "MoveToTop"
+
+[keys.normal.I]
+Multiple = ["MoveToLineStart", { EnterMode = "Insert" }]
+
 [keys.normal.End]
-Single = "MoveToLineEnd"
+Simple = "MoveToLineEnd"
 
-[keys.normal.b]
-Multiple = ["PreviousWord"]
+[keys.normal.Home]
+Simple = "MoveToLineStart"
 
-[keys.normal.C-u]
-Single = "PageUp"
+[keys.normal.n]
+Simple = "FindNext"
 
-[keys.normal.G]
-Single = "MoveToBottom"
+[keys.normal.Right]
+Simple = "MoveRight"
+
+[keys.normal.p]
+Simple = "PasteBelow"
+
+[keys.normal.O]
+Multiple = ["InsertLine", { EnterMode = "Insert" }]
+
+[keys.normal.k]
+Simple = "MoveUp"
 
 [keys.normal.l]
-Single = "MoveRight"
+Simple = "MoveRight"
 
-[keys.normal."/".Single]
+[keys.normal."/".Simple]
 EnterMode = "Search"
 
-[keys.normal.g.Nested.d]
-Single = "GoToDefinition"
+[keys.normal.Down]
+Simple = "MoveDown"
 
-[keys.normal.g.Nested.g]
-Single = "MoveToTop"
+[keys.normal.Up]
+Simple = "MoveUp"
+
+[keys.normal.G]
+Simple = "MoveToBottom"
+
+[keys.normal.C-d]
+Simple = "PageDown"
+
+[keys.normal.C-u]
+Simple = "PageUp"
+
+[keys.normal.b]
+Simple = "PreviousWord"
 
 [keys.normal.a]
 Multiple = [{ EnterMode = "Insert" }, "MoveRight"]
 
-[keys.normal.u]
-Single = "Undo"
+[keys.normal."$"]
+Simple = "MoveToLineEnd"
 
-[keys.normal.C-d]
-Single = "PageDown"
+[keys.normal.i.Simple]
+EnterMode = "Insert"
 
-[keys.normal.z.Nested.z]
-Single = "CenterLine"
+[keys.normal.A]
+Multiple = [{ EnterMode = "Insert" }, "MoveToLineEnd"]
 
-[keys.normal.k]
-Single = "MoveUp"
+[keys.normal.d.Complex.w]
+Simple = "DeleteWord"
+
+[keys.normal.d.Complex.d]
+Simple = "DeleteLine"
+
+[keys.normal.d.Complex.b]
+Simple = "DeleteBack"
 
 [keys.normal.q]
-Single = "Quit"
-
-[keys.normal."$"]
-Single = "MoveToLineEnd"
+Simple = "Quit"
 
 [keys.normal.0]
-Single = "MoveToLineStart"
+Simple = "MoveToLineStart"
 
-[keys.normal.":".Single]
-EnterMode = "Command"
+[keys.normal.Left]
+Simple = "MoveLeft"
 
 [keys.normal.N]
-Multiple = ["FindPrevious"]
+Simple = "FindPrevious"
 
-[keys.normal.n]
-Multiple = ["FindNext"]
+[keys.normal.j]
+Simple = "MoveDown"
 
-[keys.insert.Esc.Single]
+[keys.normal.h]
+Simple = "MoveLeft"
+
+[keys.insert.Caps.Simple]
 EnterMode = "Normal"
-
-[keys.insert.Caps.Single]
-EnterMode = "Normal"
-
-[keys.insert.j.Nested.k.Single]
-EnterMode = "Normal"
-
-[keys.insert.Enter]
-Single = "InsertLine"
 
 [keys.insert.Backspace]
-Single = "DeletePreviousChar"
+Simple = "DeletePreviousChar"
 
 [keys.insert.Tab]
-Single = "InsertTab"
+Simple = "InsertTab"
 
-[keys.command.Esc.Single]
+[keys.insert.Enter]
+Simple = "InsertLine"
+
+[keys.insert.j.Complex.k.Simple]
 EnterMode = "Normal"
 
-[keys.command.C-c.Single]
+[keys.insert.Esc.Simple]
+EnterMode = "Normal"
+
+[keys.command.Esc.Simple]
+EnterMode = "Normal"
+
+[keys.command.C-c.Simple]
 EnterMode = "Normal"

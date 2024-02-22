@@ -8,7 +8,6 @@ use crossterm::{self, style::Print, QueueableCommand};
 use crate::buffer::Buffer;
 use crate::config::{Action, Config, KeyAction, LineNumbers};
 use crate::highlight::Highlight;
-use crate::lsp::LspClient;
 use crate::pane::cursor::Cursor;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
@@ -48,10 +47,10 @@ impl From<(u16, u16)> for PaneSize {
 
 pub struct Pane<'a> {
     pub id: usize,
-    cursor: Cursor,
+    pub cursor: Cursor,
     highlight: Highlight<'a>,
     scroll: Position,
-    buffer: Rc<RefCell<Buffer>>,
+    pub buffer: Rc<RefCell<Buffer>>,
     viewport: Viewport,
     config: &'a Config,
     gutter: Box<dyn Gutter>,
@@ -100,20 +99,22 @@ impl<'a> Pane<'a> {
         self.size = new_size;
     }
 
-    pub fn handle(&mut self, action: &KeyAction) -> Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction) -> Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, self.size.height);
 
         self.stdout.queue(crossterm::cursor::Hide)?;
         match action {
-            KeyAction::Single(Action::MoveToLineStart) => self.handle_cursor_action(action)?,
-            KeyAction::Single(Action::MoveToLineEnd) => self.handle_cursor_action(action)?,
-            KeyAction::Single(Action::NextWord) => self.handle_cursor_action(action)?,
-            KeyAction::Single(Action::MoveLeft) => self.handle_cursor_action(action)?,
-            KeyAction::Single(Action::MoveDown) => self.handle_cursor_action(action)?,
-            KeyAction::Single(Action::MoveUp) => self.handle_cursor_action(action)?,
-            KeyAction::Single(Action::MoveRight) => self.handle_cursor_action(action)?,
-            KeyAction::Single(Action::InsertChar(_)) => {
+            KeyAction::Simple(Action::MoveToLineStart) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::MoveToLineEnd) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::NextWord) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::MoveLeft) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::MoveDown) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::MoveUp) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::MoveRight) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::MoveToTop) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::InsertChar(_)) => {
                 self.handle_cursor_action(&action)?;
                 self.handle_buffer_action(&action)?;
             }
@@ -188,16 +189,25 @@ impl<'a> Pane<'a> {
         self.cursor.get_readable_position()
     }
 
-    fn handle_cursor_action(&mut self, action: &KeyAction) -> Result<()> {
+    pub fn handle_cursor_action(&mut self, action: &KeyAction) -> Result<()> {
         self.cursor.handle(action, &mut self.buffer.borrow_mut());
         match action {
-            KeyAction::Single(Action::MoveUp) => {
+            KeyAction::Simple(Action::MoveToTop) => {
+                self.scroll.row = 0;
+            }
+            KeyAction::Simple(Action::MoveToBottom) => {
+                let Position { row, .. } = self.get_cursor_readable_position();
+                if self.cursor.row.saturating_sub(self.scroll.row) >= self.size.height {
+                    self.scroll.row = row - self.scroll.row - self.size.height;
+                }
+            }
+            KeyAction::Simple(Action::MoveUp) => {
                 let Position { row, .. } = self.get_cursor_readable_position();
                 if row.saturating_sub(self.scroll.row) == 0 {
                     self.scroll.row = self.scroll.row.saturating_sub(1);
                 }
             }
-            KeyAction::Single(Action::MoveDown) => {
+            KeyAction::Simple(Action::MoveDown) => {
                 if self.cursor.row.saturating_sub(self.scroll.row) >= self.size.height {
                     self.scroll.row += 1;
                 }
@@ -219,13 +229,13 @@ impl<'a> Pane<'a> {
 
         self.buffer
             .borrow_mut()
-            .handle(action, self.cursor.absolute_position)?;
+            .handle_action(action, self.cursor.absolute_position)?;
         self.cursor.handle(action, &mut self.buffer.borrow_mut());
 
         let pos = self.get_cursor_readable_position();
 
         match action {
-            KeyAction::Single(Action::DeletePreviousChar) => {
+            KeyAction::Simple(Action::DeletePreviousChar) => {
                 let start = self.cursor.row - self.scroll.row.saturating_sub(1);
 
                 for pane_line in start..self.size.height {
@@ -237,7 +247,7 @@ impl<'a> Pane<'a> {
                     self.cursor.absolute_position = mark.start + mark.size.saturating_sub(1);
                 }
             }
-            KeyAction::Single(Action::InsertLine) => {
+            KeyAction::Simple(Action::InsertLine) => {
                 let start = (self.cursor.row - self.scroll.row).saturating_sub(1);
                 for pane_line in start..self.size.height {
                     self.redraw_line(pane_line, self.cursor.row + pane_line - start);

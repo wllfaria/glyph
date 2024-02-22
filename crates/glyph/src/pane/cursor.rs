@@ -21,18 +21,20 @@ impl Cursor {
 
     pub fn handle(&mut self, action: &KeyAction, buffer: &mut Buffer) {
         match action {
-            KeyAction::Single(Action::MoveUp) => self.move_up(buffer),
-            KeyAction::Single(Action::MoveRight) => self.move_right(buffer),
-            KeyAction::Single(Action::MoveDown) => self.move_down(buffer),
-            KeyAction::Single(Action::MoveLeft) => self.move_left(buffer),
-            KeyAction::Single(Action::MoveToLineStart) => self.move_to_line_start(buffer),
-            KeyAction::Single(Action::MoveToLineEnd) => self.move_to_line_end(buffer),
-            KeyAction::Single(Action::NextWord) => self.move_to_next_word(buffer),
-            KeyAction::Single(Action::InsertChar(_)) => {
+            KeyAction::Simple(Action::MoveToTop) => self.move_to_top(),
+            KeyAction::Simple(Action::MoveToBottom) => self.move_to_bottom(buffer),
+            KeyAction::Simple(Action::MoveUp) => self.move_up(buffer),
+            KeyAction::Simple(Action::MoveRight) => self.move_right(buffer),
+            KeyAction::Simple(Action::MoveDown) => self.move_down(buffer),
+            KeyAction::Simple(Action::MoveLeft) => self.move_left(buffer),
+            KeyAction::Simple(Action::MoveToLineStart) => self.move_to_line_start(buffer),
+            KeyAction::Simple(Action::MoveToLineEnd) => self.move_to_line_end(buffer),
+            KeyAction::Simple(Action::NextWord) => self.move_to_next_word(buffer),
+            KeyAction::Simple(Action::InsertChar(_)) => {
                 self.absolute_position += 1;
                 self.col += 1;
             }
-            KeyAction::Single(Action::DeletePreviousChar) => match self.col {
+            KeyAction::Simple(Action::DeletePreviousChar) => match self.col {
                 c if c == 0 && self.row == 0 => (),
                 0 => {
                     self.move_up(buffer);
@@ -43,7 +45,7 @@ impl Cursor {
                     self.absolute_position = self.absolute_position.saturating_sub(1);
                 }
             },
-            KeyAction::Single(Action::InsertLine) => {
+            KeyAction::Simple(Action::InsertLine) => {
                 self.absolute_position += 1;
                 self.col = 0;
                 self.row += 1;
@@ -59,7 +61,7 @@ impl Cursor {
         }
     }
 
-    fn move_up(&mut self, buffer: &mut Buffer) {
+    pub fn move_up(&mut self, buffer: &mut Buffer) {
         if self.row == 0 {
             self.absolute_position = 0;
             self.col = 0;
@@ -128,9 +130,21 @@ impl Cursor {
     }
 
     fn move_to_line_end(&mut self, buffer: &mut Buffer) {
-        logger::trace!("moving to lien end");
         let Position { row, .. } = self.get_readable_position();
         let mark = buffer.marker.get_by_line(row).unwrap();
+        self.col = mark.size.saturating_sub(2);
+        self.absolute_position = mark.start + mark.size.saturating_sub(2);
+    }
+
+    fn move_to_top(&mut self) {
+        self.row = 0;
+        self.absolute_position = 0;
+    }
+
+    fn move_to_bottom(&mut self, buffer: &mut Buffer) {
+        let total_lines = buffer.marker.len();
+        let mark = buffer.marker.get_by_line(total_lines).unwrap();
+        self.row = total_lines - 1;
         self.col = mark.size.saturating_sub(2);
         self.absolute_position = mark.start + mark.size.saturating_sub(2);
     }
