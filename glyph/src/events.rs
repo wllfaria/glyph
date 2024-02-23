@@ -6,6 +6,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
 
+#[derive(Debug)]
 pub struct Events<'a> {
     action_being_composed: Option<String>,
     config: &'a Config,
@@ -20,6 +21,8 @@ impl<'a> Events<'a> {
     }
 
     pub fn handle(&mut self, event: &Event, mode: &Mode) -> Option<KeyAction> {
+        let span = tracing::span!(tracing::Level::TRACE, "events::handle");
+        let _guard = span.enter();
         if let Some(action) = self.action_being_composed.take() {
             self.action_being_composed = Some(action);
             match event {
@@ -34,7 +37,7 @@ impl<'a> Events<'a> {
                     match action {
                         KeyAction::Complex(complex) => {
                             let action = complex.get(key.to_string().as_str());
-                            logger::trace!("{action:?}");
+                            tracing::trace!("{action:?}");
                             if let Some(action) = action {
                                 self.action_being_composed = None;
                                 return Some(action.clone());
@@ -85,17 +88,17 @@ impl<'a> Events<'a> {
         };
 
         match event {
-            Event::Key(KeyEvent { code, .. }) => match code {
-                KeyCode::Char(c) => Some(KeyAction::Simple(Action::InsertChar(*c))),
-                _ => None,
-            },
+            Event::Key(KeyEvent {
+                code: KeyCode::Char(c),
+                ..
+            }) => Some(KeyAction::Simple(Action::InsertChar(*c))),
             _ => None,
         }
     }
-    pub fn handle_command_event(&self, event: &Event) -> Option<KeyAction> {
+    pub fn handle_command_event(&self, _event: &Event) -> Option<KeyAction> {
         None
     }
-    pub fn handle_search_event(&self, event: &Event) -> Option<KeyAction> {
+    pub fn handle_search_event(&self, _event: &Event) -> Option<KeyAction> {
         None
     }
 

@@ -159,12 +159,12 @@ impl Cursor {
         let content = buffer.to_string();
         let mut pos = self.absolute_position;
         while pos < content.len() && !self.is_separator(content[pos..].chars().next().unwrap()) {
-            logger::trace!("next char is not a separator");
+            tracing::trace!("next char is not a separator");
             pos += content[pos..].chars().next().unwrap().len_utf8();
         }
 
         while pos < content.len() && self.is_skippable(content[pos..].chars().next().unwrap()) {
-            logger::trace!(
+            tracing::trace!(
                 "next char is a separator {}",
                 content[pos..].chars().next().unwrap()
             );
@@ -179,22 +179,11 @@ impl Cursor {
     }
 
     fn is_skippable(&self, c: char) -> bool {
-        match c {
-            ' ' => true,
-            ':' => true,
-            _ => false,
-        }
+        matches!(c, ' ' | ':')
     }
 
     fn is_separator(&self, c: char) -> bool {
-        match c {
-            ' ' => true,
-            ':' => true,
-            '-' => true,
-            ';' => true,
-            '\n' => true,
-            _ => false,
-        }
+        matches!(c, ' ' | ':' | '-' | ';' | '\n')
     }
 }
 

@@ -13,7 +13,8 @@ mod window;
 use std::path::{Path, PathBuf};
 
 use config::{Config, EditorBackground};
-use logger::{self, FileLogger, LogLevel, Logger};
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 use editor::Editor;
 use lsp::LspClient;
@@ -36,7 +37,6 @@ fn load_config() -> anyhow::Result<Config> {
         true => {
             let toml = std::fs::read_to_string(config_file)?;
             let config: Config = toml::from_str(&toml)?;
-            logger::warn!("{:?}", config.background);
             default.extend(config);
             Ok(default)
         }
@@ -72,7 +72,15 @@ fn load_theme(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let _ = Logger::get(FileLogger::new("./glyph.log"), LogLevel::Trace);
+    let appender = tracing_appender::rolling::never(".", "glyph.log");
+    let (writer, _guard) = tracing_appender::non_blocking(appender);
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .with_writer(writer)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
+
     let file_name = std::env::args().nth(1);
     let lsp = LspClient::start().await?;
     let config = load_config()?;

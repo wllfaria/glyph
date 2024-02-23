@@ -115,8 +115,8 @@ impl<'a> Pane<'a> {
             KeyAction::Simple(Action::MoveToTop) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::InsertChar(_)) => {
-                self.handle_buffer_action(&action)?;
-                self.handle_cursor_action(&action)?;
+                self.handle_buffer_action(action)?;
+                self.handle_cursor_action(action)?;
             }
             _ => (),
         };

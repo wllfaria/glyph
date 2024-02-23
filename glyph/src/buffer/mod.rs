@@ -137,7 +137,7 @@ impl Buffer {
     fn try_save(&self) -> std::io::Result<()> {
         if let Ok(mut path) = std::env::current_dir() {
             path.push(&self.file_name);
-            logger::debug!("saving file: {:?}", path);
+            tracing::debug!("saving file: {:?}", path);
             std::fs::write(path, self.to_string())?;
         }
         Ok(())

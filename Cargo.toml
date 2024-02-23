@@ -1,8 +1,7 @@
 [workspace]
-members = [ "crates/glyph" , "crates/logger"]
-default-members = ["crates/glyph"]
+members = [ "glyph" ]
+default-members = ["glyph"]
 resolver = "2"
 
 [workspace.dependencies]
 chrono = "0.4"
-logger = { path = "crates/logger" }

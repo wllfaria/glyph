@@ -60,7 +60,7 @@ impl<'a> View<'a> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, 1);
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        logger::debug!("{action:?}");
+        tracing::debug!("{action:?}");
         match action {
             KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBar)?;
@@ -68,7 +68,7 @@ impl<'a> View<'a> {
             KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
             }
-            KeyAction::Simple(_) => active_window.handle_action(&action)?,
+            KeyAction::Simple(_) => active_window.handle_action(action)?,
             KeyAction::Multiple(actions) => {
                 for action in actions {
                     self.handle_action(&KeyAction::Simple(action.clone()), mode)?;

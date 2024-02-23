@@ -76,21 +76,23 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
 
     let stdout = process.stdout.take().unwrap();
     let stdin = process.stdin.take().unwrap();
-    let stderr = process.stderr.take().unwrap();
+    let _stderr = process.stderr.take().unwrap();
 
     let (request_tx, mut request_rx) = mpsc::channel::<OutgoingMessage>(32);
     let (response_tx, response_rx) = mpsc::channel::<IncomingMessage>(32);
 
     let rtx = response_tx.clone();
     tokio::spawn(async move {
+        let span = tracing::span!(tracing::Level::TRACE, "lsp::lsp_start::request_task");
+        let _guard = span.enter();
         let mut stdin = BufWriter::new(stdin);
         while let Some(message) = request_rx.recv().await {
-            logger::trace!("[LSP] editor sending message: {:?}", message);
+            tracing::trace!("[LSP] editor sending message: {:?}", message);
 
             match message {
                 OutgoingMessage::RequestMessage(req) => {
                     if let Err(err) = lsp_send_request(&mut stdin, &req).await {
-                        logger::error!("[LSP] failed to process request message: {err:?}");
+                        tracing::error!("[LSP] failed to process request message: {err:?}");
                         rtx.send(IncomingMessage::ProcessingError(err.to_string()))
                             .await
                             .unwrap();
@@ -98,7 +100,7 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                 }
                 OutgoingMessage::NotificationMessage(req) => {
                     if let Err(err) = lsp_send_notification(&mut stdin, &req).await {
-                        logger::error!("[LSP] failed to process notification message");
+                        tracing::error!("[LSP] failed to process notification message");
                         rtx.send(IncomingMessage::ProcessingError(err.to_string()))
                             .await
                             .unwrap();
@@ -117,7 +119,7 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
             let read = match reader.read_line(&mut line).await {
                 Ok(size) => size,
                 Err(err) => {
-                    logger::error!("[LSP] failed to read from stdout");
+                    tracing::error!("[LSP] failed to read from stdout");
                     rtx.send(IncomingMessage::ProcessingError(err.to_string()))
                         .await
                         .unwrap();
@@ -129,14 +131,14 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                 continue;
             }
 
-            logger::trace!("[LSP] incoming message starts with: {:?}", line);
+            tracing::trace!("[LSP] incoming message starts with: {:?}", line);
             if line.starts_with("Content-Length: ") {
                 let Ok(len) = line
                     .trim_start_matches("Content-Length: ")
                     .trim()
                     .parse::<usize>()
                 else {
-                    logger::error!("[LSP] error parsing Content-Length: {}", line);
+                    tracing::error!("[LSP] error parsing Content-Length: {}", line);
                     rtx.send(IncomingMessage::ProcessingError(
                         "Error parsing Content-Length".to_string(),
                     ))
@@ -150,7 +152,7 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
 
                 let mut body = vec![0; len];
                 if let Err(err) = reader.read_exact(&mut body).await {
-                    logger::error!("[LSP] error reading body {}", err);
+                    tracing::error!("[LSP] error reading body {}", err);
                     rtx.send(IncomingMessage::ProcessingError(err.to_string()))
                         .await
                         .unwrap();
@@ -158,7 +160,7 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                 }
                 let body = String::from_utf8_lossy(&body);
                 let res = serde_json::from_str::<serde_json::Value>(&body).unwrap();
-                logger::debug!(
+                tracing::debug!(
                     "[lsp] incoming message: {}",
                     res.to_string().chars().take(100).collect::<String>()
                 );
@@ -360,7 +362,7 @@ impl LspClient {
             .send(OutgoingMessage::RequestMessage(req))
             .await?;
 
-        logger::debug!("[LSP] request {id} sent: {:?}", method);
+        tracing::debug!("[LSP] request {id} sent: {:?}", method);
         Ok(id)
     }
 
@@ -371,7 +373,7 @@ impl LspClient {
                 params,
             }))
             .await?;
-        logger::debug!("[LSP] notification {:?} sent", method);
+        tracing::debug!("[LSP] notification {:?} sent", method);
         Ok(())
     }
 

@@ -64,6 +64,8 @@ impl<'a> Editor<'a> {
     }
 
     pub async fn start(&mut self) -> anyhow::Result<()> {
+        let span = tracing::span!(tracing::Level::TRACE, "lsp::start");
+        let _guard = span.enter();
         self.view.initialize(&self.mode)?;
 
         let mut stream = EventStream::new();
@@ -76,7 +78,7 @@ impl<'a> Editor<'a> {
             tokio::select! {
                 _ = delay => {
                     if let Some((msg, _method)) = self.lsp.try_read_message().await? {
-                        logger::trace!("[LSP] received message {msg:?}");
+                        tracing::trace!("[LSP] received message {msg:?}");
                     }
                 }
                 maybe_event = event => {
