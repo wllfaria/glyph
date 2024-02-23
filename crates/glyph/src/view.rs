@@ -4,7 +4,8 @@ use crossterm::{terminal, QueueableCommand};
 use std::collections::HashMap;
 use std::io::{stdout, Result, Stdout, Write};
 
-use crate::config::{Config, KeyAction};
+use crate::config::{Action, Config, KeyAction};
+use crate::editor::Mode;
 use crate::pane::Position;
 use crate::theme::Theme;
 use crate::viewport::{Change, Viewport};
@@ -55,22 +56,29 @@ impl<'a> View<'a> {
         })
     }
 
-    pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, 1);
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
+        logger::debug!("{action:?}");
         match action {
+            KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
+                self.stdout.queue(cursor::SetCursorStyle::SteadyBar)?;
+            }
+            KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
+                self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
+            }
             KeyAction::Simple(_) => active_window.handle_action(&action)?,
             KeyAction::Multiple(actions) => {
                 for action in actions {
-                    self.handle_action(&KeyAction::Simple(action.clone()))?;
+                    self.handle_action(&KeyAction::Simple(action.clone()), mode)?;
                 }
             }
             _ => (),
             // KeyAction::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
         };
         self.stdout.queue(cursor::SavePosition)?;
-        self.draw_statusline(&mut viewport);
+        self.draw_statusline(&mut viewport, mode);
         self.render_statusline(viewport.diff(&last_viewport))?;
         self.viewport = viewport;
         self.stdout.queue(cursor::RestorePosition)?.flush()?;
@@ -90,14 +98,14 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    pub fn initialize(&mut self) -> Result<()> {
+    pub fn initialize(&mut self, mode: &Mode) -> Result<()> {
         terminal::enable_raw_mode()?;
         self.stdout.queue(terminal::EnterAlternateScreen)?;
 
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, 1);
         self.clear_screen()?;
-        self.draw_statusline(&mut viewport);
+        self.draw_statusline(&mut viewport, mode);
         self.render_statusline(viewport.diff(&last_viewport))?;
 
         self.windows
@@ -140,7 +148,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn draw_statusline(&mut self, viewport: &mut Viewport) {
+    fn draw_statusline(&mut self, viewport: &mut Viewport, mode: &Mode) {
         let active_pane = self.get_active_window().get_active_pane();
         let cursor_position = active_pane.get_cursor_readable_position();
         let Position { col, row } = cursor_position;
@@ -160,8 +168,15 @@ impl<'a> View<'a> {
         let padding =
             " ".repeat(self.size.width - file_name.len() - cursor.len() - percentage.len());
 
-        viewport.set_text(0, 0, &file_name, &self.theme.statusline.inner);
-        viewport.set_text(file_name.len(), 0, &padding, &self.theme.statusline.inner);
+        let mode = format!(" {}", mode);
+        viewport.set_text(0, 0, &mode, &self.theme.statusline.inner);
+        viewport.set_text(mode.len(), 0, &file_name, &self.theme.statusline.inner);
+        viewport.set_text(
+            mode.len() + file_name.len(),
+            0,
+            &padding,
+            &self.theme.statusline.inner,
+        );
 
         viewport.set_text(
             self.size.width - 1 - cursor.len(),

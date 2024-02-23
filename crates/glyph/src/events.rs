@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crossterm::event::Event;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::config::{Config, KeyAction};
+use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
 
 pub struct Events<'a> {
@@ -75,7 +75,22 @@ impl<'a> Events<'a> {
         None
     }
     pub fn handle_insert_event(&self, event: &Event) -> Option<KeyAction> {
-        None
+        let (_, action) = self.map_event_to_key_action(&self.config.keys.insert, event);
+        if let Some(action) = action {
+            match action {
+                KeyAction::Simple(_) => return Some(action),
+                KeyAction::Multiple(_) => return Some(action),
+                KeyAction::Complex(_) => return Some(action),
+            }
+        };
+
+        match event {
+            Event::Key(KeyEvent { code, .. }) => match code {
+                KeyCode::Char(c) => Some(KeyAction::Simple(Action::InsertChar(*c))),
+                _ => None,
+            },
+            _ => None,
+        }
     }
     pub fn handle_command_event(&self, event: &Event) -> Option<KeyAction> {
         None

@@ -115,8 +115,8 @@ impl<'a> Pane<'a> {
             KeyAction::Simple(Action::MoveToTop) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::InsertChar(_)) => {
-                self.handle_cursor_action(&action)?;
                 self.handle_buffer_action(&action)?;
+                self.handle_cursor_action(&action)?;
             }
             _ => (),
         };
@@ -223,14 +223,13 @@ impl<'a> Pane<'a> {
         let row = self.cursor.row;
         let mark = {
             let buffer = self.buffer.borrow_mut();
-            let mark = buffer.marker.get_by_line(self.cursor.row);
+            let mark = buffer.marker.get_by_cursor(self.cursor.absolute_position);
             mark.unwrap()
         };
 
         self.buffer
             .borrow_mut()
             .handle_action(action, self.cursor.absolute_position)?;
-        self.cursor.handle(action, &mut self.buffer.borrow_mut());
 
         let pos = self.get_cursor_readable_position();
 

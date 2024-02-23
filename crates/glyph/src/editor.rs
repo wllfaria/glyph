@@ -23,6 +23,17 @@ pub enum Mode {
     Search,
 }
 
+impl std::fmt::Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Search => f.write_str("SEARCH"),
+            Self::Insert => f.write_str("INSERT"),
+            Self::Normal => f.write_str("NORMAL"),
+            Self::Command => f.write_str("COMMAND"),
+        }
+    }
+}
+
 pub struct Editor<'a> {
     events: Events<'a>,
     view: View<'a>,
@@ -53,7 +64,7 @@ impl<'a> Editor<'a> {
     }
 
     pub async fn start(&mut self) -> anyhow::Result<()> {
-        self.view.initialize()?;
+        self.view.initialize(&self.mode)?;
 
         let mut stream = EventStream::new();
         self.lsp.initialize().await?;
@@ -76,7 +87,15 @@ impl<'a> Editor<'a> {
                                     self.view.shutdown()?;
                                     break
                                 }
-                                _ => self.view.handle_action(&action)?,
+                                KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
+                                    self.mode = Mode::Normal;
+                                    self.view.handle_action(&action, &self.mode)?;
+                                }
+                                KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
+                                    self.mode = Mode::Insert;
+                                    self.view.handle_action(&action, &self.mode)?;
+                                }
+                                _ => self.view.handle_action(&action, &self.mode)?,
 
                             }
                         }
