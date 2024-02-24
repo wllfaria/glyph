@@ -83,8 +83,6 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
 
     let rtx = response_tx.clone();
     tokio::spawn(async move {
-        let span = tracing::span!(tracing::Level::TRACE, "lsp::lsp_start::request_task");
-        let _guard = span.enter();
         let mut stdin = BufWriter::new(stdin);
         while let Some(message) = request_rx.recv().await {
             tracing::trace!("[LSP] editor sending message: {:?}", message);

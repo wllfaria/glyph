@@ -3,11 +3,12 @@ use crossterm::{cursor, style};
 use crossterm::{terminal, QueueableCommand};
 use std::collections::HashMap;
 use std::io::{stdout, Result, Stdout, Write};
+use std::sync::mpsc;
 
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
 use crate::pane::Position;
-use crate::theme::Theme;
+use crate::theme::{Style, Theme};
 use crate::viewport::{Change, Viewport};
 use crate::window::Window;
 
@@ -32,17 +33,25 @@ pub struct View<'a> {
     size: Size,
     stdout: Stdout,
     config: &'a Config,
-    viewport: Viewport,
+    statusline: Viewport,
+    commandline: Viewport,
+    command: String,
     theme: &'a Theme,
+    tx: mpsc::Sender<Action>,
 }
 
 impl<'a> View<'a> {
-    pub fn new(config: &'a Config, theme: &'a Theme, mut window: Window<'a>) -> Result<Self> {
+    pub fn new(
+        config: &'a Config,
+        theme: &'a Theme,
+        mut window: Window<'a>,
+        tx: mpsc::Sender<Action>,
+    ) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
 
         let id = window.id;
-        window.resize((size.0, size.1 - 1).into());
+        window.resize((size.0, size.1 - 2).into());
         windows.insert(window.id, window);
 
         Ok(Self {
@@ -51,23 +60,44 @@ impl<'a> View<'a> {
             active_window: id,
             windows,
             config,
-            viewport: Viewport::new(size.0 as usize, 1),
+            statusline: Viewport::new(size.0 as usize, 1),
+            commandline: Viewport::new(size.0 as usize, 1),
+            command: String::new(),
             theme,
+            tx,
         })
     }
 
-    pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
-        let last_viewport = self.viewport.clone();
-        let mut viewport = Viewport::new(self.size.width, 1);
+    pub fn handle_action(&mut self, action: &KeyAction, mode: &mut Mode) -> anyhow::Result<()> {
+        let last_statusline = self.statusline.clone();
+        let last_commandline = self.commandline.clone();
+        let mut statusline = Viewport::new(self.size.width, 1);
+        let mut commandline = Viewport::new(self.size.width, 1);
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        tracing::debug!("{action:?}");
         match action {
             KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBar)?;
             }
             KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
+                self.maybe_leave_command_mode(mode)?;
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
             }
+            KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
+                self.enter_command_mode()?;
+            }
+            KeyAction::Simple(Action::InsertCommand(c)) => {
+                self.command.push(*c);
+                self.commandline
+                    .set_text(0, 0, &self.command, &self.theme.style);
+                self.stdout.queue(cursor::MoveRight(1))?;
+            }
+            KeyAction::Simple(Action::ExecuteCommand) => {
+                self.try_execute_command()?;
+            }
+            KeyAction::Simple(Action::DeletePreviousChar) => match self.command.is_empty() {
+                true => active_window.handle_action(action)?,
+                false => self.delete_command_char(mode)?,
+            },
             KeyAction::Simple(_) => active_window.handle_action(action)?,
             KeyAction::Multiple(actions) => {
                 for action in actions {
@@ -77,12 +107,78 @@ impl<'a> View<'a> {
             _ => (),
             // KeyAction::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
         };
-        self.stdout.queue(cursor::SavePosition)?;
-        self.draw_statusline(&mut viewport, mode);
-        self.render_statusline(viewport.diff(&last_viewport))?;
-        self.viewport = viewport;
-        self.stdout.queue(cursor::RestorePosition)?.flush()?;
+        self.stdout
+            .queue(cursor::SavePosition)?
+            .queue(cursor::Hide)?;
+        self.draw_statusline(&mut statusline, mode);
+        self.draw_commandline(&mut commandline);
+        self.render_statusline(statusline.diff(&last_statusline))?;
+        self.render_commandline(commandline.diff(&last_commandline))?;
+        self.statusline = statusline;
+        self.commandline = commandline;
+        self.stdout
+            .queue(cursor::RestorePosition)?
+            .queue(cursor::Show)?
+            .flush()?;
 
+        Ok(())
+    }
+
+    fn delete_command_char(&mut self, mode: &mut Mode) -> anyhow::Result<()> {
+        match self.command.len() {
+            1 => self.maybe_leave_command_mode(mode)?,
+            _ => {
+                self.command.pop();
+                tracing::debug!("command is {}", self.command);
+                self.commandline
+                    .set_text(0, 0, &self.command, &self.theme.style);
+                self.stdout.queue(cursor::MoveLeft(1))?;
+            }
+        }
+        Ok(())
+    }
+
+    fn try_execute_command(&self) -> anyhow::Result<()> {
+        if let Some(action) = self.map_command_to_action(&self.command) {
+            match action {
+                Action::Quit => self.tx.send(action)?,
+                _ => {}
+            };
+        }
+        Ok(())
+    }
+
+    fn map_command_to_action(&self, command: &str) -> Option<Action> {
+        match command {
+            ":q" => Some(Action::Quit),
+            _ => None,
+        }
+    }
+
+    fn enter_command_mode(&mut self) -> anyhow::Result<()> {
+        self.command.push(':');
+        self.commandline
+            .set_text(0, 0, &self.command, &self.theme.style);
+        self.stdout
+            .queue(cursor::SetCursorStyle::SteadyBar)?
+            .queue(cursor::MoveTo(1, self.size.height as u16 - 1))?;
+        Ok(())
+    }
+
+    fn maybe_leave_command_mode(&mut self, mode: &mut Mode) -> anyhow::Result<()> {
+        if self.command.is_empty() {
+            return Ok(());
+        }
+        let active_window = self.windows.get_mut(&self.active_window).unwrap();
+        let cursor = &active_window.get_active_pane().cursor;
+        let col = self.config.gutter_width + cursor.col;
+        self.command = String::new();
+        self.commandline.clear();
+        *mode = Mode::Normal;
+        self.stdout
+            .queue(cursor::SetCursorStyle::SteadyBlock)?
+            .queue(cursor::MoveTo(col as u16, cursor.row as u16))?
+            .flush()?;
         Ok(())
     }
 
@@ -98,21 +194,26 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    pub fn initialize(&mut self, mode: &Mode) -> Result<()> {
+    pub fn initialize(&mut self, mode: &Mode) -> anyhow::Result<()> {
         terminal::enable_raw_mode()?;
         self.stdout.queue(terminal::EnterAlternateScreen)?;
 
-        let last_viewport = self.viewport.clone();
-        let mut viewport = Viewport::new(self.size.width, 1);
+        let last_statusline = self.statusline.clone();
+        let last_commandline = self.commandline.clone();
+        let mut statusline = Viewport::new(self.size.width, 1);
+        let mut commandline = Viewport::new(self.size.width, 1);
         self.clear_screen()?;
-        self.draw_statusline(&mut viewport, mode);
-        self.render_statusline(viewport.diff(&last_viewport))?;
+        self.draw_statusline(&mut statusline, mode);
+        self.draw_commandline(&mut commandline);
+        self.render_statusline(statusline.diff(&last_statusline))?;
+        self.render_commandline(commandline.diff(&last_commandline))?;
 
         self.windows
             .get_mut(&self.active_window)
             .unwrap()
             .initialize()?;
-        self.viewport = viewport;
+        self.statusline = statusline;
+        self.commandline = commandline;
         self.stdout.flush()?;
 
         Ok(())
@@ -120,8 +221,10 @@ impl<'a> View<'a> {
 
     fn render_statusline(&mut self, changes: Vec<Change>) -> Result<()> {
         for change in changes {
-            self.stdout
-                .queue(cursor::MoveTo(change.col as u16, self.size.height as u16))?;
+            self.stdout.queue(cursor::MoveTo(
+                change.col as u16,
+                self.size.height as u16 - 2,
+            ))?;
 
             if let Some(bg) = change.cell.style.bg {
                 self.stdout.queue(style::SetBackgroundColor(bg))?;
@@ -165,10 +268,11 @@ impl<'a> View<'a> {
         let file_name = file_name.split('/').rev().nth(0).unwrap();
         let file_name = format!(" {}", file_name);
 
-        let padding =
-            " ".repeat(self.size.width - file_name.len() - cursor.len() - percentage.len());
-
         let mode = format!(" {}", mode);
+
+        let padding = " ".repeat(
+            self.size.width - mode.len() - file_name.len() - cursor.len() - percentage.len(),
+        );
         viewport.set_text(0, 0, &mode, &self.theme.statusline.inner);
         viewport.set_text(mode.len(), 0, &file_name, &self.theme.statusline.inner);
         viewport.set_text(
@@ -198,5 +302,32 @@ impl<'a> View<'a> {
             &percentage,
             &self.theme.statusline.inner,
         );
+    }
+
+    fn draw_commandline(&self, viewport: &mut Viewport) {
+        let command = &self.command;
+        let fill = " ".repeat(self.size.width - command.len());
+        let content = format!("{}{}", command, fill);
+        tracing::debug!("{}", content);
+        viewport.set_text(0, 0, &content, &self.theme.style);
+    }
+
+    fn render_commandline(&mut self, changes: Vec<Change>) -> anyhow::Result<()> {
+        for change in changes {
+            self.stdout.queue(cursor::MoveTo(
+                change.col as u16,
+                self.size.height as u16 - 1,
+            ))?;
+
+            let Style { fg, bg, .. } = change.cell.style;
+            let bg = bg.expect("commandline should always have a bg");
+            let fg = fg.expect("commandline should always have a fg");
+
+            self.stdout
+                .queue(style::SetBackgroundColor(bg))?
+                .queue(style::SetForegroundColor(fg))?
+                .queue(Print(change.cell.c))?;
+        }
+        Ok(())
     }
 }

@@ -85,7 +85,6 @@ async fn main() -> anyhow::Result<()> {
     let lsp = LspClient::start().await?;
     let config = load_config()?;
     let theme = load_theme(&config.background, &config.theme, Config::themes_path())?;
-    let mut editor = Editor::new(&config, &theme, lsp, file_name)?;
-    editor.start().await?;
+    Editor::new(&config, &theme, lsp, file_name).await?;
     Ok(())
 }

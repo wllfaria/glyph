@@ -21,8 +21,6 @@ impl<'a> Events<'a> {
     }
 
     pub fn handle(&mut self, event: &Event, mode: &Mode) -> Option<KeyAction> {
-        let span = tracing::span!(tracing::Level::TRACE, "events::handle");
-        let _guard = span.enter();
         if let Some(action) = self.action_being_composed.take() {
             self.action_being_composed = Some(action);
             match event {
@@ -95,8 +93,23 @@ impl<'a> Events<'a> {
             _ => None,
         }
     }
-    pub fn handle_command_event(&self, _event: &Event) -> Option<KeyAction> {
-        None
+    pub fn handle_command_event(&self, event: &Event) -> Option<KeyAction> {
+        tracing::debug!("handling command event");
+        let (_, action) = self.map_event_to_key_action(&self.config.keys.command, event);
+        if let Some(action) = action {
+            match action {
+                KeyAction::Simple(_) => return Some(action),
+                KeyAction::Multiple(_) => return Some(action),
+                KeyAction::Complex(_) => return Some(action),
+            }
+        };
+        match event {
+            Event::Key(KeyEvent {
+                code: KeyCode::Char(c),
+                ..
+            }) => Some(KeyAction::Simple(Action::InsertCommand(*c))),
+            _ => None,
+        }
     }
     pub fn handle_search_event(&self, _event: &Event) -> Option<KeyAction> {
         None

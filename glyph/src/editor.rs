@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::mpsc;
 use std::time::Duration;
 
 use crossterm::event::EventStream;
@@ -44,7 +45,7 @@ pub struct Editor<'a> {
 }
 
 impl<'a> Editor<'a> {
-    pub fn new(
+    pub async fn new(
         config: &'a Config,
         theme: &'a Theme,
         lsp: LspClient,
@@ -53,19 +54,22 @@ impl<'a> Editor<'a> {
         let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name)?));
         let pane = Pane::new(1, buffer.clone(), theme, config);
         let window = Window::new(1, pane);
-        Ok(Self {
+        let (tx, rx) = mpsc::channel::<Action>();
+        let mut editor = Self {
             events: Events::new(config),
-            view: View::new(config, theme, window)?,
+            view: View::new(config, theme, window, tx)?,
             theme,
             config,
             lsp,
             mode: Mode::Normal,
-        })
+        };
+
+        editor.start(rx).await?;
+
+        Ok(editor)
     }
 
-    pub async fn start(&mut self) -> anyhow::Result<()> {
-        let span = tracing::span!(tracing::Level::TRACE, "lsp::start");
-        let _guard = span.enter();
+    pub async fn start(&mut self, rx: mpsc::Receiver<Action>) -> anyhow::Result<()> {
         self.view.initialize(&self.mode)?;
 
         let mut stream = EventStream::new();
@@ -74,6 +78,16 @@ impl<'a> Editor<'a> {
         loop {
             let delay = futures_timer::Delay::new(Duration::from_millis(300)).fuse();
             let event = stream.next().fuse();
+
+            if let Ok(action) = rx.try_recv() {
+                match action {
+                    Action::Quit => {
+                        self.view.shutdown()?;
+                        break;
+                    }
+                    _ => (),
+                }
+            }
 
             tokio::select! {
                 _ = delay => {
@@ -91,13 +105,17 @@ impl<'a> Editor<'a> {
                                 }
                                 KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
                                     self.mode = Mode::Normal;
-                                    self.view.handle_action(&action, &self.mode)?;
+                                    self.view.handle_action(&action, &mut self.mode)?;
                                 }
                                 KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
                                     self.mode = Mode::Insert;
-                                    self.view.handle_action(&action, &self.mode)?;
+                                    self.view.handle_action(&action, &mut self.mode)?;
                                 }
-                                _ => self.view.handle_action(&action, &self.mode)?,
+                                KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
+                                    self.mode = Mode::Command;
+                                    self.view.handle_action(&action, &mut self.mode)?;
+                                }
+                                _ => self.view.handle_action(&action, &mut self.mode)?,
 
                             }
                         }

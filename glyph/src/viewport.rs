@@ -74,4 +74,8 @@ impl Viewport {
         }
         changes
     }
+
+    pub fn clear(&mut self) {
+        self.cells = vec![Default::default(); self.width * self.height];
+    }
 }

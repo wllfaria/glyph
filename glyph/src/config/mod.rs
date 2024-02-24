@@ -50,6 +50,8 @@ pub enum Action {
     CenterLine,
     InsertTab,
     InsertChar(char),
+    InsertCommand(char),
+    ExecuteCommand,
 
     NextWord,
     PreviousWord,
@@ -116,7 +118,6 @@ fn default_normal() -> HashMap<String, KeyAction> {
                 Action::EnterMode(Mode::Insert),
             ]),
         ),
-        ("q".to_string(), KeyAction::Simple(Action::Quit)),
         ("u".to_string(), KeyAction::Simple(Action::Undo)),
         ("k".to_string(), KeyAction::Simple(Action::MoveUp)),
         ("Up".to_string(), KeyAction::Simple(Action::MoveUp)),
@@ -207,6 +208,10 @@ fn default_insert() -> HashMap<String, KeyAction> {
                 KeyAction::Simple(Action::EnterMode(Mode::Normal)),
             )])),
         ),
+        (
+            "C-c".to_string(),
+            KeyAction::Simple(Action::EnterMode(Mode::Normal)),
+        ),
     ])
 }
 
@@ -219,6 +224,14 @@ fn default_command() -> HashMap<String, KeyAction> {
         (
             "C-c".to_string(),
             KeyAction::Simple(Action::EnterMode(Mode::Normal)),
+        ),
+        (
+            "Enter".to_string(),
+            KeyAction::Simple(Action::ExecuteCommand),
+        ),
+        (
+            "Backspace".to_string(),
+            KeyAction::Simple(Action::DeletePreviousChar),
         ),
     ])
 }
