@@ -68,7 +68,7 @@ impl<'a> View<'a> {
         })
     }
 
-    pub fn handle_action(&mut self, action: &KeyAction, mode: &mut Mode) -> anyhow::Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         let last_statusline = self.statusline.clone();
         let last_commandline = self.commandline.clone();
         let mut statusline = Viewport::new(self.size.width, 1);
@@ -76,13 +76,16 @@ impl<'a> View<'a> {
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
             KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
+                self.tx.send(Action::EnterMode(Mode::Insert))?;
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBar)?;
             }
             KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
-                self.maybe_leave_command_mode(mode)?;
+                self.maybe_leave_command_mode()?;
+                self.tx.send(Action::EnterMode(Mode::Normal))?;
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
             }
             KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
+                self.tx.send(Action::EnterMode(Mode::Command))?;
                 self.enter_command_mode()?;
             }
             KeyAction::Simple(Action::InsertCommand(c)) => {
@@ -96,7 +99,7 @@ impl<'a> View<'a> {
             }
             KeyAction::Simple(Action::DeletePreviousChar) => match self.command.is_empty() {
                 true => active_window.handle_action(action)?,
-                false => self.delete_command_char(mode)?,
+                false => self.delete_command_char()?,
             },
             KeyAction::Simple(_) => active_window.handle_action(action)?,
             KeyAction::Multiple(actions) => {
@@ -105,7 +108,6 @@ impl<'a> View<'a> {
                 }
             }
             _ => (),
-            // KeyAction::Buffer(_) => self.handle_buffer(command, &mut viewport)?,
         };
         self.stdout
             .queue(cursor::SavePosition)?
@@ -124,9 +126,9 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn delete_command_char(&mut self, mode: &mut Mode) -> anyhow::Result<()> {
+    fn delete_command_char(&mut self) -> anyhow::Result<()> {
         match self.command.len() {
-            1 => self.maybe_leave_command_mode(mode)?,
+            1 => self.maybe_leave_command_mode()?,
             _ => {
                 self.command.pop();
                 tracing::debug!("command is {}", self.command);
@@ -138,10 +140,13 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn try_execute_command(&self) -> anyhow::Result<()> {
+    fn try_execute_command(&mut self) -> anyhow::Result<()> {
         if let Some(action) = self.map_command_to_action(&self.command) {
             match action {
-                Action::Quit => self.tx.send(action)?,
+                Action::Quit => {
+                    self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
+                    self.tx.send(action)?;
+                }
                 _ => {}
             };
         }
@@ -165,7 +170,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn maybe_leave_command_mode(&mut self, mode: &mut Mode) -> anyhow::Result<()> {
+    fn maybe_leave_command_mode(&mut self) -> anyhow::Result<()> {
         if self.command.is_empty() {
             return Ok(());
         }
@@ -174,7 +179,6 @@ impl<'a> View<'a> {
         let col = self.config.gutter_width + cursor.col;
         self.command = String::new();
         self.commandline.clear();
-        *mode = Mode::Normal;
         self.stdout
             .queue(cursor::SetCursorStyle::SteadyBlock)?
             .queue(cursor::MoveTo(col as u16, cursor.row as u16))?

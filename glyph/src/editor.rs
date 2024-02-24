@@ -85,6 +85,9 @@ impl<'a> Editor<'a> {
                         self.view.shutdown()?;
                         break;
                     }
+                    Action::EnterMode(Mode::Normal) => self.mode = Mode::Normal,
+                    Action::EnterMode(Mode::Command) => self.mode = Mode::Command,
+                    Action::EnterMode(Mode::Insert) => self.mode = Mode::Insert,
                     _ => (),
                 }
             }
@@ -98,26 +101,7 @@ impl<'a> Editor<'a> {
                 maybe_event = event => {
                     if let Some(Ok(event)) = maybe_event {
                         if let Some(action) = self.events.handle(&event, &self.mode) {
-                            match action {
-                                KeyAction::Simple(Action::Quit) => {
-                                    self.view.shutdown()?;
-                                    break
-                                }
-                                KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
-                                    self.mode = Mode::Normal;
-                                    self.view.handle_action(&action, &mut self.mode)?;
-                                }
-                                KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
-                                    self.mode = Mode::Insert;
-                                    self.view.handle_action(&action, &mut self.mode)?;
-                                }
-                                KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
-                                    self.mode = Mode::Command;
-                                    self.view.handle_action(&action, &mut self.mode)?;
-                                }
-                                _ => self.view.handle_action(&action, &mut self.mode)?,
-
-                            }
+                            self.view.handle_action(&action, &self.mode)?;
                         }
                     };
                 }
