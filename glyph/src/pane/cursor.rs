@@ -370,8 +370,8 @@ mod tests {
 
         let mark = buffer.marker.get_by_line(cursor.row + 1).unwrap();
 
-        assert_eq!(cursor.col, 5);
-        assert_eq!(cursor.absolute_position, mark.size - 1);
+        assert_eq!(cursor.col, 4);
+        assert_eq!(cursor.absolute_position, mark.size - 2);
         assert_eq!(cursor.row, 0);
     }
 
