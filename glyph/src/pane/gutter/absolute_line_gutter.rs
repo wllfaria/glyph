@@ -46,3 +46,45 @@ impl Gutter for AbsoluteLineGutter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use crate::theme::Theme;
+    use crate::viewport::Viewport;
+
+    #[test]
+    fn test_draw_gutter() {
+        let mut vp = Viewport::new(6, 5);
+        let theme = Theme::default();
+        let config = Config::default();
+        let absolute_gutter = AbsoluteLineGutter::new(config, theme);
+
+        absolute_gutter.draw(&mut vp, 3, 2, 0);
+
+        assert_eq!(vp.cells[4].c, '1');
+        assert_eq!(vp.cells[10].c, '2');
+        assert_eq!(vp.cells[16].c, '3');
+        assert_eq!(vp.cells[22].c, '~');
+        assert_eq!(vp.cells[28].c, '~');
+    }
+
+    #[test]
+    fn test_draw_with_scroll() {
+        let mut vp = Viewport::new(6, 100);
+        let theme = Theme::default();
+        let config = Config::default();
+        let absolute_gutter = AbsoluteLineGutter::new(config, theme);
+
+        absolute_gutter.draw(&mut vp, 400, 0, 103);
+
+        // 103 scrolled lines, should start at 104. and preserve the gap
+        assert_eq!(vp.cells[0].c, ' ');
+        assert_eq!(vp.cells[1].c, ' ');
+        assert_eq!(vp.cells[2].c, '1');
+        assert_eq!(vp.cells[3].c, '0');
+        assert_eq!(vp.cells[4].c, '4');
+        assert_eq!(vp.cells[5].c, ' ');
+    }
+}
