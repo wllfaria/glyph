@@ -86,6 +86,7 @@ pub struct Keys {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
 pub enum KeyAction {
     Simple(Action),
     Multiple(Vec<Action>),

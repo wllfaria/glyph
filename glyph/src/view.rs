@@ -1,9 +1,10 @@
-use crossterm::style::Print;
-use crossterm::{cursor, style};
-use crossterm::{terminal, QueueableCommand};
 use std::collections::HashMap;
 use std::io::{stdout, Result, Stdout, Write};
 use std::sync::mpsc;
+
+use crossterm::style::Print;
+use crossterm::{cursor, style};
+use crossterm::{terminal, QueueableCommand};
 
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;

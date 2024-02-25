@@ -6,137 +6,49 @@ background = "Dark"
 empty_line_char = "~"
 show_diagnostics = true
 
-[keys.normal.z.Complex.z]
-Simple = "CenterLine"
+[keys.normal]
+"x" = "DeleteCurrentChar"
+"w" = "NextWord"
+"o" = ["InsertLineBelow", { EnterMode = "Insert" }]
+"u" = "Undo"
+"z" = { "z" = "CenterLine" }
+":" = { EnterMode = "Command" }
+"g" = { "g" = "MoveToTop", "d" = "GoToDefinition" } 
+"I" = ["MoveToLineStart", { EnterMode = "Insert" }]
+"End" = "MoveToLineEnd"
+"Home" = "MoveToLineStart"
+"n" = "FindNext"
+"Right" = "MoveRight"
+"p" = "PasteBelow"
+"O" = ["InsertLine", { EnterMode = "Insert" }]
+"k" = "MoveUp"
+"l" = "MoveRight"
+"/" = { EnterMode = "Search" }
+"Down" = "MoveDown"
+"Up" = "MoveUp"
+"G" = "MoveToBottom"
+"C-d" = "PageDown"
+"C-u" = "PageUp"
+"b" = "PreviousWord"
+"a" = [{ EnterMode = "Insert" }, "MoveRight"]
+"$" = "MoveToLineEnd"
+"i" = { EnterMode = "Insert" }
+"A" = [{ EnterMode = "Insert" }, "MoveToLineEnd"]
+"d" = { "w" = "DeleteWord", "d" = "DeleteLine", "b" = "DeleteBack" }
+"0" = "MoveToLineStart"
+"Left" = "MoveLeft"
+"N" = "FindPrevious"
+"j" = "MoveDown"
+"h" = "MoveLeft"
 
-[keys.normal.x]
-Simple = "DeleteCurrentChar"
+[keys.insert]
+"Esc" = { EnterMode = "Normal" }
+"C-c" = { EnterMode = "Normal" }
+"Backspace" = "DeletePreviousChar"
+"Tab" = "InsertTab"
+"Enter" = "InsertLine"
+"j" = { "k" = { EnterMode = "Normal" }}
 
-[keys.normal.w]
-Simple = "NextWord"
-
-[keys.normal.o]
-Multiple = ["InsertLineBelow", { EnterMode = "Insert" }]
-
-[keys.normal.u]
-Simple = "Undo"
-
-[keys.normal.":".Simple]
-EnterMode = "Command"
-
-[keys.normal.g.Complex.d]
-Simple = "GoToDefinition"
-
-[keys.normal.g.Complex.g]
-Simple = "MoveToTop"
-
-[keys.normal.I]
-Multiple = ["MoveToLineStart", { EnterMode = "Insert" }]
-
-[keys.normal.End]
-Simple = "MoveToLineEnd"
-
-[keys.normal.Home]
-Simple = "MoveToLineStart"
-
-[keys.normal.n]
-Simple = "FindNext"
-
-[keys.normal.Right]
-Simple = "MoveRight"
-
-[keys.normal.p]
-Simple = "PasteBelow"
-
-[keys.normal.O]
-Multiple = ["InsertLine", { EnterMode = "Insert" }]
-
-[keys.normal.k]
-Simple = "MoveUp"
-
-[keys.normal.l]
-Simple = "MoveRight"
-
-[keys.normal."/".Simple]
-EnterMode = "Search"
-
-[keys.normal.Down]
-Simple = "MoveDown"
-
-[keys.normal.Up]
-Simple = "MoveUp"
-
-[keys.normal.G]
-Simple = "MoveToBottom"
-
-[keys.normal.C-d]
-Simple = "PageDown"
-
-[keys.normal.C-u]
-Simple = "PageUp"
-
-[keys.normal.b]
-Simple = "PreviousWord"
-
-[keys.normal.a]
-Multiple = [{ EnterMode = "Insert" }, "MoveRight"]
-
-[keys.normal."$"]
-Simple = "MoveToLineEnd"
-
-[keys.normal.i.Simple]
-EnterMode = "Insert"
-
-[keys.normal.A]
-Multiple = [{ EnterMode = "Insert" }, "MoveToLineEnd"]
-
-[keys.normal.d.Complex.w]
-Simple = "DeleteWord"
-
-[keys.normal.d.Complex.d]
-Simple = "DeleteLine"
-
-[keys.normal.d.Complex.b]
-Simple = "DeleteBack"
-
-[keys.normal.q]
-Simple = "Quit"
-
-[keys.normal.0]
-Simple = "MoveToLineStart"
-
-[keys.normal.Left]
-Simple = "MoveLeft"
-
-[keys.normal.N]
-Simple = "FindPrevious"
-
-[keys.normal.j]
-Simple = "MoveDown"
-
-[keys.normal.h]
-Simple = "MoveLeft"
-
-[keys.insert.Caps.Simple]
-EnterMode = "Normal"
-
-[keys.insert.Backspace]
-Simple = "DeletePreviousChar"
-
-[keys.insert.Tab]
-Simple = "InsertTab"
-
-[keys.insert.Enter]
-Simple = "InsertLine"
-
-[keys.insert.j.Complex.k.Simple]
-EnterMode = "Normal"
-
-[keys.insert.Esc.Simple]
-EnterMode = "Normal"
-
-[keys.command.Esc.Simple]
-EnterMode = "Normal"
-
-[keys.command.C-c.Simple]
-EnterMode = "Normal"
+[keys.command]
+"Esc" = { EnterMode = "Normal" }
+"C-c" = { EnterMode = "Normal" }
