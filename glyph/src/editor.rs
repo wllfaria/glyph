@@ -90,12 +90,14 @@ impl<'a> Editor<'a> {
                     }
                     Action::EnterMode(mode) => self.mode = mode,
                     Action::Hover => {
-                        let file_path = "/home/wiru/code/personal/glyph/glyph/src/editor.rs";
-                        let row = 91;
-                        let col = 29;
-                        self.lsp
-                            .request_hover(file_path.to_string(), row, col)
-                            .await?;
+                        // TODO: find a better way to grab the file path and information. Maybe
+                        // have the view give this data instead of querying like this.
+                        let pane = self.view.get_active_window().get_active_pane();
+                        let cursor = &pane.cursor;
+                        let file_path = &pane.buffer.borrow().file_name;
+                        let row = cursor.row;
+                        let col = cursor.col;
+                        self.lsp.request_hover(file_path, row, col).await?;
                     }
                     _ => (),
                 }
@@ -104,7 +106,7 @@ impl<'a> Editor<'a> {
             tokio::select! {
                 _ = delay => {
                     if let Some((msg, _method)) = self.lsp.try_read_message().await? {
-                        tracing::trace!("[LSP] received message {msg:?}");
+                        tracing::trace!("[LSP] received message {_method:?}:{msg:?}");
                     }
                 }
                 maybe_event = event => {

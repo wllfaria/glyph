@@ -440,17 +440,18 @@ impl LspClient {
 
     pub async fn request_hover(
         &mut self,
-        file_path: String,
+        file_path: &str,
         row: usize,
         col: usize,
     ) -> anyhow::Result<i64> {
+        let file_path = std::fs::canonicalize(&file_path)?;
         let params = json!({
             "textDocument": {
-                "uri": "file:///home/wiru/code/personal/glyph/glyph/src/pane/mod.rs"
+                "uri": format!("file://{}", file_path.to_string_lossy()),
             },
             "position": {
-                "line": 101,
-                "character": 15
+                "line": row,
+                "character": col
             }
         });
 

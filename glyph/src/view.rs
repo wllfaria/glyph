@@ -193,7 +193,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn get_active_window(&self) -> &Window {
+    pub fn get_active_window(&self) -> &Window {
         self.windows.get(&self.active_window).unwrap()
     }
 
