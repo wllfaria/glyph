@@ -9,7 +9,7 @@ show_diagnostics = true
 [keys.normal]
 "x" = "DeleteCurrentChar"
 "w" = "NextWord"
-"o" = ["InsertLineBelow", { EnterMode = "Insert" }]
+"o" = ["InsertLineBelow", "MoveDown", { EnterMode = "Insert" }]
 "u" = "Undo"
 "z" = { "z" = "CenterLine" }
 ":" = { EnterMode = "Command" }

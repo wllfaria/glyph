@@ -52,6 +52,7 @@ pub enum Action {
     InsertChar(char),
     InsertCommand(char),
     ExecuteCommand,
+    SaveBuffer,
 
     NextWord,
     PreviousWord,

@@ -102,7 +102,7 @@ impl<'a> Pane<'a> {
         self.size = new_size;
     }
 
-    pub fn handle_action(&mut self, action: &KeyAction) -> Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, self.size.height);
 
@@ -118,7 +118,10 @@ impl<'a> Pane<'a> {
             KeyAction::Simple(Action::MoveUp) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::MoveRight) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::MoveToTop) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::SaveBuffer) => self.handle_buffer_action(action)?,
             KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::InsertLine) => self.handle_buffer_action(action)?,
+            KeyAction::Simple(Action::InsertLineBelow) => self.handle_buffer_action(action)?,
             KeyAction::Simple(Action::InsertChar(_)) => {
                 self.handle_buffer_action(action)?;
                 self.handle_cursor_action(action)?;
@@ -279,7 +282,7 @@ impl<'a> Pane<'a> {
         Ok(())
     }
 
-    fn handle_buffer_action(&mut self, action: &KeyAction) -> Result<()> {
+    fn handle_buffer_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
         let col = self.cursor.col;
         let row = self.cursor.row;
         let mark = {

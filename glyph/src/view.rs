@@ -77,6 +77,10 @@ impl<'a> View<'a> {
         let mut commandline = Viewport::new(self.size.width, 1);
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
+            KeyAction::Simple(Action::Quit) => {
+                self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
+                self.tx.send(Action::Quit)?;
+            }
             KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
                 self.tx.send(Action::EnterMode(Mode::Insert))?;
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBar)?;
@@ -100,7 +104,7 @@ impl<'a> View<'a> {
                 self.stdout.queue(cursor::MoveRight(1))?;
             }
             KeyAction::Simple(Action::ExecuteCommand) => {
-                self.try_execute_command()?;
+                self.try_execute_command(mode)?;
             }
             KeyAction::Simple(Action::DeletePreviousChar) => match self.command.is_empty() {
                 true => active_window.handle_action(action)?,
@@ -149,22 +153,18 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn try_execute_command(&mut self) -> anyhow::Result<()> {
+    fn try_execute_command(&mut self, mode: &Mode) -> anyhow::Result<()> {
         if let Some(action) = self.map_command_to_action(&self.command) {
-            match action {
-                Action::Quit => {
-                    self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
-                    self.tx.send(action)?;
-                }
-                _ => {}
-            };
+            self.handle_action(&action, mode)?;
         }
         Ok(())
     }
 
-    fn map_command_to_action(&self, command: &str) -> Option<Action> {
+    fn map_command_to_action(&self, command: &str) -> Option<KeyAction> {
         match command {
-            ":q" => Some(Action::Quit),
+            ":q" => Some(KeyAction::Simple(Action::Quit)),
+            ":w" => Some(KeyAction::Simple(Action::SaveBuffer)),
+            ":wq" => Some(KeyAction::Multiple(vec![Action::SaveBuffer, Action::Quit])),
             _ => None,
         }
     }
