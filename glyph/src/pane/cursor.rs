@@ -155,35 +155,61 @@ impl Cursor {
         self.absolute_position = mark.start;
     }
 
+    // FIXME: this is not behaving as vim would, currently we are not as
+    // smart as vim W
     fn move_to_next_word(&mut self, buffer: &mut Buffer) {
         let content = buffer.to_string();
         let mut pos = self.absolute_position;
-        while pos < content.len() && !self.is_separator(content[pos..].chars().next().unwrap()) {
-            tracing::trace!("next char is not a separator");
-            pos += content[pos..].chars().next().unwrap().len_utf8();
+
+        let starting_char = content
+            .chars()
+            .nth(pos)
+            .expect("current position should never be out of bounds");
+        let starting_on_separator = self.is_separator(starting_char);
+
+        let mut iter = content[pos..].chars();
+        while let Some(char) = iter.next() {
+            if starting_on_separator {
+                // we should skip repeated separators, such as :: or //
+                if !char.is_whitespace() && char != starting_char {
+                    break;
+                }
+                pos += 1;
+                continue;
+            }
+
+            // if its not a separator, we just skip it
+            if !self.is_separator(char) {
+                pos += 1;
+                continue;
+            }
+
+            // if it is a separator, and a whitespace, we skip until the next non whitespace
+            if char.is_whitespace() {
+                while let Some(c) = content[pos..].chars().nth(0) {
+                    if !c.is_whitespace() {
+                        tracing::error!("current char is: {c}");
+                        break;
+                    }
+                    pos += 1;
+                }
+            }
+            break;
         }
 
-        while pos < content.len() && self.is_skippable(content[pos..].chars().next().unwrap()) {
-            tracing::trace!(
-                "next char is a separator {}",
-                content[pos..].chars().next().unwrap()
-            );
-            pos += content[pos..].chars().next().unwrap().len_utf8();
+        if let Some(mark) = buffer.marker.get_by_cursor(pos) {
+            let offset = pos - mark.start;
+            self.col = offset;
+            self.row = mark.line - 1;
+            self.absolute_position = pos;
         }
-
-        let mark = buffer.marker.get_by_cursor(pos).unwrap();
-        let offset = pos - mark.start;
-        self.col = offset;
-        self.row = mark.line - 1;
-        self.absolute_position = pos;
-    }
-
-    fn is_skippable(&self, c: char) -> bool {
-        matches!(c, ' ' | ':')
     }
 
     fn is_separator(&self, c: char) -> bool {
-        matches!(c, ' ' | ':' | '-' | ';' | '\n')
+        matches!(
+            c,
+            ' ' | ':' | '-' | '}' | ')' | ']' | ',' | '(' | '>' | '\n'
+        )
     }
 }
 
