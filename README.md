@@ -15,6 +15,14 @@ Lightweight terminal based text editor written in rust.
 Glyph is a terminal based text editor highly inspired by neovim. It aims to be
 lightweight without sacrificing usability.
 
+## Roadmap
+I've written some sort of roadmap, that is actually just a reference to all the
+features that I want to accomplish with the editor. That list, aswell as every
+other thing in this project is subject to change at any point, new features may
+be included or be removed as time goes by.
+
+[Check the roadmap here](./ROADMAP.md)
+
 ## Current Status
 
 Glyph is under intense development, expect bugs as there are no stable version
