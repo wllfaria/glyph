@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::buffer::Buffer;
 use crate::config::{Action, Config, KeyAction};
 use crate::events::Events;
-use crate::lsp::LspClient;
+use crate::lsp::{IncomingMessage, LspClient};
 use crate::pane::Pane;
 use crate::theme::Theme;
 use crate::view::View;
@@ -88,25 +88,14 @@ impl<'a> Editor<'a> {
                         self.view.shutdown()?;
                         break;
                     }
-                    Action::EnterMode(mode) => self.mode = mode,
-                    Action::Hover => {
-                        // TODO: find a better way to grab the file path and information. Maybe
-                        // have the view give this data instead of querying like this.
-                        let pane = self.view.get_active_window().get_active_pane();
-                        let cursor = &pane.cursor;
-                        let file_path = &pane.buffer.borrow().file_name;
-                        let row = cursor.row;
-                        let col = cursor.col;
-                        self.lsp.request_hover(file_path, row, col).await?;
-                    }
-                    _ => (),
+                    _ => self.handle_action(action).await?,
                 }
             }
 
             tokio::select! {
                 _ = delay => {
-                    if let Some((msg, _method)) = self.lsp.try_read_message().await? {
-                        tracing::trace!("[LSP] received message {_method:?}:{msg:?}");
+                    if let Some(message) = self.lsp.try_read_message().await? {
+                        self.handle_lsp_message(message);
                     }
                 }
                 maybe_event = event => {
@@ -120,5 +109,27 @@ impl<'a> Editor<'a> {
         }
 
         Ok(())
+    }
+
+    async fn handle_action(&mut self, action: Action) -> anyhow::Result<()> {
+        match action {
+            Action::EnterMode(mode) => self.mode = mode,
+            Action::Hover => {
+                // TODO: find a better way to grab the file path and information. Maybe
+                // have the view give this data instead of querying like this.
+                let pane = self.view.get_active_window().get_active_pane();
+                let cursor = &pane.cursor;
+                let file_path = &pane.buffer.borrow().file_name;
+                let row = cursor.row;
+                let col = cursor.col;
+                self.lsp.request_hover(file_path, row, col).await?;
+            }
+            _ => (),
+        };
+        Ok(())
+    }
+
+    fn handle_lsp_message(&mut self, message: (IncomingMessage, Option<String>)) {
+        self.view.handle_lsp_message(message);
     }
 }

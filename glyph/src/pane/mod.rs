@@ -8,6 +8,7 @@ use crossterm::{self, style::Print, QueueableCommand};
 use crate::buffer::Buffer;
 use crate::config::{Action, Config, KeyAction, LineNumbers};
 use crate::highlight::Highlight;
+use crate::lsp::IncomingMessage;
 use crate::pane::cursor::Cursor;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
@@ -57,6 +58,7 @@ pub struct Pane<'a> {
     pub size: PaneSize,
     stdout: Stdout,
     theme: &'a Theme,
+    popups: Vec<Pane<'a>>,
 }
 
 impl<'a> Pane<'a> {
@@ -91,6 +93,7 @@ impl<'a> Pane<'a> {
             gutter,
             config,
             theme,
+            popups: vec![],
         }
     }
 
@@ -130,6 +133,58 @@ impl<'a> Pane<'a> {
         Ok(())
     }
 
+    // TODO: I have to make this nicer, and also rendering the messages is somehow breaking the
+    // entire view, so I should account for that
+    //
+    // Maybe the window should be responsible for making the popup and handing to the pane. this is
+    // just a WIP
+    pub fn handle_lsp_message(&mut self, message: (IncomingMessage, Option<String>)) {
+        if let Some(method) = message.1 {
+            match method.as_str() {
+                "textDocument/hover" => match message.0 {
+                    IncomingMessage::Message(msg) => {
+                        let result = match msg.result {
+                            serde_json::Value::Array(ref arr) => arr[0].as_object().unwrap(),
+                            serde_json::Value::Object(ref obj) => obj,
+                            _ => return,
+                        };
+                        if let Some(contents) = result.get("contents") {
+                            if let Some(contents) = contents.as_object() {
+                                if let Some(serde_json::Value::String(value)) =
+                                    contents.get("value")
+                                {
+                                    let buf = Buffer::from_string(1, value, 0);
+                                    let mut pane = Pane::new(
+                                        1,
+                                        Rc::new(RefCell::new(buf)),
+                                        self.theme,
+                                        self.config,
+                                    );
+                                    pane.resize((40, 10).into());
+                                    pane.size.row = self.cursor.row;
+                                    pane.size.col = self.cursor.col;
+                                    self.popups.push(pane);
+                                    tracing::debug!("Opening lsp hover popup");
+                                    _ = self.draw_popups();
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
+                },
+                _ => (),
+            }
+        }
+    }
+
+    fn draw_popups(&mut self) -> anyhow::Result<()> {
+        for popup in self.popups.iter_mut() {
+            popup.initialize()?;
+        }
+
+        Ok(())
+    }
+
     pub fn initialize(&mut self) -> Result<()> {
         let mut viewport = Viewport::new(self.size.width, self.size.height);
         self.draw_sidebar(&mut viewport);
@@ -141,7 +196,11 @@ impl<'a> Pane<'a> {
     }
 
     fn draw(&mut self, viewport: &mut Viewport) -> Result<()> {
-        self.stdout.queue(crossterm::cursor::MoveTo(0, 0))?;
+        self.stdout.queue(crossterm::cursor::MoveTo(
+            self.size.col as u16,
+            self.size.row as u16,
+        ))?;
+        tracing::debug!("amount of cells {:?}", &viewport.cells.len());
         for cell in &viewport.cells {
             if let Some(fg) = cell.style.fg {
                 self.stdout.queue(style::SetForegroundColor(fg))?;
@@ -164,8 +223,8 @@ impl<'a> Pane<'a> {
         self.stdout.queue(crossterm::cursor::SavePosition)?;
         for change in changes {
             self.stdout.queue(crossterm::cursor::MoveTo(
-                change.col as u16,
-                change.row as u16,
+                (self.size.col + change.col) as u16,
+                (self.size.row + change.row) as u16,
             ))?;
             if let Some(bg) = change.cell.style.bg {
                 self.stdout.queue(style::SetBackgroundColor(bg))?;

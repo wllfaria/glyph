@@ -8,6 +8,7 @@ use crossterm::{terminal, QueueableCommand};
 
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
+use crate::lsp::IncomingMessage;
 use crate::pane::Position;
 use crate::theme::{Style, Theme};
 use crate::viewport::{Change, Viewport};
@@ -339,5 +340,10 @@ impl<'a> View<'a> {
                 .queue(Print(change.cell.c))?;
         }
         Ok(())
+    }
+
+    pub fn handle_lsp_message(&mut self, message: (IncomingMessage, Option<String>)) {
+        let active_window = self.windows.get_mut(&self.active_window).unwrap();
+        active_window.handle_lsp_message(message);
     }
 }

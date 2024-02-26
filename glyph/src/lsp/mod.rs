@@ -54,8 +54,8 @@ pub async fn lsp_send_notification(
 
 #[derive(Debug)]
 pub enum OutgoingMessage {
-    RequestMessage(RequestMessage),
-    NotificationMessage(NotificationMessage),
+    Request(RequestMessage),
+    Notification(NotificationMessage),
 }
 
 #[derive(Debug)]
@@ -81,34 +81,28 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
     let (request_tx, mut request_rx) = mpsc::channel::<OutgoingMessage>(32);
     let (response_tx, response_rx) = mpsc::channel::<IncomingMessage>(32);
 
-    let rtx = response_tx.clone();
+    let writer_rtx = response_tx.clone();
     tokio::spawn(async move {
         let mut stdin = BufWriter::new(stdin);
         while let Some(message) = request_rx.recv().await {
-            tracing::trace!("[LSP] editor sending message: {:?}", message);
-
-            match message {
-                OutgoingMessage::RequestMessage(req) => {
-                    if let Err(err) = lsp_send_request(&mut stdin, &req).await {
-                        tracing::error!("[LSP] failed to process request message: {err:?}");
-                        rtx.send(IncomingMessage::ProcessingError(err.to_string()))
-                            .await
-                            .unwrap();
-                    }
+            let err_msg = match &message {
+                OutgoingMessage::Request(req) => lsp_send_request(&mut stdin, &req).await.err(),
+                OutgoingMessage::Notification(notif) => {
+                    lsp_send_notification(&mut stdin, notif).await.err()
                 }
-                OutgoingMessage::NotificationMessage(req) => {
-                    if let Err(err) = lsp_send_notification(&mut stdin, &req).await {
-                        tracing::error!("[LSP] failed to process notification message");
-                        rtx.send(IncomingMessage::ProcessingError(err.to_string()))
-                            .await
-                            .unwrap();
-                    }
-                }
+            };
+            if let Some(err) = err_msg {
+                let error_message = format!("Failed to process message: {:?}", err);
+                tracing::error!("{}", &error_message);
+                writer_rtx
+                    .send(IncomingMessage::ProcessingError(error_message))
+                    .await
+                    .ok();
             }
         }
     });
 
-    let rtx = response_tx.clone();
+    let reader_rtx = response_tx.clone();
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout);
 
@@ -118,7 +112,8 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                 Ok(size) => size,
                 Err(err) => {
                     tracing::error!("[LSP] failed to read from stdout");
-                    rtx.send(IncomingMessage::ProcessingError(err.to_string()))
+                    reader_rtx
+                        .send(IncomingMessage::ProcessingError(err.to_string()))
                         .await
                         .unwrap();
                     continue;
@@ -137,11 +132,12 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                     .parse::<usize>()
                 else {
                     tracing::error!("[LSP] error parsing Content-Length: {}", line);
-                    rtx.send(IncomingMessage::ProcessingError(
-                        "Error parsing Content-Length".to_string(),
-                    ))
-                    .await
-                    .unwrap();
+                    reader_rtx
+                        .send(IncomingMessage::ProcessingError(
+                            "Error parsing Content-Length".to_string(),
+                        ))
+                        .await
+                        .unwrap();
                     continue;
                 };
 
@@ -151,7 +147,8 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                 let mut body = vec![0; len];
                 if let Err(err) = reader.read_exact(&mut body).await {
                     tracing::error!("[LSP] error reading body {}", err);
-                    rtx.send(IncomingMessage::ProcessingError(err.to_string()))
+                    reader_rtx
+                        .send(IncomingMessage::ProcessingError(err.to_string()))
                         .await
                         .unwrap();
                     continue;
@@ -168,13 +165,14 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                     let message = err["message"].as_str().unwrap().to_string();
                     let data = err.get("data").cloned();
 
-                    rtx.send(IncomingMessage::Error(ResponseError {
-                        code,
-                        message,
-                        data,
-                    }))
-                    .await
-                    .unwrap();
+                    reader_rtx
+                        .send(IncomingMessage::Error(ResponseError {
+                            code,
+                            message,
+                            data,
+                        }))
+                        .await
+                        .unwrap();
 
                     continue;
                 }
@@ -183,7 +181,8 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                     let id = id.as_i64().unwrap();
                     let result = res["result"].clone();
 
-                    rtx.send(IncomingMessage::Message(ResponseMessage { id, result }))
+                    reader_rtx
+                        .send(IncomingMessage::Message(ResponseMessage { id, result }))
                         .await
                         .unwrap();
                     continue;
@@ -192,12 +191,13 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                 let method = res["method"].as_str().unwrap().to_string();
                 let params = res["params"].clone();
 
-                rtx.send(IncomingMessage::UnknownNotification(NotificationMessage {
-                    method,
-                    params,
-                }))
-                .await
-                .unwrap();
+                reader_rtx
+                    .send(IncomingMessage::UnknownNotification(NotificationMessage {
+                        method,
+                        params,
+                    }))
+                    .await
+                    .unwrap();
             }
         }
     });
@@ -213,14 +213,6 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
 #[serde(untagged)]
 pub enum ParsedNotification {
     // PublishDiagnostics(TextDocumentPublishDiagnostics),
-}
-
-fn parse_notification(method: &str, params: &Value) -> anyhow::Result<Option<ParsedNotification>> {
-    if method == "textDocument/publishDiagnostics" {
-        return Ok(serde_json::from_value(params.clone())?);
-    }
-
-    Ok(None)
 }
 
 #[derive(Debug)]
@@ -247,8 +239,8 @@ impl NotificationMessage {
 
 #[derive(Debug, Clone)]
 pub struct ResponseMessage {
-    id: i64,
-    result: Value,
+    pub id: i64,
+    pub result: Value,
 }
 
 #[derive(Debug)]
@@ -402,9 +394,7 @@ impl LspClient {
         let id = req.id;
 
         self.pending_responses.insert(id, method.to_string());
-        self.request_tx
-            .send(OutgoingMessage::RequestMessage(req))
-            .await?;
+        self.request_tx.send(OutgoingMessage::Request(req)).await?;
 
         tracing::debug!("[LSP] request {id} sent: {:?}", method);
         Ok(id)
@@ -412,7 +402,7 @@ impl LspClient {
 
     pub async fn send_notification(&mut self, method: &str, params: Value) -> anyhow::Result<()> {
         self.request_tx
-            .send(OutgoingMessage::NotificationMessage(NotificationMessage {
+            .send(OutgoingMessage::Notification(NotificationMessage {
                 method: method.to_string(),
                 params,
             }))

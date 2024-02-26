@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io;
 
 use crate::config::KeyAction;
+use crate::lsp::IncomingMessage;
 use crate::pane::{Pane, PaneSize};
 
 pub struct Window<'a> {
@@ -36,6 +37,11 @@ impl<'a> Window<'a> {
             _ => {}
         }
         Ok(())
+    }
+
+    pub fn handle_lsp_message(&mut self, message: (IncomingMessage, Option<String>)) {
+        let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
+        active_pane.handle_lsp_message(message);
     }
 
     pub fn initialize(&mut self) -> io::Result<()> {
