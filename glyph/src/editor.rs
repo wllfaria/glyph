@@ -36,6 +36,9 @@ impl std::fmt::Display for Mode {
 }
 
 pub struct Editor<'a> {
+    // TODO: in the future, we want to have a GUI for the editor. thus
+    // the event pooling must maybe become a struct in order to allow
+    // for both crossterm and whatever GUI lib we come to use
     events: Events<'a>,
     view: View<'a>,
     lsp: LspClient,
@@ -85,9 +88,15 @@ impl<'a> Editor<'a> {
                         self.view.shutdown()?;
                         break;
                     }
-                    Action::EnterMode(Mode::Normal) => self.mode = Mode::Normal,
-                    Action::EnterMode(Mode::Command) => self.mode = Mode::Command,
-                    Action::EnterMode(Mode::Insert) => self.mode = Mode::Insert,
+                    Action::EnterMode(mode) => self.mode = mode,
+                    Action::Hover => {
+                        let file_path = "/home/wiru/code/personal/glyph/glyph/src/editor.rs";
+                        let row = 91;
+                        let col = 29;
+                        self.lsp
+                            .request_hover(file_path.to_string(), row, col)
+                            .await?;
+                    }
                     _ => (),
                 }
             }

@@ -61,7 +61,7 @@ pub enum OutgoingMessage {
 #[derive(Debug)]
 pub enum IncomingMessage {
     Message(ResponseMessage),
-    Notification(NotificationMessage),
+    Notification(ParsedNotification),
     UnknownNotification(NotificationMessage),
     Error(ResponseError),
     ProcessingError(String),
@@ -163,9 +163,41 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
                     res.to_string().chars().take(100).collect::<String>()
                 );
 
-                // im not doing anything with the response for now
-                // but i should check if it errored, and check wether it has
-                // an id or not. Notifications never have ids. requests have
+                if let Some(err) = res.get("error") {
+                    let code = err["code"].as_i64().unwrap();
+                    let message = err["message"].as_str().unwrap().to_string();
+                    let data = err.get("data").cloned();
+
+                    rtx.send(IncomingMessage::Error(ResponseError {
+                        code,
+                        message,
+                        data,
+                    }))
+                    .await
+                    .unwrap();
+
+                    continue;
+                }
+
+                if let Some(id) = res.get("id") {
+                    let id = id.as_i64().unwrap();
+                    let result = res["result"].clone();
+
+                    rtx.send(IncomingMessage::Message(ResponseMessage { id, result }))
+                        .await
+                        .unwrap();
+                    continue;
+                }
+
+                let method = res["method"].as_str().unwrap().to_string();
+                let params = res["params"].clone();
+
+                rtx.send(IncomingMessage::UnknownNotification(NotificationMessage {
+                    method,
+                    params,
+                }))
+                .await
+                .unwrap();
             }
         }
     });
@@ -175,6 +207,20 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
         response_rx,
         pending_responses: HashMap::new(),
     })
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+pub enum ParsedNotification {
+    // PublishDiagnostics(TextDocumentPublishDiagnostics),
+}
+
+fn parse_notification(method: &str, params: &Value) -> anyhow::Result<Option<ParsedNotification>> {
+    if method == "textDocument/publishDiagnostics" {
+        return Ok(serde_json::from_value(params.clone())?);
+    }
+
+    Ok(None)
 }
 
 #[derive(Debug)]
@@ -400,11 +446,11 @@ impl LspClient {
     ) -> anyhow::Result<i64> {
         let params = json!({
             "textDocument": {
-                "uri": file_path,
+                "uri": "file:///home/wiru/code/personal/glyph/glyph/src/pane/mod.rs"
             },
             "position": {
-                "line": row,
-                "character": col
+                "line": 101,
+                "character": 15
             }
         });
 

@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use crossterm::style::Color;
+
+use self::loader::hex_to_rgb;
 pub mod loader;
 
 #[derive(Debug, Clone)]
@@ -52,11 +54,214 @@ impl Default for Theme {
     fn default() -> Self {
         let appearance = Appearance::default();
 
+        let mut tokens: HashMap<String, Style> = HashMap::new();
+
+        tokens.insert(
+            "function".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#7daea3".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "function.method".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#82aaff".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "function.macro".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#ff9e64".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "constant.builtin".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#ffcc66".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "constant".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#d8a657".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "type".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#569CD6".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "type.builtin".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#4EC9B0".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "constructor".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#B5CEA8".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "property".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#CE9178".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "variable.parameter".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#9CDCFE".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "variable.builtin".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#C586C0".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "label".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#D7BA7D".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "comment".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#608B4E".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "punctuation.bracket".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#D4D4D4".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "punctuation.delimiter".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#D4D4D4".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "keyword".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#C586C0".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "string".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#CE9178".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "escape".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#d7ba7d".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "operator".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#569CD6".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+        tokens.insert(
+            "attribute".to_string(),
+            Style {
+                fg: hex_to_rgb(Some("#4EC9B0".to_string())).unwrap(),
+                bg: None,
+                italic: None,
+                underline: None,
+                bold: None,
+            },
+        );
+
         Self {
             name: "glyph-dark".to_string(),
             statusline: Statusline::default(),
             gutter: Style::new(appearance.bg),
-            tokens: HashMap::new(),
+            tokens,
             style: Style::new(appearance.bg),
             appearance,
         }

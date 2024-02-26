@@ -80,6 +80,9 @@ impl<'a> View<'a> {
                 self.tx.send(Action::EnterMode(Mode::Insert))?;
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBar)?;
             }
+            KeyAction::Simple(Action::Hover) => {
+                self.tx.send(Action::Hover)?;
+            }
             KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
                 self.maybe_leave_command_mode()?;
                 self.tx.send(Action::EnterMode(Mode::Normal))?;
@@ -129,7 +132,10 @@ impl<'a> View<'a> {
 
     fn delete_command_char(&mut self) -> anyhow::Result<()> {
         match self.command.len() {
-            1 => self.maybe_leave_command_mode()?,
+            1 => {
+                self.tx.send(Action::EnterMode(Mode::Normal))?;
+                self.maybe_leave_command_mode()?;
+            }
             _ => {
                 self.command.pop();
                 tracing::debug!("command is {}", self.command);
@@ -313,7 +319,6 @@ impl<'a> View<'a> {
         let command = &self.command;
         let fill = " ".repeat(self.size.width - command.len());
         let content = format!("{}{}", command, fill);
-        tracing::debug!("{}", content);
         viewport.set_text(0, 0, &content, &self.theme.style);
     }
 

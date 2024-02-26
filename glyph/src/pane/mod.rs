@@ -26,7 +26,7 @@ pub struct Position {
     pub col: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PaneSize {
     pub row: usize,
     pub col: usize,
@@ -54,7 +54,7 @@ pub struct Pane<'a> {
     viewport: Viewport,
     config: &'a Config,
     gutter: Box<dyn Gutter>,
-    size: PaneSize,
+    pub size: PaneSize,
     stdout: Stdout,
     theme: &'a Theme,
 }

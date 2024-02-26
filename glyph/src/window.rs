@@ -54,3 +54,44 @@ impl<'a> Window<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::buffer::*;
+    use crate::config::*;
+    use crate::theme::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_resizing() {
+        let buffer = Buffer::new(1, None).unwrap();
+        let theme = Theme::default();
+        let config = Config::default();
+        let pane = Pane::new(1, Rc::new(RefCell::new(buffer)), &theme, &config);
+        let mut window = Window::new(1, pane);
+
+        assert_eq!(
+            window.get_active_pane().size,
+            PaneSize {
+                row: 0,
+                col: 0,
+                height: 0,
+                width: 0
+            }
+        );
+
+        window.resize((10, 10).into());
+
+        assert_eq!(
+            window.get_active_pane().size,
+            PaneSize {
+                row: 0,
+                col: 0,
+                height: 10,
+                width: 10
+            }
+        );
+    }
+}

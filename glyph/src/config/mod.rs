@@ -72,7 +72,9 @@ pub enum Action {
     DeleteLine,
     DeletePreviousChar,
 
+    // LSP actions
     GoToDefinition,
+    Hover,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -96,6 +98,7 @@ pub enum KeyAction {
 fn default_normal() -> HashMap<String, KeyAction> {
     HashMap::from([
         ("n".to_string(), KeyAction::Simple(Action::FindNext)),
+        ("S-K".to_string(), KeyAction::Simple(Action::Hover)),
         ("N".to_string(), KeyAction::Simple(Action::FindPrevious)),
         ("w".to_string(), KeyAction::Simple(Action::NextWord)),
         ("b".to_string(), KeyAction::Simple(Action::PreviousWord)),
