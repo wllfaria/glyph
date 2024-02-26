@@ -151,6 +151,7 @@ impl Cursor {
 
     fn move_to_top(&mut self) {
         self.row = 0;
+        self.col = 0;
         self.absolute_position = 0;
     }
 

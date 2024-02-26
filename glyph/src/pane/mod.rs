@@ -12,7 +12,7 @@ use crate::lsp::IncomingMessage;
 use crate::pane::cursor::Cursor;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
-use crate::viewport::{Change, Viewport};
+use crate::viewport::{Cell, Change, Viewport};
 
 use self::gutter::absolute_line_gutter::AbsoluteLineGutter;
 use self::gutter::noop_line_gutter::NoopLineDrawer;
@@ -253,30 +253,27 @@ impl<'a> Pane<'a> {
 
     pub fn handle_cursor_action(&mut self, action: &KeyAction) -> Result<()> {
         self.cursor.handle(action, &mut self.buffer.borrow_mut());
-        match action {
-            KeyAction::Simple(Action::MoveToTop) => {
-                self.scroll.row = 0;
+        let height = self.size.height;
+        let width = self.size.width - self.config.gutter_width;
+        match (self.cursor.col, self.cursor.row) {
+            // Should scroll down
+            (_, y) if (y + 1).saturating_sub(self.scroll.row) >= height => {
+                self.scroll.row = (y + 1) - height;
             }
-            KeyAction::Simple(Action::MoveToBottom) => {
-                let Position { row, .. } = self.get_cursor_readable_position();
-                if self.cursor.row.saturating_sub(self.scroll.row) >= self.size.height {
-                    self.scroll.row = row - self.scroll.row - self.size.height;
-                }
+            // Should scroll up
+            (_, y) if (y + 1).saturating_sub(self.scroll.row) == 0 => {
+                self.scroll.row -= self.scroll.row - y;
             }
-            KeyAction::Simple(Action::MoveUp) => {
-                let Position { row, .. } = self.get_cursor_readable_position();
-                if row.saturating_sub(self.scroll.row) == 0 {
-                    self.scroll.row = self.scroll.row.saturating_sub(1);
-                }
+            // Should scroll right
+            (x, _) if x.saturating_sub(self.scroll.col) >= width => {
+                self.scroll.col = x + 1 - width;
             }
-            KeyAction::Simple(Action::MoveDown) => {
-                if self.cursor.row.saturating_sub(self.scroll.row) >= self.size.height {
-                    self.scroll.row += 1;
-                }
+            // Should scroll left
+            (x, _) if (x + 1).saturating_sub(self.scroll.col) == 0 => {
+                self.scroll.col -= self.scroll.col - x;
             }
             _ => (),
         }
-        self.draw_cursor()?;
         Ok(())
     }
 
@@ -293,53 +290,19 @@ impl<'a> Pane<'a> {
             .borrow_mut()
             .handle_action(action, self.cursor.absolute_position)?;
 
-        self.cursor.handle(action, &mut self.buffer.borrow_mut());
-
-        let pos = self.get_cursor_readable_position();
+        self.handle_cursor_action(action)?;
 
         match action {
             KeyAction::Simple(Action::DeletePreviousChar) => {
-                let start = self.cursor.row - self.scroll.row.saturating_sub(1);
-                tracing::debug!("deleting char start: {start}");
-
-                for pane_line in start..self.size.height {
-                    self.redraw_line(pane_line, pos.row + pane_line.saturating_sub(start));
-                }
-
                 if let (0, 1..) = (col, row) {
                     self.cursor.col = mark.size.saturating_sub(1);
                     self.cursor.absolute_position = mark.start + mark.size.saturating_sub(1);
                 }
             }
-            _ => self.redraw_line(self.cursor.row - self.scroll.row, pos.row),
+            _ => (),
         };
 
-        self.draw_cursor()?;
-
         Ok(())
-    }
-
-    fn redraw_line(&mut self, pane_line: usize, buffer_line: usize) {
-        let buffer = self.buffer.borrow();
-        let len = buffer.marker.len();
-        if pane_line > len {
-            return;
-        }
-        if let Some(mark) = buffer.marker.get_by_line(buffer_line) {
-            let line = buffer.line_from_mark(&mark);
-            let len = line
-                .len()
-                .min(self.size.width.saturating_sub(self.config.gutter_width));
-            let line = &line[0..len];
-            for (x, c) in line.chars().enumerate() {
-                self.viewport.set_cell(
-                    x + self.config.gutter_width,
-                    pane_line,
-                    c,
-                    &self.theme.style,
-                )
-            }
-        }
     }
 
     fn draw_cursor(&mut self) -> Result<()> {
@@ -355,7 +318,7 @@ impl<'a> Pane<'a> {
                 _ => col += self.cursor.col,
             };
             self.stdout.queue(crossterm::cursor::MoveTo(
-                col as u16,
+                col.saturating_sub(self.scroll.col) as u16,
                 self.cursor.row.saturating_sub(self.scroll.row) as u16,
             ))?;
         }
@@ -372,42 +335,36 @@ impl<'a> Pane<'a> {
     }
 
     fn draw_buffer(&mut self, viewport: &mut Viewport) {
-        let height = self.size.height;
-        let width = self.size.width;
         let offset = self.size.col + self.config.gutter_width;
 
         let default_style = self.theme.style.clone();
-        let lines = self
+        let content = self
             .buffer
             .borrow()
             .content_from(self.scroll.row, self.size.height);
-        let colors = self.highlight.colors(&lines);
+        let colors = self.highlight.colors(&content);
 
-        let mut x = offset;
-        let mut y = 0;
-        let mut iter = lines.chars().enumerate().peekable();
-
-        while let Some((p, c)) = iter.next() {
-            if c == '\n' || iter.peek().is_none() {
-                let fill_width = width.saturating_sub(x);
-                let line_fill = " ".repeat(fill_width);
-                viewport.set_text(x, y, &line_fill, &default_style);
-                x = offset;
-                y += 1;
-                if y > height {
-                    break;
-                }
-                continue;
+        let mut abs_pos = 0;
+        // TODO: I don't really like how I'm handling this, but this works for now
+        for (y, line) in content.lines().enumerate() {
+            if y > 0 {
+                abs_pos += 1;
             }
-
-            if x < width {
-                if let Some(color) = colors.iter().find(|ci| ci.start <= p && ci.end > p) {
-                    viewport.set_cell(x, y, c, color.style);
-                } else {
-                    viewport.set_cell(x, y, c, &default_style)
+            for (x, c) in line.chars().enumerate() {
+                if x >= self.scroll.col
+                    && x - self.scroll.col < self.size.width - self.config.gutter_width
+                {
+                    if let Some(color) = colors
+                        .iter()
+                        .find(|ci| ci.start <= abs_pos && ci.end > abs_pos)
+                    {
+                        viewport.set_cell((x - self.scroll.col) + offset, y, c, color.style);
+                    } else {
+                        viewport.set_cell((x - self.scroll.col) + offset, y, c, &default_style);
+                    }
                 }
+                abs_pos += 1;
             }
-            x += 1;
         }
     }
 
