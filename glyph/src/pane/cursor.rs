@@ -52,6 +52,12 @@ impl Cursor {
                     self.absolute_position = mark.start;
                 }
             }
+            KeyAction::Simple(Action::InsertLineAbove) => {
+                self.col = 0;
+                if let Some(mark) = buffer.marker.get_by_line(self.row + 1) {
+                    self.absolute_position = mark.start;
+                }
+            }
             KeyAction::Simple(Action::InsertLine) => {
                 self.absolute_position += 1;
                 self.col = 0;

@@ -122,10 +122,8 @@ impl<'a> Pane<'a> {
             KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::InsertLine) => self.handle_buffer_action(action)?,
             KeyAction::Simple(Action::InsertLineBelow) => self.handle_buffer_action(action)?,
-            KeyAction::Simple(Action::InsertChar(_)) => {
-                self.handle_buffer_action(action)?;
-                self.handle_cursor_action(action)?;
-            }
+            KeyAction::Simple(Action::InsertLineAbove) => self.handle_buffer_action(action)?,
+            KeyAction::Simple(Action::InsertChar(_)) => self.handle_buffer_action(action)?,
             _ => (),
         };
 
@@ -302,20 +300,15 @@ impl<'a> Pane<'a> {
         match action {
             KeyAction::Simple(Action::DeletePreviousChar) => {
                 let start = self.cursor.row - self.scroll.row.saturating_sub(1);
+                tracing::debug!("deleting char start: {start}");
 
                 for pane_line in start..self.size.height {
-                    self.redraw_line(pane_line, pos.row + pane_line - start);
+                    self.redraw_line(pane_line, pos.row + pane_line.saturating_sub(start));
                 }
 
                 if let (0, 1..) = (col, row) {
                     self.cursor.col = mark.size.saturating_sub(1);
                     self.cursor.absolute_position = mark.start + mark.size.saturating_sub(1);
-                }
-            }
-            KeyAction::Simple(Action::InsertLine) => {
-                let start = (self.cursor.row - self.scroll.row).saturating_sub(1);
-                for pane_line in start..self.size.height {
-                    self.redraw_line(pane_line, self.cursor.row + pane_line - start);
                 }
             }
             _ => self.redraw_line(self.cursor.row - self.scroll.row, pos.row),
@@ -334,6 +327,10 @@ impl<'a> Pane<'a> {
         }
         if let Some(mark) = buffer.marker.get_by_line(buffer_line) {
             let line = buffer.line_from_mark(&mark);
+            let len = line
+                .len()
+                .min(self.size.width.saturating_sub(self.config.gutter_width));
+            let line = &line[0..len];
             for (x, c) in line.chars().enumerate() {
                 self.viewport.set_cell(
                     x + self.config.gutter_width,
@@ -388,9 +385,10 @@ impl<'a> Pane<'a> {
 
         let mut x = offset;
         let mut y = 0;
+        let mut iter = lines.chars().enumerate().peekable();
 
-        for (p, c) in lines.chars().enumerate() {
-            if c == '\n' {
+        while let Some((p, c)) = iter.next() {
+            if c == '\n' || iter.peek().is_none() {
                 let fill_width = width.saturating_sub(x);
                 let line_fill = " ".repeat(fill_width);
                 viewport.set_text(x, y, &line_fill, &default_style);

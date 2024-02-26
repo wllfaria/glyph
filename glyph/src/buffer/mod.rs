@@ -140,6 +140,12 @@ impl Buffer {
         }
     }
 
+    fn insert_line_above(&mut self, cursor_pos: usize) {
+        if let Some(mark) = self.marker.get_by_cursor(cursor_pos) {
+            self.insert_char('\n', mark.start);
+        }
+    }
+
     fn try_save(&self) -> std::io::Result<()> {
         if let Ok(mut path) = std::env::current_dir() {
             path.push(&self.file_name);
@@ -156,6 +162,7 @@ impl Buffer {
             KeyAction::Simple(Action::DeleteCurrentChar) => self.delete_char(cursor_pos + 1),
             KeyAction::Simple(Action::SaveBuffer) => self.try_save()?,
             KeyAction::Simple(Action::InsertLine) => self.insert_char('\n', cursor_pos),
+            KeyAction::Simple(Action::InsertLineAbove) => self.insert_line_above(cursor_pos),
             KeyAction::Simple(Action::InsertLineBelow) => self.insert_line_below(cursor_pos),
             _ => (),
         };

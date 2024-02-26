@@ -44,6 +44,7 @@ pub enum Action {
     Undo,
     InsertLine,
     InsertLineBelow,
+    InsertLineAbove,
     PasteBelow,
     FindNext,
     FindPrevious,
@@ -53,6 +54,7 @@ pub enum Action {
     InsertCommand(char),
     ExecuteCommand,
     SaveBuffer,
+    DeleteUntilEOL,
 
     NextWord,
     PreviousWord,
@@ -100,6 +102,7 @@ fn default_normal() -> HashMap<String, KeyAction> {
     HashMap::from([
         ("n".to_string(), KeyAction::Simple(Action::FindNext)),
         ("S-K".to_string(), KeyAction::Simple(Action::Hover)),
+        ("S-D".to_string(), KeyAction::Simple(Action::DeleteUntilEOL)),
         ("S-N".to_string(), KeyAction::Simple(Action::FindPrevious)),
         ("w".to_string(), KeyAction::Simple(Action::NextWord)),
         ("b".to_string(), KeyAction::Simple(Action::PreviousWord)),
@@ -114,7 +117,10 @@ fn default_normal() -> HashMap<String, KeyAction> {
         ),
         (
             "S-O".to_string(),
-            KeyAction::Multiple(vec![Action::InsertLine, Action::EnterMode(Mode::Insert)]),
+            KeyAction::Multiple(vec![
+                Action::InsertLineAbove,
+                Action::EnterMode(Mode::Insert),
+            ]),
         ),
         (
             "o".to_string(),
