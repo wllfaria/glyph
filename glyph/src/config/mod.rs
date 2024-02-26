@@ -99,7 +99,7 @@ fn default_normal() -> HashMap<String, KeyAction> {
     HashMap::from([
         ("n".to_string(), KeyAction::Simple(Action::FindNext)),
         ("S-K".to_string(), KeyAction::Simple(Action::Hover)),
-        ("N".to_string(), KeyAction::Simple(Action::FindPrevious)),
+        ("S-N".to_string(), KeyAction::Simple(Action::FindPrevious)),
         ("w".to_string(), KeyAction::Simple(Action::NextWord)),
         ("b".to_string(), KeyAction::Simple(Action::PreviousWord)),
         ("p".to_string(), KeyAction::Simple(Action::PasteBelow)),
@@ -108,11 +108,11 @@ fn default_normal() -> HashMap<String, KeyAction> {
             KeyAction::Multiple(vec![Action::EnterMode(Mode::Insert), Action::MoveRight]),
         ),
         (
-            "A".to_string(),
+            "S-A".to_string(),
             KeyAction::Multiple(vec![Action::EnterMode(Mode::Insert), Action::MoveToLineEnd]),
         ),
         (
-            "O".to_string(),
+            "S-O".to_string(),
             KeyAction::Multiple(vec![Action::InsertLine, Action::EnterMode(Mode::Insert)]),
         ),
         (
@@ -144,7 +144,7 @@ fn default_normal() -> HashMap<String, KeyAction> {
             KeyAction::Simple(Action::EnterMode(Mode::Insert)),
         ),
         (
-            "I".to_string(),
+            "S-I".to_string(),
             KeyAction::Multiple(vec![
                 Action::MoveToLineStart,
                 Action::EnterMode(Mode::Insert),

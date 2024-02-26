@@ -83,7 +83,7 @@ impl Cursor {
         if let Some(mark) = buffer.marker.get_by_line(self.row + 1) {
             self.col += 1;
             match self.col {
-                col if col >= mark.size => {
+                col if col > mark.size => {
                     self.col = 0;
                     self.move_down(buffer);
                 }

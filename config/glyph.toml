@@ -26,18 +26,18 @@ show_diagnostics = true
 "/" = { EnterMode = "Search" }
 "Down" = "MoveDown"
 "Up" = "MoveUp"
-"G" = "MoveToBottom"
+"S-g" = "MoveToBottom"
 "C-d" = "PageDown"
 "C-u" = "PageUp"
 "b" = "PreviousWord"
 "a" = [{ EnterMode = "Insert" }, "MoveRight"]
 "$" = "MoveToLineEnd"
 "i" = { EnterMode = "Insert" }
-"A" = [{ EnterMode = "Insert" }, "MoveToLineEnd"]
+"S-a" = [{ EnterMode = "Insert" }, "MoveToLineEnd"]
 "d" = { "w" = "DeleteWord", "d" = "DeleteLine", "b" = "DeleteBack" }
 "0" = "MoveToLineStart"
 "Left" = "MoveLeft"
-"N" = "FindPrevious"
+"S-n" = "FindPrevious"
 "j" = "MoveDown"
 "h" = "MoveLeft"
 

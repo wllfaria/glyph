@@ -109,6 +109,7 @@ impl<'a> View<'a> {
             KeyAction::Simple(_) => active_window.handle_action(action)?,
             KeyAction::Multiple(actions) => {
                 for action in actions {
+                    tracing::debug!("executing multiple: {action:?}");
                     self.handle_action(&KeyAction::Simple(action.clone()), mode)?;
                 }
             }

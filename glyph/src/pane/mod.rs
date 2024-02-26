@@ -110,6 +110,8 @@ impl<'a> Pane<'a> {
         match action {
             KeyAction::Simple(Action::MoveToLineStart) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::MoveToLineEnd) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::DeletePreviousChar) => self.handle_buffer_action(action)?,
+            KeyAction::Simple(Action::DeleteCurrentChar) => self.handle_buffer_action(action)?,
             KeyAction::Simple(Action::NextWord) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::MoveLeft) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::MoveDown) => self.handle_cursor_action(action)?,
@@ -289,6 +291,8 @@ impl<'a> Pane<'a> {
         self.buffer
             .borrow_mut()
             .handle_action(action, self.cursor.absolute_position)?;
+
+        self.cursor.handle(action, &mut self.buffer.borrow_mut());
 
         let pos = self.get_cursor_readable_position();
 

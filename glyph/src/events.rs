@@ -63,6 +63,7 @@ impl<'a> Events<'a> {
 
     pub fn handle_normal_event(&mut self, event: &Event) -> Option<KeyAction> {
         let (key, action) = self.map_event_to_key_action(&self.config.keys.normal, event);
+        tracing::trace!("{action:?}");
         if let Some(action) = action {
             match action {
                 KeyAction::Simple(_) => return Some(action),

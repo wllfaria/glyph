@@ -147,6 +147,7 @@ impl Buffer {
         match action {
             KeyAction::Simple(Action::InsertChar(c)) => self.insert_char(*c, cursor_pos),
             KeyAction::Simple(Action::DeletePreviousChar) => self.delete_char(cursor_pos),
+            KeyAction::Simple(Action::DeleteCurrentChar) => self.delete_char(cursor_pos + 1),
             KeyAction::Simple(Action::InsertLine) => self.insert_char('\n', cursor_pos),
             _ => (),
         };
