@@ -128,9 +128,9 @@ impl<'a> Pane<'a> {
         };
 
         self.draw_sidebar(&mut viewport);
+        self.draw_cursor()?;
         self.draw_buffer(&mut viewport);
         self.draw_diff(viewport.diff(&last_viewport))?;
-        self.draw_cursor()?;
         self.viewport = viewport;
         self.stdout.queue(crossterm::cursor::Show)?;
         Ok(())
@@ -253,12 +253,17 @@ impl<'a> Pane<'a> {
 
     pub fn handle_cursor_action(&mut self, action: &KeyAction) -> Result<()> {
         self.cursor.handle(action, &mut self.buffer.borrow_mut());
+        self.maybe_scroll(self.cursor.col, self.cursor.row);
+        Ok(())
+    }
+
+    fn maybe_scroll(&mut self, col: usize, row: usize) {
         let height = self.size.height;
         let width = self.size.width - self.config.gutter_width;
-        match (self.cursor.col, self.cursor.row) {
+        match (col, row) {
             // Should scroll down
             (_, y) if (y + 1).saturating_sub(self.scroll.row) >= height => {
-                self.scroll.row = (y + 1) - height;
+                self.scroll.row = y + 1 - height;
             }
             // Should scroll up
             (_, y) if (y + 1).saturating_sub(self.scroll.row) == 0 => {
@@ -274,7 +279,6 @@ impl<'a> Pane<'a> {
             }
             _ => (),
         }
-        Ok(())
     }
 
     fn handle_buffer_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
@@ -306,22 +310,23 @@ impl<'a> Pane<'a> {
     }
 
     fn draw_cursor(&mut self) -> Result<()> {
-        if let Some(mark) = self
-            .buffer
-            .borrow_mut()
-            .marker
-            .get_by_line(self.cursor.row + 1)
-        {
-            let mut col = self.config.gutter_width;
-            match self.cursor.col {
-                c if c > mark.size.saturating_sub(1) => col += mark.size.saturating_sub(1),
-                _ => col += self.cursor.col,
-            };
-            self.stdout.queue(crossterm::cursor::MoveTo(
-                col.saturating_sub(self.scroll.col) as u16,
-                self.cursor.row.saturating_sub(self.scroll.row) as u16,
-            ))?;
-        }
+        let col = {
+            let buffer = self.buffer.borrow_mut();
+            let mut col = 0;
+            if let Some(mark) = buffer.marker.get_by_line(self.cursor.row + 1) {
+                col += match self.cursor.col {
+                    c if c > mark.size.saturating_sub(1) => mark.size.saturating_sub(1),
+                    _ => self.cursor.col,
+                };
+            }
+            col
+        };
+        tracing::debug!("col: {}, row: {}", col, self.cursor.row);
+        self.maybe_scroll(col, self.cursor.row);
+        self.stdout.queue(crossterm::cursor::MoveTo(
+            col.saturating_sub(self.scroll.col) as u16 + self.config.gutter_width as u16,
+            self.cursor.row.saturating_sub(self.scroll.row) as u16,
+        ))?;
         Ok(())
     }
 
