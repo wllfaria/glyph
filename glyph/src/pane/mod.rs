@@ -7,6 +7,7 @@ use crossterm::{self, style::Print, QueueableCommand};
 
 use crate::buffer::Buffer;
 use crate::config::{Action, Config, KeyAction, LineNumbers};
+use crate::editor::Mode;
 use crate::highlight::Highlight;
 use crate::lsp::IncomingMessage;
 use crate::pane::cursor::Cursor;
@@ -120,6 +121,7 @@ impl<'a> Pane<'a> {
             KeyAction::Simple(Action::MoveToTop) => self.handle_cursor_action(action)?,
             KeyAction::Simple(Action::SaveBuffer) => self.handle_buffer_action(action)?,
             KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action)?,
+            KeyAction::Simple(Action::InsertRight) => self.handle_buffer_action(action)?,
             KeyAction::Simple(Action::InsertLine) => self.handle_buffer_action(action)?,
             KeyAction::Simple(Action::InsertLineBelow) => self.handle_buffer_action(action)?,
             KeyAction::Simple(Action::InsertLineAbove) => self.handle_buffer_action(action)?,
@@ -315,13 +317,12 @@ impl<'a> Pane<'a> {
             let mut col = 0;
             if let Some(mark) = buffer.marker.get_by_line(self.cursor.row + 1) {
                 col += match self.cursor.col {
-                    c if c > mark.size.saturating_sub(1) => mark.size.saturating_sub(1),
+                    c if c > mark.size.saturating_sub(2) => mark.size.saturating_sub(2),
                     _ => self.cursor.col,
                 };
             }
             col
         };
-        tracing::debug!("col: {}, row: {}", col, self.cursor.row);
         self.maybe_scroll(col, self.cursor.row);
         self.stdout.queue(crossterm::cursor::MoveTo(
             col.saturating_sub(self.scroll.col) as u16 + self.config.gutter_width as u16,

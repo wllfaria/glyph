@@ -52,6 +52,7 @@ pub enum Action {
     InsertTab,
     InsertChar(char),
     InsertCommand(char),
+    InsertRight,
     ExecuteCommand,
     SaveBuffer,
     DeleteUntilEOL,
@@ -109,7 +110,7 @@ fn default_normal() -> HashMap<String, KeyAction> {
         ("p".to_string(), KeyAction::Simple(Action::PasteBelow)),
         (
             "a".to_string(),
-            KeyAction::Multiple(vec![Action::EnterMode(Mode::Insert), Action::MoveRight]),
+            KeyAction::Multiple(vec![Action::EnterMode(Mode::Insert), Action::InsertRight]),
         ),
         (
             "S-A".to_string(),

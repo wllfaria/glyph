@@ -27,6 +27,7 @@ impl Cursor {
             KeyAction::Simple(Action::MoveRight) => self.move_right(buffer),
             KeyAction::Simple(Action::MoveDown) => self.move_down(buffer),
             KeyAction::Simple(Action::MoveLeft) => self.move_left(buffer),
+            KeyAction::Simple(Action::InsertRight) => self.insert_right(buffer),
             KeyAction::Simple(Action::MoveToLineStart) => self.move_to_line_start(buffer),
             KeyAction::Simple(Action::MoveToLineEnd) => self.move_to_line_end(buffer),
             KeyAction::Simple(Action::NextWord) => self.move_to_next_word(buffer),
@@ -75,70 +76,72 @@ impl Cursor {
     }
 
     pub fn move_up(&mut self, buffer: &mut Buffer) {
-        if self.row == 0 {
-            self.absolute_position = 0;
-            self.col = 0;
-            return;
-        }
-        if let Some(mark) = buffer.marker.get_by_line(self.row) {
-            match self.col {
-                0 => self.absolute_position = mark.start,
-                _ if self.col > mark.size => {
-                    self.absolute_position = mark.start + mark.size - 1;
-                }
-                _ => self.absolute_position = mark.start + self.col,
+        match (self.col, self.row) {
+            (_, 0) => {
+                self.absolute_position = 0;
+                self.col = 0;
             }
-            self.row = self.row.saturating_sub(1);
+            (0, _) => {
+                let mark = buffer
+                    .marker
+                    .get_by_line(self.row)
+                    .expect("if we are above line 0, there sould always be a line above");
+                self.absolute_position = mark.start;
+                self.row -= 1;
+            }
+            (x, _) => {
+                let mark = buffer
+                    .marker
+                    .get_by_line(self.row)
+                    .expect("if we are above line 0, there sould always be a line above");
+                self.absolute_position = match x > mark.size.saturating_sub(2) {
+                    true => mark.start + mark.size.saturating_sub(2),
+                    false => mark.start + self.col,
+                };
+                self.row -= 1;
+            }
         }
+    }
+
+    fn insert_right(&mut self, _: &mut Buffer) {
+        self.col += 1;
+        self.absolute_position += 1;
     }
 
     fn move_right(&mut self, buffer: &mut Buffer) {
         if let Some(mark) = buffer.marker.get_by_line(self.row + 1) {
-            self.col += 1;
-            match self.col {
-                col if col > mark.size => {
-                    self.col = 0;
-                    self.move_down(buffer);
-                }
-                _ => self.absolute_position = mark.start + self.col,
+            if self.col < mark.size.saturating_sub(2) {
+                self.col += 1;
+                self.absolute_position = mark.start + self.col;
             }
         }
     }
 
     fn move_down(&mut self, buffer: &mut Buffer) {
         let next_line = 2 + self.row;
-        if let Some(mark) = buffer.marker.get_by_line(next_line) {
-            self.row += 1;
-            match self.col {
-                0 => self.absolute_position = mark.start,
-                col if col > mark.size => {
-                    self.absolute_position = mark.start + mark.size.saturating_sub(1);
+        match buffer.marker.get_by_line(next_line) {
+            Some(mark) => {
+                self.row += 1;
+                match self.col > mark.size.saturating_sub(2) {
+                    true => self.absolute_position = mark.start + mark.size.saturating_sub(2),
+                    false => self.absolute_position = mark.start + self.col,
                 }
-                _ => self.absolute_position = mark.start + self.col,
             }
-        } else {
-            let mark = buffer.marker.get_by_line(self.row + 1).unwrap();
-            self.absolute_position = mark.start + mark.size.saturating_sub(1);
-            self.col = mark.size.saturating_sub(1);
+            None => {
+                let mark = buffer
+                    .marker
+                    .get_by_line(self.row + 1)
+                    .expect("current line should never be none");
+                self.absolute_position = mark.start + mark.size.saturating_sub(1);
+                self.col = mark.size.saturating_sub(2);
+            }
         }
     }
 
-    fn move_left(&mut self, buffer: &mut Buffer) {
-        match self.col {
-            0 if self.row == 0 => (),
-            0 => {
-                assert!(self.row > 0);
-                self.move_up(buffer);
-                self.move_to_line_end(buffer);
-            }
-            _ => {
-                self.col = self.col.saturating_sub(1);
-                let mark = buffer.marker.get_by_line(self.row + 1).unwrap();
-                if self.col >= mark.size {
-                    self.col = mark.size.saturating_sub(2);
-                }
-                self.absolute_position -= 1;
-            }
+    fn move_left(&mut self, _: &mut Buffer) {
+        if self.col > 0 {
+            self.col -= 1;
+            self.absolute_position -= 1;
         }
     }
 
@@ -202,7 +205,6 @@ impl Cursor {
             if char.is_whitespace() {
                 while let Some(c) = content[pos..].chars().nth(0) {
                     if !c.is_whitespace() {
-                        tracing::error!("current char is: {c}");
                         break;
                     }
                     pos += 1;
@@ -220,10 +222,7 @@ impl Cursor {
     }
 
     fn is_separator(&self, c: char) -> bool {
-        matches!(
-            c,
-            ' ' | ':' | '-' | '}' | ')' | ']' | ',' | '(' | '>' | '\n'
-        )
+        matches!(c, ' ' | ':' | '-' | '}' | ')' | ']' | ',' | '(' | '>')
     }
 }
 
@@ -388,7 +387,7 @@ mod tests {
         let mut cursor = Cursor::new();
         let mut buffer = Buffer::from_string(1, "Hello\nWorld!", gap);
 
-        for _ in 0..6 {
+        for _ in 0..5 {
             cursor.move_right(&mut buffer);
         }
 
