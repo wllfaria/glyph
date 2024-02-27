@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::io;
 
 use crate::config::KeyAction;
+use crate::editor::Mode;
 use crate::lsp::IncomingMessage;
 use crate::pane::{Pane, PaneSize};
 
 pub struct Window<'a> {
     pub id: usize,
-    panes: HashMap<usize, Pane<'a>>,
-    active_pane: usize,
+    pub panes: HashMap<usize, Pane<'a>>,
+    pub active_pane: usize,
 }
 
 impl<'a> Window<'a> {
@@ -30,10 +31,10 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
         match action {
-            KeyAction::Simple(_) => active_pane.handle_action(action)?,
+            KeyAction::Simple(_) => active_pane.handle_action(action, mode)?,
             _ => {}
         }
         Ok(())
@@ -44,8 +45,8 @@ impl<'a> Window<'a> {
         active_pane.handle_lsp_message(message);
     }
 
-    pub fn initialize(&mut self) -> io::Result<()> {
-        self.render_panes()?;
+    pub fn initialize(&mut self, mode: &Mode) -> io::Result<()> {
+        self.render_panes(mode)?;
         Ok(())
     }
 
@@ -53,9 +54,9 @@ impl<'a> Window<'a> {
         self.panes.get(&self.active_pane).unwrap()
     }
 
-    fn render_panes(&mut self) -> io::Result<()> {
+    fn render_panes(&mut self, mode: &Mode) -> io::Result<()> {
         for pane in self.panes.values_mut() {
-            pane.initialize()?;
+            pane.initialize(mode)?;
         }
         Ok(())
     }

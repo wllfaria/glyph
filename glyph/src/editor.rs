@@ -58,13 +58,14 @@ impl<'a> Editor<'a> {
         let pane = Pane::new(1, buffer.clone(), theme, config);
         let window = Window::new(1, pane);
         let (tx, rx) = mpsc::channel::<Action>();
+        let mode = Mode::Normal;
         let mut editor = Self {
             events: Events::new(config),
-            view: View::new(config, theme, window, tx)?,
+            view: View::new(config, theme, window, tx, mode.clone())?,
             theme,
             config,
             lsp,
-            mode: Mode::Normal,
+            mode,
         };
 
         editor.start(rx).await?;
@@ -73,7 +74,7 @@ impl<'a> Editor<'a> {
     }
 
     pub async fn start(&mut self, rx: mpsc::Receiver<Action>) -> anyhow::Result<()> {
-        self.view.initialize(&self.mode)?;
+        self.view.initialize()?;
 
         let mut stream = EventStream::new();
         self.lsp.initialize().await?;
@@ -101,7 +102,7 @@ impl<'a> Editor<'a> {
                 maybe_event = event => {
                     if let Some(Ok(event)) = maybe_event {
                         if let Some(action) = self.events.handle(&event, &self.mode) {
-                            self.view.handle_action(&action, &self.mode)?;
+                            self.view.handle_action(&action)?;
                         }
                     };
                 }

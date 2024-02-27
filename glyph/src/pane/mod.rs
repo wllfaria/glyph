@@ -103,34 +103,43 @@ impl<'a> Pane<'a> {
         self.size = new_size;
     }
 
-    pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, self.size.height);
 
         self.stdout.queue(crossterm::cursor::Hide)?;
         match action {
-            KeyAction::Simple(Action::MoveToLineStart) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::MoveToLineEnd) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::DeletePreviousChar) => self.handle_buffer_action(action)?,
-            KeyAction::Simple(Action::DeleteCurrentChar) => self.handle_buffer_action(action)?,
-            KeyAction::Simple(Action::NextWord) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::MoveLeft) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::MoveDown) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::MoveUp) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::MoveRight) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::MoveToTop) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::SaveBuffer) => self.handle_buffer_action(action)?,
-            KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action)?,
-            KeyAction::Simple(Action::InsertRight) => self.handle_buffer_action(action)?,
-            KeyAction::Simple(Action::InsertLine) => self.handle_buffer_action(action)?,
-            KeyAction::Simple(Action::InsertLineBelow) => self.handle_buffer_action(action)?,
-            KeyAction::Simple(Action::InsertLineAbove) => self.handle_buffer_action(action)?,
-            KeyAction::Simple(Action::InsertChar(_)) => self.handle_buffer_action(action)?,
+            KeyAction::Simple(Action::MoveToLineStart) => {
+                self.handle_cursor_action(action, mode)?
+            }
+            KeyAction::Simple(Action::MoveToLineEnd) => self.handle_cursor_action(action, mode)?,
+            KeyAction::Simple(Action::DeletePreviousChar) => {
+                self.handle_buffer_action(action, mode)?
+            }
+            KeyAction::Simple(Action::DeleteCurrentChar) => {
+                self.handle_buffer_action(action, mode)?
+            }
+            KeyAction::Simple(Action::NextWord) => self.handle_cursor_action(action, mode)?,
+            KeyAction::Simple(Action::MoveLeft) => self.handle_cursor_action(action, mode)?,
+            KeyAction::Simple(Action::MoveDown) => self.handle_cursor_action(action, mode)?,
+            KeyAction::Simple(Action::MoveUp) => self.handle_cursor_action(action, mode)?,
+            KeyAction::Simple(Action::MoveRight) => self.handle_cursor_action(action, mode)?,
+            KeyAction::Simple(Action::MoveToTop) => self.handle_cursor_action(action, mode)?,
+            KeyAction::Simple(Action::SaveBuffer) => self.handle_buffer_action(action, mode)?,
+            KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action, mode)?,
+            KeyAction::Simple(Action::InsertLine) => self.handle_buffer_action(action, mode)?,
+            KeyAction::Simple(Action::InsertLineBelow) => {
+                self.handle_buffer_action(action, mode)?
+            }
+            KeyAction::Simple(Action::InsertLineAbove) => {
+                self.handle_buffer_action(action, mode)?
+            }
+            KeyAction::Simple(Action::InsertChar(_)) => self.handle_buffer_action(action, mode)?,
             _ => (),
         };
 
         self.draw_sidebar(&mut viewport);
-        self.draw_cursor()?;
+        self.draw_cursor(mode)?;
         self.draw_buffer(&mut viewport);
         self.draw_diff(viewport.diff(&last_viewport))?;
         self.viewport = viewport;
@@ -140,7 +149,6 @@ impl<'a> Pane<'a> {
 
     // TODO: I have to make this nicer, and also rendering the messages is somehow breaking the
     // entire view, so I should account for that
-    //
     // Maybe the window should be responsible for making the popup and handing to the pane. this is
     // just a WIP
     pub fn handle_lsp_message(&mut self, message: (IncomingMessage, Option<String>)) {
@@ -170,7 +178,6 @@ impl<'a> Pane<'a> {
                                     pane.size.col = self.cursor.col;
                                     self.popups.push(pane);
                                     tracing::debug!("Opening lsp hover popup");
-                                    _ = self.draw_popups();
                                 }
                             }
                         }
@@ -182,20 +189,20 @@ impl<'a> Pane<'a> {
         }
     }
 
-    fn draw_popups(&mut self) -> anyhow::Result<()> {
+    fn draw_popups(&mut self, mode: &Mode) -> anyhow::Result<()> {
         for popup in self.popups.iter_mut() {
-            popup.initialize()?;
+            popup.initialize(&mode)?;
         }
 
         Ok(())
     }
 
-    pub fn initialize(&mut self) -> Result<()> {
+    pub fn initialize(&mut self, mode: &Mode) -> Result<()> {
         let mut viewport = Viewport::new(self.size.width, self.size.height);
         self.draw_sidebar(&mut viewport);
         self.draw_buffer(&mut viewport);
         self.draw(&mut viewport)?;
-        self.draw_cursor()?;
+        self.draw_cursor(mode)?;
         self.viewport = viewport;
         Ok(())
     }
@@ -253,8 +260,9 @@ impl<'a> Pane<'a> {
         self.cursor.get_readable_position()
     }
 
-    pub fn handle_cursor_action(&mut self, action: &KeyAction) -> Result<()> {
-        self.cursor.handle(action, &mut self.buffer.borrow_mut());
+    pub fn handle_cursor_action(&mut self, action: &KeyAction, mode: &Mode) -> Result<()> {
+        self.cursor
+            .handle(action, &mut self.buffer.borrow_mut(), mode);
         self.maybe_scroll(self.cursor.col, self.cursor.row);
         Ok(())
     }
@@ -283,7 +291,7 @@ impl<'a> Pane<'a> {
         }
     }
 
-    fn handle_buffer_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
+    fn handle_buffer_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         let col = self.cursor.col;
         let row = self.cursor.row;
         let mark = {
@@ -296,7 +304,7 @@ impl<'a> Pane<'a> {
             .borrow_mut()
             .handle_action(action, self.cursor.absolute_position)?;
 
-        self.handle_cursor_action(action)?;
+        self.handle_cursor_action(action, mode)?;
 
         match action {
             KeyAction::Simple(Action::DeletePreviousChar) => {
@@ -311,14 +319,14 @@ impl<'a> Pane<'a> {
         Ok(())
     }
 
-    fn draw_cursor(&mut self) -> Result<()> {
+    fn draw_cursor(&mut self, mode: &Mode) -> Result<()> {
         let col = {
             let buffer = self.buffer.borrow_mut();
             let mut col = 0;
             if let Some(mark) = buffer.marker.get_by_line(self.cursor.row + 1) {
-                col += match self.cursor.col {
-                    c if c > mark.size.saturating_sub(2) => mark.size.saturating_sub(2),
-                    _ => self.cursor.col,
+                col = match mode {
+                    Mode::Normal => self.cursor.col.min(mark.size.saturating_sub(2)),
+                    _ => self.cursor.col.min(mark.size.saturating_sub(1)),
                 };
             }
             col

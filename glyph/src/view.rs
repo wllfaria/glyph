@@ -30,8 +30,8 @@ impl From<(u16, u16)> for Size {
 }
 
 pub struct View<'a> {
-    active_window: usize,
-    windows: HashMap<usize, Window<'a>>,
+    pub active_window: usize,
+    pub windows: HashMap<usize, Window<'a>>,
     size: Size,
     stdout: Stdout,
     config: &'a Config,
@@ -40,6 +40,7 @@ pub struct View<'a> {
     command: String,
     theme: &'a Theme,
     tx: mpsc::Sender<Action>,
+    mode: Mode,
 }
 
 impl<'a> View<'a> {
@@ -48,6 +49,7 @@ impl<'a> View<'a> {
         theme: &'a Theme,
         mut window: Window<'a>,
         tx: mpsc::Sender<Action>,
+        mode: Mode,
     ) -> Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
@@ -67,10 +69,11 @@ impl<'a> View<'a> {
             command: String::new(),
             theme,
             tx,
+            mode,
         })
     }
 
-    pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
+    pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
         let last_statusline = self.statusline.clone();
         let last_commandline = self.commandline.clone();
         let mut statusline = Viewport::new(self.size.width, 1);
@@ -82,6 +85,7 @@ impl<'a> View<'a> {
                 self.tx.send(Action::Quit)?;
             }
             KeyAction::Simple(Action::EnterMode(Mode::Insert)) => {
+                self.mode = Mode::Insert;
                 self.tx.send(Action::EnterMode(Mode::Insert))?;
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBar)?;
             }
@@ -89,12 +93,15 @@ impl<'a> View<'a> {
                 self.tx.send(Action::Hover)?;
             }
             KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
+                self.mode = Mode::Normal;
+                active_window.handle_action(action, &self.mode)?;
                 self.maybe_leave_command_mode()?;
                 self.tx.send(Action::EnterMode(Mode::Normal))?;
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
             }
             KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
                 self.tx.send(Action::EnterMode(Mode::Command))?;
+                self.mode = Mode::Normal;
                 self.enter_command_mode()?;
             }
             KeyAction::Simple(Action::InsertCommand(c)) => {
@@ -104,17 +111,16 @@ impl<'a> View<'a> {
                 self.stdout.queue(cursor::MoveRight(1))?;
             }
             KeyAction::Simple(Action::ExecuteCommand) => {
-                self.try_execute_command(mode)?;
+                self.try_execute_command()?;
             }
             KeyAction::Simple(Action::DeletePreviousChar) => match self.command.is_empty() {
-                true => active_window.handle_action(action)?,
+                true => active_window.handle_action(action, &self.mode)?,
                 false => self.delete_command_char()?,
             },
-            KeyAction::Simple(_) => active_window.handle_action(action)?,
+            KeyAction::Simple(_) => active_window.handle_action(action, &self.mode)?,
             KeyAction::Multiple(actions) => {
                 for action in actions {
-                    tracing::debug!("executing multiple: {action:?}");
-                    self.handle_action(&KeyAction::Simple(action.clone()), mode)?;
+                    self.handle_action(&KeyAction::Simple(action.clone()))?;
                 }
             }
             _ => (),
@@ -122,7 +128,7 @@ impl<'a> View<'a> {
         self.stdout
             .queue(cursor::SavePosition)?
             .queue(cursor::Hide)?;
-        self.draw_statusline(&mut statusline, mode);
+        self.draw_statusline(&mut statusline, self.mode.clone());
         self.draw_commandline(&mut commandline);
         self.render_statusline(statusline.diff(&last_statusline))?;
         self.render_commandline(commandline.diff(&last_commandline))?;
@@ -153,9 +159,9 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn try_execute_command(&mut self, mode: &Mode) -> anyhow::Result<()> {
+    fn try_execute_command(&mut self) -> anyhow::Result<()> {
         if let Some(action) = self.map_command_to_action(&self.command) {
-            self.handle_action(&action, mode)?;
+            self.handle_action(&action)?;
         }
         Ok(())
     }
@@ -207,7 +213,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    pub fn initialize(&mut self, mode: &Mode) -> anyhow::Result<()> {
+    pub fn initialize(&mut self) -> anyhow::Result<()> {
         terminal::enable_raw_mode()?;
         self.stdout.queue(terminal::EnterAlternateScreen)?;
 
@@ -216,7 +222,7 @@ impl<'a> View<'a> {
         let mut statusline = Viewport::new(self.size.width, 1);
         let mut commandline = Viewport::new(self.size.width, 1);
         self.clear_screen()?;
-        self.draw_statusline(&mut statusline, mode);
+        self.draw_statusline(&mut statusline, self.mode.clone());
         self.draw_commandline(&mut commandline);
         self.render_statusline(statusline.diff(&last_statusline))?;
         self.render_commandline(commandline.diff(&last_commandline))?;
@@ -224,7 +230,7 @@ impl<'a> View<'a> {
         self.windows
             .get_mut(&self.active_window)
             .unwrap()
-            .initialize()?;
+            .initialize(&self.mode)?;
         self.statusline = statusline;
         self.commandline = commandline;
         self.stdout.flush()?;
@@ -264,7 +270,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn draw_statusline(&mut self, viewport: &mut Viewport, mode: &Mode) {
+    fn draw_statusline(&mut self, viewport: &mut Viewport, mode: Mode) {
         let active_pane = self.get_active_window().get_active_pane();
         let cursor_position = active_pane.get_cursor_readable_position();
         let Position { col, row } = cursor_position;
