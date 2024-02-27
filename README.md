@@ -2,8 +2,7 @@
 
 <h1>Glyph</h1>
 
-t
-eLsitgihntgweight terminal based text editor written in rust.
+lightweight terminal based text editor written in rust.
 
 <img src="./.github/assets/banner.png" />
 
