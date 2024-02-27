@@ -53,6 +53,13 @@ impl<'a> Events<'a> {
             }
         }
 
+        match event {
+            Event::Resize(cols, rows) => {
+                return Some(KeyAction::Simple(Action::Resize(*cols, *rows)));
+            }
+            _ => (),
+        }
+
         match mode {
             Mode::Normal => self.handle_normal_event(event),
             Mode::Insert => self.handle_insert_event(event),

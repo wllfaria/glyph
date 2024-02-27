@@ -55,6 +55,7 @@ pub enum Action {
     ExecuteCommand,
     SaveBuffer,
     DeleteUntilEOL,
+    Resize(u16, u16),
 
     NextWord,
     PreviousWord,

@@ -64,14 +64,21 @@ impl Viewport {
 
     pub fn diff(&self, other: &Viewport) -> Vec<Change> {
         let mut changes = vec![];
+        tracing::debug!("{}, {}", self.cells.len(), other.cells.len());
         for (p, cell) in self.cells.iter().enumerate() {
-            if *cell != other.cells[p] {
-                let row = p / self.width;
-                let col = p % self.width;
+            let row = p / self.width;
+            let col = p % self.width;
 
-                changes.push(Change { row, col, cell });
+            match other.cells.len() == self.cells.len() {
+                true => {
+                    if *cell != other.cells[p] {
+                        changes.push(Change { row, col, cell });
+                    }
+                }
+                false => changes.push(Change { row, col, cell }),
             }
         }
+        tracing::debug!("total changes: {}", changes.len());
         changes
     }
 

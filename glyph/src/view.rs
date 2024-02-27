@@ -3,13 +3,13 @@ use std::io::{stdout, Result, Stdout, Write};
 use std::sync::mpsc;
 
 use crossterm::style::Print;
-use crossterm::{cursor, style};
+use crossterm::{cursor, event, style};
 use crossterm::{terminal, QueueableCommand};
 
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
 use crate::lsp::IncomingMessage;
-use crate::pane::Position;
+use crate::pane::{PaneSize, Position};
 use crate::theme::{Style, Theme};
 use crate::viewport::{Change, Viewport};
 use crate::window::Window;
@@ -50,12 +50,12 @@ impl<'a> View<'a> {
         mut window: Window<'a>,
         tx: mpsc::Sender<Action>,
         mode: Mode,
-    ) -> Result<Self> {
+    ) -> anyhow::Result<Self> {
         let mut windows = HashMap::new();
         let size = terminal::size()?;
 
         let id = window.id;
-        window.resize((size.0, size.1 - 2).into());
+        window.resize((size.0, size.1 - 2).into())?;
         windows.insert(window.id, window);
 
         Ok(Self {
@@ -74,12 +74,22 @@ impl<'a> View<'a> {
     }
 
     pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
-        let last_statusline = self.statusline.clone();
-        let last_commandline = self.commandline.clone();
         let mut statusline = Viewport::new(self.size.width, 1);
         let mut commandline = Viewport::new(self.size.width, 1);
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
+            KeyAction::Simple(Action::Resize(cols, rows)) => {
+                tracing::debug!("resizing: ({cols}, {rows})");
+                self.size = (*cols, *rows).into();
+                active_window.resize(PaneSize {
+                    row: 0,
+                    col: 0,
+                    height: self.size.height - 2,
+                    width: self.size.width,
+                })?;
+                statusline = Viewport::new(self.size.width, 1);
+                commandline = Viewport::new(self.size.width, 1);
+            }
             KeyAction::Simple(Action::Quit) => {
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
                 self.tx.send(Action::Quit)?;
@@ -130,8 +140,8 @@ impl<'a> View<'a> {
             .queue(cursor::Hide)?;
         self.draw_statusline(&mut statusline, self.mode.clone());
         self.draw_commandline(&mut commandline);
-        self.render_statusline(statusline.diff(&last_statusline))?;
-        self.render_commandline(commandline.diff(&last_commandline))?;
+        self.render_statusline(&statusline)?;
+        self.render_commandline(&commandline)?;
         self.statusline = statusline;
         self.commandline = commandline;
         self.stdout
@@ -217,15 +227,13 @@ impl<'a> View<'a> {
         terminal::enable_raw_mode()?;
         self.stdout.queue(terminal::EnterAlternateScreen)?;
 
-        let last_statusline = self.statusline.clone();
-        let last_commandline = self.commandline.clone();
         let mut statusline = Viewport::new(self.size.width, 1);
         let mut commandline = Viewport::new(self.size.width, 1);
         self.clear_screen()?;
         self.draw_statusline(&mut statusline, self.mode.clone());
         self.draw_commandline(&mut commandline);
-        self.render_statusline(statusline.diff(&last_statusline))?;
-        self.render_commandline(commandline.diff(&last_commandline))?;
+        self.render_statusline(&statusline)?;
+        self.render_commandline(&commandline)?;
 
         self.windows
             .get_mut(&self.active_window)
@@ -238,27 +246,25 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn render_statusline(&mut self, changes: Vec<Change>) -> Result<()> {
-        for change in changes {
-            self.stdout.queue(cursor::MoveTo(
-                change.col as u16,
-                self.size.height as u16 - 2,
-            ))?;
+    fn render_statusline(&mut self, statusline: &Viewport) -> Result<()> {
+        for (x, cell) in statusline.cells.iter().enumerate() {
+            self.stdout
+                .queue(cursor::MoveTo(x as u16, self.size.height as u16 - 2))?;
 
-            if let Some(bg) = change.cell.style.bg {
+            if let Some(bg) = cell.style.bg {
                 self.stdout.queue(style::SetBackgroundColor(bg))?;
             } else {
                 self.stdout
                     .queue(style::SetBackgroundColor(self.theme.style.bg.unwrap()))?;
             }
-            if let Some(fg) = change.cell.style.fg {
+            if let Some(fg) = cell.style.fg {
                 self.stdout.queue(style::SetForegroundColor(fg))?;
             } else {
                 self.stdout
                     .queue(style::SetForegroundColor(self.theme.style.fg.unwrap()))?;
             }
 
-            self.stdout.queue(Print(change.cell.c))?;
+            self.stdout.queue(Print(cell.c))?;
         }
         Ok(())
     }
@@ -330,21 +336,19 @@ impl<'a> View<'a> {
         viewport.set_text(0, 0, &content, &self.theme.style);
     }
 
-    fn render_commandline(&mut self, changes: Vec<Change>) -> anyhow::Result<()> {
-        for change in changes {
-            self.stdout.queue(cursor::MoveTo(
-                change.col as u16,
-                self.size.height as u16 - 1,
-            ))?;
+    fn render_commandline(&mut self, commandline: &Viewport) -> anyhow::Result<()> {
+        for (x, cell) in commandline.cells.iter().enumerate() {
+            self.stdout
+                .queue(cursor::MoveTo(x as u16, self.size.height as u16 - 1))?;
 
-            let Style { fg, bg, .. } = change.cell.style;
+            let Style { fg, bg, .. } = cell.style;
             let bg = bg.expect("commandline should always have a bg");
             let fg = fg.expect("commandline should always have a fg");
 
             self.stdout
                 .queue(style::SetBackgroundColor(bg))?
                 .queue(style::SetForegroundColor(fg))?
-                .queue(Print(change.cell.c))?;
+                .queue(Print(cell.c))?;
         }
         Ok(())
     }

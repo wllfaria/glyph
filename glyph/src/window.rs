@@ -25,10 +25,11 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn resize(&mut self, new_size: PaneSize) {
+    pub fn resize(&mut self, new_size: PaneSize) -> anyhow::Result<()> {
         for pane in self.panes.values_mut() {
-            pane.resize(new_size.clone());
+            pane.resize(new_size.clone())?;
         }
+        Ok(())
     }
 
     pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {

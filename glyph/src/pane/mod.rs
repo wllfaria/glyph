@@ -87,8 +87,8 @@ impl<'a> Pane<'a> {
             buffer,
             highlight: Highlight::new(theme),
             stdout: stdout(),
-            size: (0, 0).into(),
-            viewport: Viewport::new(0, 0),
+            size: (1, 1).into(),
+            viewport: Viewport::new(1, 1),
             cursor: Cursor::new(),
             scroll: Position::default(),
             gutter,
@@ -98,14 +98,21 @@ impl<'a> Pane<'a> {
         }
     }
 
-    pub fn resize(&mut self, new_size: PaneSize) {
-        self.viewport.resize(new_size.width, new_size.height);
+    pub fn resize(&mut self, new_size: PaneSize) -> anyhow::Result<()> {
+        tracing::debug!("attempting resize {new_size:?}");
+        let last_viewport = self.viewport.clone();
+        let mut viewport = Viewport::new(new_size.width, new_size.height);
         self.size = new_size;
+        self.draw_sidebar(&mut viewport);
+        self.draw_buffer(&mut viewport);
+        self.draw_diff(viewport.diff(&last_viewport))?;
+        self.viewport = viewport;
+        Ok(())
     }
 
     pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         let last_viewport = self.viewport.clone();
-        let mut viewport = Viewport::new(self.size.width, self.size.height);
+        let viewport = Viewport::new(self.size.width, self.size.height);
 
         self.stdout.queue(crossterm::cursor::Hide)?;
         match action {
@@ -138,6 +145,16 @@ impl<'a> Pane<'a> {
             _ => (),
         };
 
+        self.redraw(viewport, last_viewport, mode)?;
+        Ok(())
+    }
+
+    fn redraw(
+        &mut self,
+        mut viewport: Viewport,
+        last_viewport: Viewport,
+        mode: &Mode,
+    ) -> anyhow::Result<()> {
         self.draw_sidebar(&mut viewport);
         self.draw_cursor(mode)?;
         self.draw_buffer(&mut viewport);
@@ -173,7 +190,7 @@ impl<'a> Pane<'a> {
                                         self.theme,
                                         self.config,
                                     );
-                                    pane.resize((40, 10).into());
+                                    _ = pane.resize((40, 10).into());
                                     pane.size.row = self.cursor.row;
                                     pane.size.col = self.cursor.col;
                                     self.popups.push(pane);
