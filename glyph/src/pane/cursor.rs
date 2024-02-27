@@ -31,40 +31,52 @@ impl Cursor {
             KeyAction::Simple(Action::MoveToLineStart) => self.move_to_line_start(buffer),
             KeyAction::Simple(Action::MoveToLineEnd) => self.move_to_line_end(buffer),
             KeyAction::Simple(Action::NextWord) => self.move_to_next_word(buffer),
-            KeyAction::Simple(Action::InsertChar(_)) => {
-                self.absolute_position += 1;
-                self.col += 1;
-            }
-            KeyAction::Simple(Action::DeletePreviousChar) => match self.col {
-                c if c == 0 && self.row == 0 => (),
-                0 => {
-                    self.move_up(buffer);
-                    self.move_to_line_end(buffer);
-                }
-                _ => {
-                    self.col = self.col.saturating_sub(1);
-                    self.absolute_position = self.absolute_position.saturating_sub(1);
-                }
-            },
-            KeyAction::Simple(Action::InsertLineBelow) => {
-                self.col = 0;
-                self.row += 1;
-                if let Some(mark) = buffer.marker.get_by_line(self.row + 1) {
-                    self.absolute_position = mark.start;
-                }
-            }
-            KeyAction::Simple(Action::InsertLineAbove) => {
-                self.col = 0;
-                if let Some(mark) = buffer.marker.get_by_line(self.row + 1) {
-                    self.absolute_position = mark.start;
-                }
-            }
-            KeyAction::Simple(Action::InsertLine) => {
-                self.absolute_position += 1;
-                self.col = 0;
-                self.row += 1;
-            }
+            KeyAction::Simple(Action::InsertChar(_)) => self.insert_char(),
+            KeyAction::Simple(Action::DeletePreviousChar) => self.delete_prev_char(buffer),
+            KeyAction::Simple(Action::InsertLineBelow) => self.insert_line_below(buffer),
+            KeyAction::Simple(Action::InsertLineAbove) => self.insert_line_above(buffer),
+            KeyAction::Simple(Action::InsertLine) => self.insert_line(),
             _ => (),
+        }
+    }
+
+    fn insert_char(&mut self) {
+        self.absolute_position += 1;
+        self.col += 1;
+    }
+
+    fn insert_line(&mut self) {
+        self.absolute_position += 1;
+        self.col = 0;
+        self.row += 1;
+    }
+
+    fn insert_line_below(&mut self, buffer: &mut Buffer) {
+        self.col = 0;
+        self.row += 1;
+        if let Some(mark) = buffer.marker.get_by_line(self.row + 1) {
+            self.absolute_position = mark.start;
+        }
+    }
+
+    fn insert_line_above(&mut self, buffer: &mut Buffer) {
+        self.col = 0;
+        if let Some(mark) = buffer.marker.get_by_line(self.row + 1) {
+            self.absolute_position = mark.start;
+        }
+    }
+
+    fn delete_prev_char(&mut self, buffer: &mut Buffer) {
+        match (self.col, self.row) {
+            (0, 0) => (),
+            (0, _) => {
+                self.move_up(buffer);
+                self.move_to_line_end(buffer);
+            }
+            _ => {
+                self.col = self.col.saturating_sub(1);
+                self.absolute_position = self.absolute_position.saturating_sub(1);
+            }
         }
     }
 
@@ -101,11 +113,6 @@ impl Cursor {
                 self.row -= 1;
             }
         }
-    }
-
-    fn insert_right(&mut self, _: &mut Buffer) {
-        self.col += 1;
-        self.absolute_position += 1;
     }
 
     fn move_right(&mut self, buffer: &mut Buffer, mode: &Mode) {
@@ -562,5 +569,145 @@ mod tests {
         assert_eq!(cursor.col, 10);
         assert_eq!(cursor.absolute_position, 10);
         assert_eq!(cursor.row, 0);
+    }
+
+    #[test]
+    fn test_move_to_top() {
+        let gap = 5;
+        let mut cursor = Cursor::new();
+        let mut buffer = Buffer::from_string(1, "Random\nmultiline\nstring\ntext\nbuffer", gap);
+
+        for _ in 0..5 {
+            cursor.handle(
+                &KeyAction::Simple(Action::MoveDown),
+                &mut buffer,
+                &Mode::Normal,
+            );
+        }
+
+        assert_eq!(cursor.row, 4);
+        assert_eq!(cursor.col, 4);
+        assert_eq!(cursor.absolute_position, 33);
+
+        cursor.handle(
+            &KeyAction::Simple(Action::MoveToTop),
+            &mut buffer,
+            &Mode::Normal,
+        );
+
+        assert_eq!(cursor.row, 0);
+        assert_eq!(cursor.col, 0);
+        assert_eq!(cursor.absolute_position, 0);
+    }
+
+    #[test]
+    fn test_move_to_bottom() {
+        let gap = 5;
+        let mut cursor = Cursor::new();
+        let mut buffer = Buffer::from_string(1, "Random\nmultiline\nstring\ntext\nbuffer", gap);
+
+        cursor.handle(
+            &KeyAction::Simple(Action::MoveToBottom),
+            &mut buffer,
+            &Mode::Normal,
+        );
+
+        assert_eq!(cursor.row, 4);
+        assert_eq!(cursor.col, 4);
+        assert_eq!(cursor.absolute_position, 33);
+    }
+
+    #[test]
+    fn test_insert_char() {
+        let gap = 5;
+        let mut cursor = Cursor::new();
+        let mut buffer = Buffer::from_string(1, "Hello, World!", gap);
+
+        cursor.handle(
+            &KeyAction::Simple(Action::InsertChar('.')),
+            &mut buffer,
+            &Mode::Normal,
+        );
+
+        assert_eq!(cursor.row, 0);
+        assert_eq!(cursor.col, 1);
+        assert_eq!(cursor.absolute_position, 1);
+    }
+
+    #[test]
+    fn test_delete_prev_char() {
+        let gap = 5;
+        let mut cursor = Cursor::new();
+        let mut buffer = Buffer::from_string(1, "Hello, World!", gap);
+        cursor.col = 3;
+        cursor.absolute_position = 3;
+
+        cursor.handle(
+            &KeyAction::Simple(Action::DeletePreviousChar),
+            &mut buffer,
+            &Mode::Normal,
+        );
+
+        assert_eq!(cursor.col, 2);
+        assert_eq!(cursor.absolute_position, 2);
+    }
+
+    #[test]
+    fn test_insert_line_below() {
+        let gap = 5;
+        let mut cursor = Cursor::new();
+        let mut buffer = Buffer::from_string(1, "Hello\nWorld!", gap);
+        cursor.col = 3;
+        cursor.absolute_position = 3;
+
+        cursor.handle(
+            &KeyAction::Simple(Action::InsertLineBelow),
+            &mut buffer,
+            &Mode::Normal,
+        );
+
+        assert_eq!(cursor.col, 0);
+        assert_eq!(cursor.absolute_position, 6);
+        assert_eq!(cursor.row, 1);
+    }
+
+    #[test]
+    fn test_insert_line_above() {
+        let gap = 5;
+        let mut cursor = Cursor::new();
+        let mut buffer = Buffer::from_string(1, "Hello\nWorld!", gap);
+        cursor.col = 3;
+        cursor.row = 1;
+        cursor.absolute_position = 9;
+
+        cursor.handle(
+            &KeyAction::Simple(Action::InsertLineAbove),
+            &mut buffer,
+            &Mode::Normal,
+        );
+
+        assert_eq!(cursor.col, 0);
+        assert_eq!(cursor.absolute_position, 6);
+        assert_eq!(cursor.row, 1);
+    }
+
+    #[test]
+    fn test_insert_line() {
+        let gap = 5;
+        let mut cursor = Cursor::new();
+        let mut buffer = Buffer::from_string(1, "Hello\nWorld!", gap);
+        cursor.col = 3;
+        cursor.row = 0;
+        cursor.absolute_position = 6;
+
+        cursor.handle(
+            &KeyAction::Simple(Action::InsertLine),
+            &mut buffer,
+            &Mode::Normal,
+        );
+
+        assert_eq!(cursor.col, 0);
+        assert_eq!(cursor.absolute_position, 7);
+        assert_eq!(cursor.row, 1);
     }
 }
