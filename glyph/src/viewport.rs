@@ -64,7 +64,6 @@ impl Viewport {
 
     pub fn diff(&self, other: &Viewport) -> Vec<Change> {
         let mut changes = vec![];
-        tracing::debug!("{}, {}", self.cells.len(), other.cells.len());
         for (p, cell) in self.cells.iter().enumerate() {
             let row = p / self.width;
             let col = p % self.width;
@@ -78,7 +77,6 @@ impl Viewport {
                 false => changes.push(Change { row, col, cell }),
             }
         }
-        tracing::debug!("total changes: {}", changes.len());
         changes
     }
 

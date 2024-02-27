@@ -59,7 +59,6 @@ pub struct Pane<'a> {
     pub size: PaneSize,
     stdout: Stdout,
     theme: &'a Theme,
-    popups: Vec<Pane<'a>>,
 }
 
 impl<'a> Pane<'a> {
@@ -94,12 +93,10 @@ impl<'a> Pane<'a> {
             gutter,
             config,
             theme,
-            popups: vec![],
         }
     }
 
     pub fn resize(&mut self, new_size: PaneSize) -> anyhow::Result<()> {
-        tracing::debug!("attempting resize {new_size:?}");
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(new_size.width, new_size.height);
         self.size = new_size;
@@ -190,10 +187,6 @@ impl<'a> Pane<'a> {
                                         self.theme,
                                         self.config,
                                     );
-                                    _ = pane.resize((40, 10).into());
-                                    pane.size.row = self.cursor.row;
-                                    pane.size.col = self.cursor.col;
-                                    self.popups.push(pane);
                                     tracing::debug!("Opening lsp hover popup");
                                 }
                             }
@@ -204,14 +197,6 @@ impl<'a> Pane<'a> {
                 _ => (),
             }
         }
-    }
-
-    fn draw_popups(&mut self, mode: &Mode) -> anyhow::Result<()> {
-        for popup in self.popups.iter_mut() {
-            popup.initialize(&mode)?;
-        }
-
-        Ok(())
     }
 
     pub fn initialize(&mut self, mode: &Mode) -> Result<()> {
@@ -229,7 +214,6 @@ impl<'a> Pane<'a> {
             self.size.col as u16,
             self.size.row as u16,
         ))?;
-        tracing::debug!("amount of cells {:?}", &viewport.cells.len());
         for cell in &viewport.cells {
             if let Some(fg) = cell.style.fg {
                 self.stdout.queue(style::SetForegroundColor(fg))?;

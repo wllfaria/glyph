@@ -79,7 +79,6 @@ impl<'a> View<'a> {
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
             KeyAction::Simple(Action::Resize(cols, rows)) => {
-                tracing::debug!("resizing: ({cols}, {rows})");
                 self.size = (*cols, *rows).into();
                 active_window.resize(PaneSize {
                     row: 0,
@@ -160,7 +159,6 @@ impl<'a> View<'a> {
             }
             _ => {
                 self.command.pop();
-                tracing::debug!("command is {}", self.command);
                 self.commandline
                     .set_text(0, 0, &self.command, &self.theme.style);
                 self.stdout.queue(cursor::MoveLeft(1))?;

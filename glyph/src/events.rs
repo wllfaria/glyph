@@ -35,7 +35,6 @@ impl<'a> Events<'a> {
                     match action {
                         KeyAction::Complex(complex) => {
                             let action = complex.get(key.to_string().as_str());
-                            tracing::trace!("{action:?}");
                             if let Some(action) = action {
                                 self.action_being_composed = None;
                                 return Some(action.clone());
@@ -101,7 +100,6 @@ impl<'a> Events<'a> {
         }
     }
     pub fn handle_command_event(&self, event: &Event) -> Option<KeyAction> {
-        tracing::debug!("handling command event");
         let (_, action) = self.map_event_to_key_action(&self.config.keys.command, event);
         if let Some(action) = action {
             match action {

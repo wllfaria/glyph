@@ -93,7 +93,6 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
             };
             if let Some(err) = err_msg {
                 let error_message = format!("Failed to process message: {:?}", err);
-                tracing::error!("{}", &error_message);
                 writer_rtx
                     .send(IncomingMessage::ProcessingError(error_message))
                     .await
