@@ -8,7 +8,7 @@ use futures::{future::FutureExt, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::buffer::Buffer;
-use crate::config::{Action, Config, KeyAction};
+use crate::config::{Action, Config};
 use crate::events::Events;
 use crate::lsp::{IncomingMessage, LspClient};
 use crate::pane::Pane;
