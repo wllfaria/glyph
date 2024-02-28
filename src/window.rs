@@ -93,20 +93,20 @@ mod tests {
             Rect {
                 row: 0,
                 col: 0,
-                height: 0,
-                width: 0
+                height: 1,
+                width: 1
             }
         );
 
-        window.resize((10, 10).into()).unwrap();
+        window.resize((0, 0).into()).unwrap();
 
         assert_eq!(
             window.get_active_pane().size,
             Rect {
                 row: 0,
                 col: 0,
-                height: 10,
-                width: 10
+                height: 0,
+                width: 0
             }
         );
     }
