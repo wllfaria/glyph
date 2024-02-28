@@ -7,48 +7,51 @@ empty_line_char = "~"
 show_diagnostics = true
 
 [keys.normal]
-"x" = "DeleteCurrentChar"
-"w" = "NextWord"
-"o" = ["InsertLineBelow", "MoveDown", { EnterMode = "Insert" }]
-"u" = "Undo"
-"z" = { "z" = "CenterLine" }
-":" = { EnterMode = "Command" }
-"g" = { "g" = "MoveToTop", "d" = "GoToDefinition" } 
-"I" = ["MoveToLineStart", { EnterMode = "Insert" }]
-"End" = "MoveToLineEnd"
-"Home" = "MoveToLineStart"
 "n" = "FindNext"
-"Right" = "MoveRight"
-"p" = "PasteBelow"
-"O" = ["InsertLine", { EnterMode = "Insert" }]
-"k" = "MoveUp"
-"l" = "MoveRight"
-"/" = { EnterMode = "Search" }
-"Down" = "MoveDown"
-"Up" = "MoveUp"
-"S-g" = "MoveToBottom"
-"C-d" = "PageDown"
-"C-u" = "PageUp"
+"S-K" = "Hover",
+"S-D" = "DeleteUntilEOL",
+"S-N" = "FindPrevious",
+"w" = "NextWord"
 "b" = "PreviousWord"
+"p" = "PasteBelow"
 "a" = [{ EnterMode = "Insert" }, "MoveRight"]
-"$" = "MoveToLineEnd"
-"i" = { EnterMode = "Insert" }
-"S-a" = [{ EnterMode = "Insert" }, "MoveToLineEnd"]
-"d" = { "w" = "DeleteWord", "d" = "DeleteLine", "b" = "DeleteBack" }
-"0" = "MoveToLineStart"
-"Left" = "MoveLeft"
-"S-n" = "FindPrevious"
+"S-A" = [{ EnterMode = "Insert" }, "MoveToLineEnd", "MoveRight"]
+"S-O" = ["InsertLineAbove", { EnterMode = "Insert" }]
+"o" = ["InsertLineBelow", { EnterMode = "Insert" }]
+"u" = "Undo"
+"k" = "MoveUp"
+"Up" = "MoveUp"
 "j" = "MoveDown"
 "h" = "MoveLeft"
+"l" = "MoveRight"
+"S-G" = "MoveToBottom"
+"$" = "MoveToLineEnd"
+"0" = "MoveToLineStart"
+"x" = "DeleteCurrentChar"
+"/" = { EnterMode = "Search" }
+"i" = { EnterMode = "Insert" }
+"S-I" = [{ EnterMode = "Insert" }, "MoveToLineStart"]
+":" = { EnterMode = "Command" }
+"Down" = "MoveDown"
+"Left" = "MoveLeft"
+"Right" = "MoveRight"
+"C-d" = "PageDown"
+"C-u" = "PageUp"
+"End" = "MoveToLineEnd"
+"Home" = "MoveToLineStart"
+"g" = { "g" = "MoveToTop", "d" = "GoToDefinition" } 
+"d" = { "w" = "DeleteWord", "d" = "DeleteLine", "b" = "DeleteBack" }
+"z" = { "z" = "CenterLine" }
 
 [keys.insert]
-"Esc" = { EnterMode = "Normal" }
-"C-c" = { EnterMode = "Normal" }
+"Enter" = "InsertLine"
 "Backspace" = "DeletePreviousChar"
 "Tab" = "InsertTab"
-"Enter" = "InsertLine"
-"j" = { "k" = { EnterMode = "Normal" }}
+"Esc" = { EnterMode = "Normal" }
+"C-c" = { EnterMode = "Normal" }
 
 [keys.command]
 "Esc" = { EnterMode = "Normal" }
 "C-c" = { EnterMode = "Normal" }
+"Enter" = "ExecuteCommand"
+"Backspace" = "DeletePreviousChar"

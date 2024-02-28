@@ -3,15 +3,15 @@ use std::io::{stdout, Result, Stdout, Write};
 use std::sync::mpsc;
 
 use crossterm::style::Print;
-use crossterm::{cursor, event, style};
+use crossterm::{cursor, style};
 use crossterm::{terminal, QueueableCommand};
 
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
 use crate::lsp::IncomingMessage;
-use crate::pane::{PaneSize, Position};
+use crate::pane::{Position, Rect};
 use crate::theme::{Style, Theme};
-use crate::viewport::{Change, Viewport};
+use crate::viewport::Viewport;
 use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
@@ -80,7 +80,7 @@ impl<'a> View<'a> {
         match action {
             KeyAction::Simple(Action::Resize(cols, rows)) => {
                 self.size = (*cols, *rows).into();
-                active_window.resize(PaneSize {
+                active_window.resize(Rect {
                     row: 0,
                     col: 0,
                     height: self.size.height - 2,
@@ -110,7 +110,7 @@ impl<'a> View<'a> {
             }
             KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
                 self.tx.send(Action::EnterMode(Mode::Command))?;
-                self.mode = Mode::Normal;
+                self.mode = Mode::Command;
                 self.enter_command_mode()?;
             }
             KeyAction::Simple(Action::InsertCommand(c)) => {
@@ -351,8 +351,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    pub fn handle_lsp_message(&mut self, message: (IncomingMessage, Option<String>)) {
-        let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle_lsp_message(message);
+    pub fn handle_lsp_message(&mut self, _message: (IncomingMessage, Option<String>)) {
+        // do nothing for now
     }
 }

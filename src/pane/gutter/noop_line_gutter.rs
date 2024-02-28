@@ -25,15 +25,29 @@ impl Gutter for NoopLineDrawer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::Config;
+    use crate::config::{Config, EditorBackground, Keys, LineNumbers};
     use crate::theme::Theme;
     use crate::viewport::Viewport;
+
+    fn get_config() -> Config {
+        Config {
+            gutter_width: 6,
+            theme: "".into(),
+            keys: Keys::default(),
+            log_file: None,
+            background: EditorBackground::Dark,
+            line_numbers: LineNumbers::Absolute,
+            empty_line_char: '~',
+            show_diagnostics: true,
+            mouse_scroll_lines: None,
+        }
+    }
 
     #[test]
     fn test_ensure_does_nothing() {
         let mut vp = Viewport::new(2, 2);
         let theme = Theme::default();
-        let config = Config::default();
+        let config = get_config();
         let noop_gutter = NoopLineDrawer::new(config, theme);
 
         noop_gutter.draw(&mut vp, 2, 1, 1);

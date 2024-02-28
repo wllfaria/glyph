@@ -1,16 +1,21 @@
 mod buffer;
 mod config;
+mod cursor;
 mod editor;
 mod events;
 mod highlight;
 mod lsp;
 mod pane;
 mod theme;
+mod tui;
 mod view;
 mod viewport;
 mod window;
 
-use std::path::{Path, PathBuf};
+use std::{
+    io::{Error, ErrorKind},
+    path::{Path, PathBuf},
+};
 
 use config::{Config, EditorBackground};
 use tracing::Level;
@@ -21,26 +26,21 @@ use lsp::LspClient;
 use theme::{loader::ThemeLoader, Theme};
 
 fn load_config() -> anyhow::Result<Config> {
-    let mut default = Config::default();
     let config_dir = Config::get_path();
-    if !config_dir.exists() {
-        std::fs::create_dir(&config_dir)?;
-    }
     let config_file = config_dir.join("glyph.toml");
     let config_file = Path::new(&config_file);
-    match config_file.exists() {
-        false => {
-            let config_contents = toml::to_string(&default)?;
-            std::fs::write(config_file, &config_contents[..])?;
-            Ok(default)
-        }
-        true => {
-            let toml = std::fs::read_to_string(config_file)?;
-            let config: Config = toml::from_str(&toml)?;
-            default.extend(config);
-            Ok(default)
-        }
+    // TODO: in the future, the initial config should be installed automatically
+    if !config_file.exists() {
+        tracing::error!("loaded failed");
+        return Err(anyhow::Error::new(Error::new(
+            ErrorKind::NotFound,
+            "config file not found. please refer to the configuration section of the readme",
+        )));
     }
+    let toml = std::fs::read_to_string(config_file)?;
+    tracing::error!("loaded config");
+    let config: Config = toml::from_str(&toml)?;
+    Ok(config)
 }
 
 fn load_theme(

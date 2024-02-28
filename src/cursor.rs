@@ -2,7 +2,7 @@ use crate::buffer::Buffer;
 use crate::config::{Action, KeyAction};
 use crate::editor::Mode;
 
-use super::Position;
+use crate::pane::Position;
 
 #[derive(Debug)]
 pub struct Cursor {
