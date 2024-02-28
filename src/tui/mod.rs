@@ -16,22 +16,21 @@ pub trait Scrollable: Renderable {
     ) -> anyhow::Result<()> {
         let height = area.height;
         let width = area.width;
-        match (cursor.col, cursor.row) {
-            // Should scroll down
-            (_, y) if (y + 1).saturating_sub(scroll.row) >= height => {
-                scroll.row = y + 1 - height;
+        // normalizing the row/col with line numbers
+        let (col, row) = (cursor.col + 1, cursor.row + 1);
+
+        match (col, row) {
+            (_, y) if y.saturating_sub(scroll.row) >= height => {
+                scroll.row = y - height;
             }
-            // Should scroll up
-            (_, y) if (y + 1).saturating_sub(scroll.row) == 0 => {
-                scroll.row -= scroll.row - y;
+            (_, y) if y.saturating_sub(scroll.row) == 0 => {
+                scroll.row -= scroll.row - y - 1;
             }
-            // Should scroll right
             (x, _) if x.saturating_sub(scroll.col) >= width => {
-                scroll.col = x + 1 - width;
+                scroll.col = x - width;
             }
-            // Should scroll left
-            (x, _) if (x + 1).saturating_sub(scroll.col) == 0 => {
-                scroll.col -= scroll.col - x;
+            (x, _) if x.saturating_sub(scroll.col) == 0 => {
+                scroll.col -= scroll.col - x - 1;
             }
             _ => (),
         }
