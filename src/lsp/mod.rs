@@ -460,7 +460,7 @@ impl LspClient {
                     "textDocument": {
                         "hover": {
                             "dynamicRegistration": true,
-                            "contentFormat": ["markdown", "plaintext"]
+                            "contentFormat": ["plaintext"]
                         },
                         "completion": {
                             "completionItem": {

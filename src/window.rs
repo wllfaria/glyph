@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::config::KeyAction;
 use crate::editor::Mode;
+use crate::lsp::IncomingMessage;
 use crate::pane::{Pane, Rect};
 
 pub struct Window<'a> {
@@ -36,6 +37,15 @@ impl<'a> Window<'a> {
             KeyAction::Simple(_) => active_pane.handle_action(action, mode)?,
             _ => {}
         }
+        Ok(())
+    }
+
+    pub fn handle_lsp_message(
+        &mut self,
+        message: (IncomingMessage, Option<String>),
+    ) -> anyhow::Result<()> {
+        let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
+        active_pane.handle_lsp_message(message)?;
         Ok(())
     }
 

@@ -9,9 +9,10 @@ use crate::config::{Action, Config, KeyAction, LineNumbers};
 use crate::cursor::Cursor;
 use crate::editor::Mode;
 use crate::highlight::Highlight;
+use crate::lsp::IncomingMessage;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
-use crate::tui::{HoverPopup, Renderable, Scrollable, TuiView};
+use crate::tui::{HoverPopup, Scrollable, TuiView};
 use crate::viewport::{Cell, Viewport};
 
 use self::gutter::absolute_line_gutter::AbsoluteLineGutter;
@@ -109,7 +110,8 @@ impl<'a> Pane<'a> {
         self.draw_sidebar(&mut viewport);
         let cells = self.get_highlight();
         self.view.draw(&mut viewport, &cells, &self.scroll);
-        self.view.render_diff(&last_viewport, &viewport)?;
+        self.view
+            .render_diff(&last_viewport, &viewport, &self.theme.style)?;
         self.viewport = viewport;
         Ok(())
     }
@@ -146,10 +148,7 @@ impl<'a> Pane<'a> {
     }
 
     pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
-        let last_viewport = self.viewport.clone();
-        let viewport = Viewport::new(self.size.width, self.size.height);
-
-        self.stdout.queue(crossterm::cursor::Hide)?;
+        self.popups.clear();
         match action {
             KeyAction::Simple(Action::MoveToLineStart) => {
                 self.handle_cursor_action(action, mode)?
@@ -180,23 +179,29 @@ impl<'a> Pane<'a> {
             _ => (),
         };
 
-        self.redraw(viewport, last_viewport, mode)?;
+        self.redraw()?;
+        self.draw_cursor(mode)?;
         Ok(())
     }
 
-    fn redraw(
-        &mut self,
-        mut viewport: Viewport,
-        last_viewport: Viewport,
-        mode: &Mode,
-    ) -> anyhow::Result<()> {
+    fn redraw(&mut self) -> anyhow::Result<()> {
+        self.stdout
+            .queue(crossterm::cursor::Hide)?
+            .queue(crossterm::cursor::SavePosition)?;
+        let last_viewport = self.viewport.clone();
+        let mut viewport = Viewport::new(self.size.width, self.size.height);
         self.draw_sidebar(&mut viewport);
-        self.draw_cursor(mode)?;
         let cells = self.get_highlight();
         self.view.draw(&mut viewport, &cells, &mut self.scroll);
-        self.view.render_diff(&last_viewport, &viewport)?;
+        for popup in self.popups.iter_mut() {
+            popup.render(&mut viewport)?;
+        }
+        self.view
+            .render_diff(&last_viewport, &viewport, &self.theme.style)?;
         self.viewport = viewport;
-        self.stdout.queue(crossterm::cursor::Show)?;
+        self.stdout
+            .queue(crossterm::cursor::Show)?
+            .queue(crossterm::cursor::RestorePosition)?;
         Ok(())
     }
 
@@ -206,7 +211,8 @@ impl<'a> Pane<'a> {
         self.draw_cursor(mode)?;
         let cells = self.get_highlight();
         self.view.draw(&mut viewport, &cells, &self.scroll);
-        self.view.render_diff(&Viewport::new(0, 0), &viewport)?;
+        self.view
+            .render_diff(&Viewport::new(0, 0), &viewport, &self.theme.style)?;
         self.viewport = viewport;
         Ok(())
     }
@@ -284,5 +290,47 @@ impl<'a> Pane<'a> {
 
     pub fn get_buffer(&self) -> Rc<RefCell<Buffer>> {
         self.buffer.clone()
+    }
+
+    pub fn handle_lsp_message(
+        &mut self,
+        message: (IncomingMessage, Option<String>),
+    ) -> anyhow::Result<()> {
+        if let Some(method) = message.1 {
+            match method.as_str() {
+                "textDocument/hover" => {
+                    let message = message.0;
+                    match message {
+                        IncomingMessage::Message(message) => {
+                            let result = match message.result {
+                                serde_json::Value::Array(ref arr) => arr[0].as_object().unwrap(),
+                                serde_json::Value::Object(ref obj) => obj,
+                                _ => return Ok(()),
+                            };
+                            if let Some(contents) = result.get("contents") {
+                                if let Some(contents) = contents.as_object() {
+                                    if let Some(serde_json::Value::String(value)) =
+                                        contents.get("value")
+                                    {
+                                        let offset = self.config.gutter_width;
+                                        let popup = HoverPopup::new(
+                                            self.cursor.col - self.scroll.col + offset,
+                                            self.cursor.row - self.scroll.row,
+                                            self.theme,
+                                            value.into(),
+                                        );
+                                        self.popups.push(popup);
+                                    }
+                                }
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+                _ => (),
+            }
+        };
+        self.redraw()?;
+        Ok(())
     }
 }

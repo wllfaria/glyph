@@ -1,6 +1,6 @@
 use crate::theme::Style;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cell {
     pub c: char,
     pub style: Style,
@@ -68,13 +68,13 @@ impl Viewport {
             let row = p / self.width;
             let col = p % self.width;
 
-            match other.cells.len() == self.cells.len() {
-                true => {
-                    if *cell != other.cells[p] {
-                        changes.push(Change { row, col, cell });
-                    }
-                }
-                false => changes.push(Change { row, col, cell }),
+            if other.cells.len() != self.cells.len() {
+                changes.push(Change { row, col, cell });
+                continue;
+            }
+
+            if *cell != other.cells[p] {
+                changes.push(Change { row, col, cell });
             }
         }
         changes

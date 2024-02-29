@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-
 use crossterm::style::Color;
 use serde::Deserialize;
 
@@ -38,6 +37,7 @@ pub struct ThemeLoader {
     name: String,
     appearance: AppearanceStyle,
     statusline: StatuslineStyle,
+    float: TokenStyle,
     gutter: TokenStyle,
     tokens: HashMap<String, TokenStyle>,
 }
@@ -85,6 +85,7 @@ impl From<ThemeLoader> for Theme {
             name: val.name,
             statusline: val.statusline.into(),
             gutter: val.gutter.into(),
+            float: val.float.into(),
             tokens,
             style: val.appearance.clone().into(),
             appearance: val.appearance.into(),
@@ -108,6 +109,7 @@ impl From<AppearanceStyle> for Appearance {
     fn from(val: AppearanceStyle) -> Self {
         Appearance {
             bg: hex_to_rgb(Some(val.bg)).unwrap().unwrap(),
+            fg: hex_to_rgb(Some(val.fg)).unwrap().unwrap(),
         }
     }
 }

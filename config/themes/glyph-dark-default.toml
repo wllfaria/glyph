@@ -4,6 +4,10 @@ name = "glyph-dark-default.toml"
 bg = "#242424"
 fg = "#cecece"
 
+[float]
+bg = "#1e1e1e"
+fg = "#cecece"
+
 [gutter]
 bg = "#242424"
 fg = "#666666"

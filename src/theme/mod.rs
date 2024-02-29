@@ -10,6 +10,7 @@ pub struct Theme {
     pub name: String,
     pub appearance: Appearance,
     pub statusline: Statusline,
+    pub float: Style,
     pub gutter: Style,
     pub tokens: HashMap<String, Style>,
     pub style: Style,
@@ -18,6 +19,7 @@ pub struct Theme {
 #[derive(Debug, Clone)]
 pub struct Appearance {
     pub bg: Color,
+    pub fg: Color,
 }
 
 #[derive(Debug, Clone)]
@@ -31,7 +33,7 @@ pub struct Gutter {
     pub fg: Color,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Style {
     pub fg: Option<Color>,
     pub bg: Option<Color>,
@@ -262,6 +264,7 @@ impl Default for Theme {
             statusline: Statusline::default(),
             gutter: Style::new(appearance.bg),
             tokens,
+            float: Style::new(appearance.bg),
             style: Style::new(appearance.bg),
             appearance,
         }
@@ -288,6 +291,7 @@ impl Default for Appearance {
     fn default() -> Self {
         Self {
             bg: Color::Rgb { r: 0, g: 0, b: 0 },
+            fg: Color::Rgb { r: 0, g: 0, b: 0 },
         }
     }
 }

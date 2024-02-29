@@ -3,7 +3,7 @@ use std::io::{stdout, Stdout};
 use crossterm::{cursor, style, QueueableCommand};
 
 use crate::pane::{Position, Rect};
-use crate::theme::Theme;
+use crate::theme::{Style, Theme};
 use crate::tui::{Renderable, Scrollable};
 use crate::viewport::{Cell, Viewport};
 
@@ -28,9 +28,14 @@ impl<'a> TuiView<'a> {
 impl Scrollable for TuiView<'_> {}
 
 impl Renderable for TuiView<'_> {
-    fn render_diff(&mut self, last_view: &Viewport, view: &Viewport) -> anyhow::Result<()> {
-        self.stdout.queue(crossterm::cursor::SavePosition)?;
+    fn render_diff(
+        &mut self,
+        last_view: &Viewport,
+        view: &Viewport,
+        default_style: &Style,
+    ) -> anyhow::Result<()> {
         let changes = view.diff(last_view);
+        tracing::debug!("{}", changes.len());
 
         for change in changes {
             let col = self.area.col + change.col;
@@ -42,20 +47,18 @@ impl Renderable for TuiView<'_> {
                 Some(bg) => self.stdout.queue(style::SetBackgroundColor(bg))?,
                 None => self
                     .stdout
-                    .queue(style::SetBackgroundColor(self.theme.style.bg.unwrap()))?,
+                    .queue(style::SetBackgroundColor(default_style.bg.unwrap()))?,
             };
 
             match change.cell.style.fg {
                 Some(fg) => self.stdout.queue(style::SetForegroundColor(fg))?,
                 None => self
                     .stdout
-                    .queue(style::SetForegroundColor(self.theme.style.fg.unwrap()))?,
+                    .queue(style::SetForegroundColor(default_style.fg.unwrap()))?,
             };
 
             self.stdout.queue(style::Print(change.cell.c))?;
         }
-
-        self.stdout.queue(crossterm::cursor::RestorePosition)?;
 
         Ok(())
     }

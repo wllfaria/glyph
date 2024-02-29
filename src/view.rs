@@ -351,7 +351,12 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    pub fn handle_lsp_message(&mut self, _message: (IncomingMessage, Option<String>)) {
-        // do nothing for now
+    pub fn handle_lsp_message(
+        &mut self,
+        message: (IncomingMessage, Option<String>),
+    ) -> anyhow::Result<()> {
+        let active_window = self.windows.get_mut(&self.active_window).unwrap();
+        active_window.handle_lsp_message(message)?;
+        Ok(())
     }
 }

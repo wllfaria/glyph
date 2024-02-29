@@ -121,6 +121,14 @@ impl Buffer {
             .join("\n")
     }
 
+    pub fn lines(&self) -> Lines {
+        Lines {
+            buffer: &self.buffer,
+            start: 0,
+            end: self.buffer.len(),
+        }
+    }
+
     pub fn line_from_mark(&self, mark: &Mark) -> String {
         let pos = self.translate_cursor_pos(mark.start);
         let mut lines = Lines {
