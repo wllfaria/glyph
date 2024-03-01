@@ -14,44 +14,36 @@ pub use hover_popup::HoverPopup;
 pub use tui_view::TuiView;
 
 pub trait Scrollable: Renderable {
-    fn maybe_scroll(
-        &self,
-        cursor: &Cursor,
-        scroll: &Position,
-        area: &Rect,
-    ) -> anyhow::Result<Position> {
-        let height = area.height;
-        let width = area.width;
-        let mut scroll = scroll.clone();
+    fn maybe_scroll(&mut self, cursor: &Cursor) {
+        let Rect { width, height, .. } = self.get_area();
+        let mut scroll = self.get_scroll().clone();
         // all the instances of `y + 1` or `x + 1` are just normalizing the row/col to be 1 indexed
         match (cursor.col, cursor.row) {
-            // if the normalized_row
-            (_, y) if (y + 1).saturating_sub(scroll.row) >= height => {
+            // should scroll down
+            (_, y) if (y + 1).saturating_sub(scroll.row) >= *height => {
                 scroll.row = y + 1 - height;
             }
             // Should scroll up
             (_, y) if (y + 1).saturating_sub(scroll.row) == 0 => {
-                scroll.row -= y;
+                tracing::error!("mths {} {}", (y + 1).saturating_sub(scroll.row), y);
+                scroll.row -= scroll.row - y;
             }
             // Should scroll right
-            (x, _) if x.saturating_sub(scroll.col) >= width => {
+            (x, _) if x.saturating_sub(scroll.col) >= *width => {
                 scroll.col = x + 1 - width;
             }
             // Should scroll left
             (x, _) if (x + 1).saturating_sub(scroll.col) == 0 => {
-                scroll.col -= x;
+                scroll.col -= scroll.col - x;
             }
             _ => (),
         }
-        Ok(scroll)
+        self.set_scroll(scroll.clone());
     }
 
     fn draw_cursor(&mut self, mode: &Mode, buffer: &Buffer, cursor: &Cursor) -> anyhow::Result<()> {
         let offset = self.get_offset();
-        let area = self.get_area();
-        let scroll = self.get_scroll();
-
-        let scroll = self.maybe_scroll(cursor, scroll, area)?;
+        let scroll = self.get_scroll().clone();
 
         let stdout = self.get_stdout();
 
@@ -70,7 +62,6 @@ pub trait Scrollable: Renderable {
             cursor.row.saturating_sub(scroll.row) as u16,
         ))?;
 
-        self.set_scroll(scroll);
         Ok(())
     }
 
@@ -94,7 +85,7 @@ pub trait Renderable {
         view: &Viewport,
         default_style: &Style,
     ) -> anyhow::Result<()>;
-    fn draw(&self, view: &mut Viewport, cells: &[Cell], scroll: &Position);
+    fn draw(&self, view: &mut Viewport, cells: &[Cell]);
     fn resize(&mut self, new_area: Rect, offset: usize);
     fn get_area(&self) -> &Rect;
     fn get_scroll(&self) -> &Position;

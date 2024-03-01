@@ -76,7 +76,7 @@ impl<'a> Editor<'a> {
         self.lsp.initialize().await?;
 
         loop {
-            let delay = futures_timer::Delay::new(Duration::from_millis(10)).fuse();
+            let delay = futures_timer::Delay::new(Duration::from_millis(30)).fuse();
             let event = stream.next().fuse();
 
             if let Ok(action) = rx.try_recv() {

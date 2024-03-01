@@ -359,7 +359,7 @@ impl<'a> View<'a> {
         message: (IncomingMessage, Option<String>),
     ) -> anyhow::Result<()> {
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle_lsp_message(message)?;
+        active_window.handle_lsp_message(message, &self.mode)?;
         Ok(())
     }
 }

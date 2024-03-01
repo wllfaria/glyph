@@ -42,9 +42,10 @@ impl<'a> Window<'a> {
     pub fn handle_lsp_message(
         &mut self,
         message: (IncomingMessage, Option<String>),
+        mode: &Mode,
     ) -> anyhow::Result<()> {
         let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
-        active_pane.handle_lsp_message(message)?;
+        active_pane.handle_lsp_message(message, mode)?;
         Ok(())
     }
 

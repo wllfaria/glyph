@@ -40,6 +40,7 @@ impl Viewport {
 
     pub fn set_cell(&mut self, col: usize, row: usize, c: char, style: &Style) {
         let pos = row * self.width + col;
+        tracing::error!("{col} {row} {pos} {}", self.width);
         self.cells[pos] = Cell { c, style: *style };
     }
 

@@ -35,7 +35,6 @@ impl Renderable for TuiView {
         default_style: &Style,
     ) -> anyhow::Result<()> {
         let changes = view.diff(last_view);
-        tracing::debug!("{}", changes.len());
 
         for change in changes {
             let col = self.area.col + change.col;
@@ -63,16 +62,15 @@ impl Renderable for TuiView {
         Ok(())
     }
 
-    fn draw(&self, view: &mut Viewport, cells: &[Cell], scroll: &Position) {
+    fn draw(&self, view: &mut Viewport, cells: &[Cell]) {
         let mut row = 0;
         let mut col = self.content_offset;
-
         for cell in cells {
-            if col >= scroll.col && col - scroll.col < self.area.width {
+            if col >= self.scroll.col && col - self.scroll.col < self.area.width {
                 // we print a space when the char is a newline so the background gets printed
                 match cell.c {
-                    '\n' => view.set_cell(col - scroll.col, row, ' ', &cell.style),
-                    _ => view.set_cell(col - scroll.col, row, cell.c, &cell.style),
+                    '\n' => view.set_cell(col - self.scroll.col, row, ' ', &cell.style),
+                    _ => view.set_cell(col - self.scroll.col, row, cell.c, &cell.style),
                 };
                 col += 1;
             }
