@@ -40,25 +40,13 @@ impl Viewport {
 
     pub fn set_cell(&mut self, col: usize, row: usize, c: char, style: &Style) {
         let pos = row * self.width + col;
-        self.cells[pos] = Cell {
-            c,
-            style: style.clone(),
-        };
-    }
-
-    pub fn resize(&mut self, width: usize, height: usize) {
-        self.width = width;
-        self.height = height;
-        self.cells = vec![Default::default(); width * height];
+        self.cells[pos] = Cell { c, style: *style };
     }
 
     pub fn set_text(&mut self, col: usize, row: usize, text: &str, style: &Style) {
         let pos = (row * self.width) + col;
         for (i, c) in text.chars().enumerate() {
-            self.cells[pos + i] = Cell {
-                c,
-                style: style.clone(),
-            }
+            self.cells[pos + i] = Cell { c, style: *style }
         }
     }
 
@@ -148,17 +136,6 @@ mod tests {
         let s = Style::default();
 
         vp.set_text(10, 10, "Hello, World!", &s);
-    }
-
-    #[test]
-    fn test_resize() {
-        let mut vp = Viewport::new(10, 10);
-
-        assert_eq!(vp.cells.len(), 100);
-
-        vp.resize(3, 3);
-
-        assert_eq!(vp.cells.len(), 9);
     }
 
     #[test]

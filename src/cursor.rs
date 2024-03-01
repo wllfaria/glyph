@@ -202,8 +202,7 @@ impl Cursor {
             .expect("current position should never be out of bounds");
         let starting_on_separator = self.is_separator(starting_char);
 
-        let mut iter = content[pos..].chars();
-        while let Some(char) = iter.next() {
+        for char in content[pos..].chars() {
             if starting_on_separator {
                 // we should skip repeated separators, such as :: or //
                 if !char.is_whitespace() && char != starting_char {
@@ -267,9 +266,7 @@ mod tests {
 
     #[test]
     fn test_get_readable_position() {
-        let gap = 5;
         let mut cursor = Cursor::new();
-        let mut buffer = Buffer::from_string(1, "Hello\nWorld\nEveryone", gap);
         cursor.row = 1;
 
         let pos = cursor.get_readable_position();

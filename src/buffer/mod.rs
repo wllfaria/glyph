@@ -129,7 +129,7 @@ impl Buffer {
         }
     }
 
-    pub fn line_from_mark(&self, mark: &Mark) -> String {
+    pub fn _line_from_mark(&self, mark: &Mark) -> String {
         let pos = self.translate_cursor_pos(mark.start);
         let mut lines = Lines {
             buffer: &self.buffer,
@@ -336,7 +336,7 @@ mod tests {
             start: 0,
         };
 
-        let line = buffer.line_from_mark(&mark);
+        let line = buffer._line_from_mark(&mark);
         assert_eq!(line, "Hello, World!");
     }
 
@@ -350,7 +350,7 @@ mod tests {
             start: 14 + gap,
         };
 
-        let line = buffer.line_from_mark(&mark);
+        let line = buffer._line_from_mark(&mark);
         assert_eq!(line, "");
     }
 

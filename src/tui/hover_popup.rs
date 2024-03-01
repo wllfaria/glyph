@@ -4,9 +4,9 @@ use crate::viewport::Viewport;
 use crate::{pane::Rect, viewport::Cell};
 
 pub struct HoverPopup<'a> {
-    area: Rect,
-    content: Buffer,
-    theme: &'a Theme,
+    _area: Rect,
+    _content: Buffer,
+    _theme: &'a Theme,
 }
 
 impl<'a> HoverPopup<'a> {
@@ -14,9 +14,9 @@ impl<'a> HoverPopup<'a> {
         let buffer = Buffer::from_string(0, &content, 0);
         let area = HoverPopup::calculate_area(&buffer, col, row);
         Self {
-            theme,
-            content: buffer,
-            area: area.clone(),
+            _theme: theme,
+            _content: buffer,
+            _area: area.clone(),
         }
     }
 
@@ -37,10 +37,10 @@ impl<'a> HoverPopup<'a> {
         }
     }
 
-    pub fn render(&mut self, view: &mut Viewport) -> anyhow::Result<()> {
-        let cells = self.content_to_vec_cells();
-        let mut col = self.area.col;
-        let mut row = self.area.row;
+    pub fn _render(&mut self, view: &mut Viewport) -> anyhow::Result<()> {
+        let cells = self._content_to_vec_cells();
+        let mut col = self._area.col;
+        let mut row = self._area.row;
         for line in cells.iter() {
             for cell in line {
                 match cell.c {
@@ -49,16 +49,16 @@ impl<'a> HoverPopup<'a> {
                 }
                 col += 1;
             }
-            col = self.area.col;
+            col = self._area.col;
             row += 1;
         }
         Ok(())
     }
 
-    fn content_to_vec_cells(&self) -> Vec<Vec<Cell>> {
-        let style = self.theme.float;
-        let mut cells = vec![vec![Cell { c: ' ', style }; self.area.width + 1]; self.area.height];
-        for (i, line) in self.content.lines().enumerate() {
+    fn _content_to_vec_cells(&self) -> Vec<Vec<Cell>> {
+        let style = self._theme.float;
+        let mut cells = vec![vec![Cell { c: ' ', style }; self._area.width + 1]; self._area.height];
+        for (i, line) in self._content.lines().enumerate() {
             for (j, c) in line.iter().enumerate() {
                 cells[i][j] = Cell { c: *c, style };
             }

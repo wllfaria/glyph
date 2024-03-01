@@ -55,7 +55,7 @@ impl<'a> View<'a> {
         let size = terminal::size()?;
 
         let id = window.id;
-        window.resize((size.0, size.1 - 2).into())?;
+        window.resize((size.0, size.1 - 2).into(), &mode)?;
         windows.insert(window.id, window);
 
         Ok(Self {
@@ -80,12 +80,15 @@ impl<'a> View<'a> {
         match action {
             KeyAction::Simple(Action::Resize(cols, rows)) => {
                 self.size = (*cols, *rows).into();
-                active_window.resize(Rect {
-                    row: 0,
-                    col: 0,
-                    height: self.size.height - 2,
-                    width: self.size.width,
-                })?;
+                active_window.resize(
+                    Rect {
+                        row: 0,
+                        col: 0,
+                        height: self.size.height - 2,
+                        width: self.size.width,
+                    },
+                    &self.mode,
+                )?;
                 statusline = Viewport::new(self.size.width, 1);
                 commandline = Viewport::new(self.size.width, 1);
             }

@@ -42,8 +42,6 @@ pub struct Editor<'a> {
     events: Events<'a>,
     view: View<'a>,
     lsp: LspClient,
-    config: &'a Config,
-    theme: &'a Theme,
     mode: Mode,
 }
 
@@ -62,8 +60,6 @@ impl<'a> Editor<'a> {
         let mut editor = Self {
             events: Events::new(config),
             view: View::new(config, theme, window, tx, mode.clone())?,
-            theme,
-            config,
             lsp,
             mode,
         };
@@ -96,7 +92,7 @@ impl<'a> Editor<'a> {
             tokio::select! {
                 _ = delay => {
                     if let Some(message) = self.lsp.try_read_message().await? {
-                        self.handle_lsp_message(message);
+                        self.handle_lsp_message(message)?;
                     }
                 }
                 maybe_event = event => {
@@ -120,17 +116,21 @@ impl<'a> Editor<'a> {
                 // have the view give this data instead of querying like this.
                 let pane = self.view.get_active_window().get_active_pane();
                 let cursor = &pane.cursor;
-                let file_path = &pane.buffer.borrow().file_name;
+                let file_name = pane.buffer.borrow().file_name.clone();
                 let row = cursor.row;
                 let col = cursor.col;
-                self.lsp.request_hover(file_path, row, col).await?;
+                self.lsp.request_hover(&file_name, row, col).await?;
             }
             _ => (),
         };
         Ok(())
     }
 
-    fn handle_lsp_message(&mut self, message: (IncomingMessage, Option<String>)) {
-        self.view.handle_lsp_message(message);
+    fn handle_lsp_message(
+        &mut self,
+        message: (IncomingMessage, Option<String>),
+    ) -> anyhow::Result<()> {
+        self.view.handle_lsp_message(message)?;
+        Ok(())
     }
 }

@@ -3,31 +3,31 @@ use std::io::{stdout, Stdout};
 use crossterm::{cursor, style, QueueableCommand};
 
 use crate::pane::{Position, Rect};
-use crate::theme::{Style, Theme};
+use crate::theme::Style;
 use crate::tui::{Renderable, Scrollable};
 use crate::viewport::{Cell, Viewport};
 
-pub struct TuiView<'a> {
+pub struct TuiView {
     stdout: Stdout,
     area: Rect,
-    theme: &'a Theme,
     content_offset: usize,
+    scroll: Position,
 }
 
-impl<'a> TuiView<'a> {
-    pub fn new(area: Rect, theme: &'a Theme, content_offset: usize) -> Self {
+impl TuiView {
+    pub fn new(area: Rect, content_offset: usize) -> Self {
         Self {
             stdout: stdout(),
             area,
-            theme,
             content_offset,
+            scroll: Position::default(),
         }
     }
 }
 
-impl Scrollable for TuiView<'_> {}
+impl Scrollable for TuiView {}
 
-impl Renderable for TuiView<'_> {
+impl Renderable for TuiView {
     fn render_diff(
         &mut self,
         last_view: &Viewport,
@@ -87,5 +87,25 @@ impl Renderable for TuiView<'_> {
     fn resize(&mut self, new_area: Rect, offset: usize) {
         self.area = new_area;
         self.content_offset = offset;
+    }
+
+    fn get_area(&self) -> &Rect {
+        &self.area
+    }
+
+    fn get_scroll(&self) -> &Position {
+        &self.scroll
+    }
+
+    fn set_scroll(&mut self, scroll: Position) {
+        self.scroll = scroll;
+    }
+
+    fn get_offset(&self) -> usize {
+        self.content_offset
+    }
+
+    fn get_stdout(&mut self) -> &mut Stdout {
+        &mut self.stdout
     }
 }

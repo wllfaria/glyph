@@ -61,7 +61,7 @@ pub enum OutgoingMessage {
 #[derive(Debug)]
 pub enum IncomingMessage {
     Message(ResponseMessage),
-    Notification(ParsedNotification),
+    _Notification(ParsedNotification),
     UnknownNotification(NotificationMessage),
     Error(ResponseError),
     ProcessingError(String),
@@ -86,7 +86,7 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
         let mut stdin = BufWriter::new(stdin);
         while let Some(message) = request_rx.recv().await {
             let err_msg = match &message {
-                OutgoingMessage::Request(req) => lsp_send_request(&mut stdin, &req).await.err(),
+                OutgoingMessage::Request(req) => lsp_send_request(&mut stdin, req).await.err(),
                 OutgoingMessage::Notification(notif) => {
                     lsp_send_notification(&mut stdin, notif).await.err()
                 }
@@ -166,9 +166,9 @@ async fn lsp_start() -> anyhow::Result<LspClient> {
 
                     reader_rtx
                         .send(IncomingMessage::Error(ResponseError {
-                            code,
-                            message,
-                            data,
+                            _code: code,
+                            _message: message,
+                            _data: data,
                         }))
                         .await
                         .unwrap();
@@ -228,7 +228,7 @@ pub struct NotificationMessage {
 }
 
 impl NotificationMessage {
-    pub fn new(method: &str, params: Value) -> Self {
+    pub fn _new(method: &str, params: Value) -> Self {
         Self {
             method: method.to_string(),
             params,
@@ -244,9 +244,9 @@ pub struct ResponseMessage {
 
 #[derive(Debug)]
 pub struct ResponseError {
-    code: i64,
-    message: String,
-    data: Option<Value>,
+    _code: i64,
+    _message: String,
+    _data: Option<Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -433,7 +433,7 @@ impl LspClient {
         row: usize,
         col: usize,
     ) -> anyhow::Result<i64> {
-        let file_path = std::fs::canonicalize(&file_path)?;
+        let file_path = std::fs::canonicalize(file_path)?;
         let params = json!({
             "textDocument": {
                 "uri": format!("file://{}", file_path.to_string_lossy()),

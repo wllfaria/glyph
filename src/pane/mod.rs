@@ -1,8 +1,5 @@
 use std::cell::RefCell;
-use std::io::{stdout, Stdout};
 use std::rc::Rc;
-
-use crossterm::{self, QueueableCommand};
 
 use crate::buffer::Buffer;
 use crate::config::{Action, Config, KeyAction, LineNumbers};
@@ -21,7 +18,7 @@ use self::gutter::relative_line_gutter::RelativeLineDrawer;
 
 mod gutter;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Position {
     pub row: usize,
     pub col: usize,
@@ -50,16 +47,13 @@ pub struct Pane<'a> {
     pub id: usize,
     pub cursor: Cursor,
     highlight: Highlight<'a>,
-    scroll: Position,
     view: Box<dyn Scrollable + 'a>,
     pub buffer: Rc<RefCell<Buffer>>,
     viewport: Viewport,
     config: &'a Config,
     gutter: Box<dyn Gutter>,
     pub size: Rect,
-    stdout: Stdout,
     theme: &'a Theme,
-    popups: Vec<HoverPopup<'a>>,
 }
 
 impl<'a> Pane<'a> {
@@ -88,43 +82,34 @@ impl<'a> Pane<'a> {
             id,
             buffer,
             highlight: Highlight::new(theme),
-            stdout: stdout(),
             viewport: Viewport::new(size.width, size.height),
             cursor: Cursor::new(),
-            scroll: Position::default(),
-            view: Box::new(TuiView::new(size.clone(), theme, config.gutter_width)),
+            view: Box::new(TuiView::new(size.clone(), config.gutter_width)),
             size,
             gutter,
             config,
             theme,
-            popups: vec![],
         }
     }
 
-    pub fn resize(&mut self, new_size: Rect) -> anyhow::Result<()> {
-        let last_viewport = self.viewport.clone();
+    pub fn resize(&mut self, new_size: Rect, mode: &Mode) -> anyhow::Result<()> {
+        tracing::error!("resizing {:?}", new_size);
         self.size = new_size.clone();
         self.view.resize(new_size, self.config.gutter_width);
-
-        let mut viewport = Viewport::new(self.size.width, self.size.height);
-        self.draw_sidebar(&mut viewport);
-        let cells = self.get_highlight();
-        self.view.draw(&mut viewport, &cells, &self.scroll);
-        self.view
-            .render_diff(&last_viewport, &viewport, &self.theme.style)?;
-        self.viewport = viewport;
+        self.redraw(mode)?;
         Ok(())
     }
 
     fn get_highlight(&mut self) -> Vec<Cell> {
         let mut result: Vec<Cell> = Vec::new();
         let mut current_byte_index = 0;
+        let scroll = self.view.get_scroll();
         let buffer = self
             .buffer
             .borrow()
-            .content_from(self.scroll.row, self.size.height);
+            .content_from(scroll.row, self.size.height);
         let colors = self.highlight.colors(&buffer);
-        let default_style = &self.theme.style;
+        let style = self.theme.style;
 
         for c in buffer.chars() {
             let cell = match colors
@@ -133,12 +118,9 @@ impl<'a> Pane<'a> {
             {
                 Some(token) => Cell {
                     c,
-                    style: token.style.clone(),
+                    style: *token.style,
                 },
-                None => Cell {
-                    c,
-                    style: default_style.clone(),
-                },
+                None => Cell { c, style },
             };
             result.push(cell);
             current_byte_index += c.len_utf8();
@@ -148,7 +130,6 @@ impl<'a> Pane<'a> {
     }
 
     pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
-        self.popups.clear();
         match action {
             KeyAction::Simple(Action::MoveToLineStart) => {
                 self.handle_cursor_action(action, mode)?
@@ -179,41 +160,30 @@ impl<'a> Pane<'a> {
             _ => (),
         };
 
-        self.redraw()?;
-        self.draw_cursor(mode)?;
+        self.redraw(mode)?;
         Ok(())
     }
 
-    fn redraw(&mut self) -> anyhow::Result<()> {
-        self.stdout
-            .queue(crossterm::cursor::Hide)?
-            .queue(crossterm::cursor::SavePosition)?;
+    fn redraw(&mut self, mode: &Mode) -> anyhow::Result<()> {
+        self.view.hide_cursor()?;
         let last_viewport = self.viewport.clone();
         let mut viewport = Viewport::new(self.size.width, self.size.height);
         self.draw_sidebar(&mut viewport);
         let cells = self.get_highlight();
-        self.view.draw(&mut viewport, &cells, &mut self.scroll);
-        for popup in self.popups.iter_mut() {
-            popup.render(&mut viewport)?;
-        }
+        self.view
+            .draw(&mut viewport, &cells, self.view.get_scroll());
         self.view
             .render_diff(&last_viewport, &viewport, &self.theme.style)?;
+        self.view
+            .draw_cursor(mode, &self.buffer.borrow(), &self.cursor)?;
+        self.view.show_cursor()?;
         self.viewport = viewport;
-        self.stdout
-            .queue(crossterm::cursor::Show)?
-            .queue(crossterm::cursor::RestorePosition)?;
         Ok(())
     }
 
     pub fn initialize(&mut self, mode: &Mode) -> anyhow::Result<()> {
-        let mut viewport = Viewport::new(self.size.width, self.size.height);
-        self.draw_sidebar(&mut viewport);
-        self.draw_cursor(mode)?;
-        let cells = self.get_highlight();
-        self.view.draw(&mut viewport, &cells, &self.scroll);
-        self.view
-            .render_diff(&Viewport::new(0, 0), &viewport, &self.theme.style)?;
-        self.viewport = viewport;
+        self.viewport = Viewport::new(self.size.width, self.size.height);
+        self.redraw(mode)?;
         Ok(())
     }
 
@@ -225,7 +195,8 @@ impl<'a> Pane<'a> {
         self.cursor
             .handle(action, &mut self.buffer.borrow_mut(), mode);
         self.view
-            .maybe_scroll(&self.cursor, &mut self.scroll, &self.size)?;
+            .maybe_scroll(&self.cursor, self.view.get_scroll(), &self.size)?;
+        self.redraw(mode)?;
         Ok(())
     }
 
@@ -244,47 +215,23 @@ impl<'a> Pane<'a> {
 
         self.handle_cursor_action(action, mode)?;
 
-        match action {
-            KeyAction::Simple(Action::DeletePreviousChar) => {
-                if let (0, 1..) = (col, row) {
-                    self.cursor.col = mark.size.saturating_sub(1);
-                    self.cursor.absolute_position = mark.start + mark.size.saturating_sub(1);
-                }
+        if let KeyAction::Simple(Action::DeletePreviousChar) = action {
+            if let (0, 1..) = (col, row) {
+                self.cursor.col = mark.size.saturating_sub(1);
+                self.cursor.absolute_position = mark.start + mark.size.saturating_sub(1);
             }
-            _ => (),
         };
 
-        Ok(())
-    }
-
-    // TODO: move this to the scrollable
-    fn draw_cursor(&mut self, mode: &Mode) -> anyhow::Result<()> {
-        let col = {
-            let buffer = self.buffer.borrow_mut();
-            let mut col = 0;
-            if let Some(mark) = buffer.marker.get_by_line(self.cursor.row + 1) {
-                col = match mode {
-                    Mode::Normal => self.cursor.col.min(mark.size.saturating_sub(2)),
-                    _ => self.cursor.col.min(mark.size.saturating_sub(1)),
-                };
-            }
-            col
-        };
-        self.view
-            .maybe_scroll(&self.cursor, &mut self.scroll, &self.size)?;
-        self.stdout.queue(crossterm::cursor::MoveTo(
-            col.saturating_sub(self.scroll.col) as u16 + self.config.gutter_width as u16,
-            self.cursor.row.saturating_sub(self.scroll.row) as u16,
-        ))?;
         Ok(())
     }
 
     fn draw_sidebar(&mut self, viewport: &mut Viewport) {
+        let scroll = self.view.get_scroll();
         self.gutter.draw(
             viewport,
             self.buffer.borrow().marker.len(),
             self.cursor.row,
-            self.scroll.row,
+            scroll.row,
         );
     }
 
@@ -297,40 +244,31 @@ impl<'a> Pane<'a> {
         message: (IncomingMessage, Option<String>),
     ) -> anyhow::Result<()> {
         if let Some(method) = message.1 {
-            match method.as_str() {
-                "textDocument/hover" => {
-                    let message = message.0;
-                    match message {
-                        IncomingMessage::Message(message) => {
-                            let result = match message.result {
-                                serde_json::Value::Array(ref arr) => arr[0].as_object().unwrap(),
-                                serde_json::Value::Object(ref obj) => obj,
-                                _ => return Ok(()),
-                            };
-                            if let Some(contents) = result.get("contents") {
-                                if let Some(contents) = contents.as_object() {
-                                    if let Some(serde_json::Value::String(value)) =
-                                        contents.get("value")
-                                    {
-                                        let offset = self.config.gutter_width;
-                                        let popup = HoverPopup::new(
-                                            self.cursor.col - self.scroll.col + offset,
-                                            self.cursor.row - self.scroll.row,
-                                            self.theme,
-                                            value.into(),
-                                        );
-                                        self.popups.push(popup);
-                                    }
-                                }
+            if method.as_str() == "textDocument/hover" {
+                let message = message.0;
+                if let IncomingMessage::Message(message) = message {
+                    let result = match message.result {
+                        serde_json::Value::Array(ref arr) => arr[0].as_object().unwrap(),
+                        serde_json::Value::Object(ref obj) => obj,
+                        _ => return Ok(()),
+                    };
+                    if let Some(contents) = result.get("contents") {
+                        if let Some(contents) = contents.as_object() {
+                            if let Some(serde_json::Value::String(value)) = contents.get("value") {
+                                let offset = self.config.gutter_width;
+                                let scroll = self.view.get_scroll();
+                                let _popup = HoverPopup::new(
+                                    self.cursor.col - scroll.col + offset,
+                                    self.cursor.row - scroll.row,
+                                    self.theme,
+                                    value.into(),
+                                );
                             }
                         }
-                        _ => (),
                     }
                 }
-                _ => (),
             }
         };
-        self.redraw()?;
         Ok(())
     }
 }

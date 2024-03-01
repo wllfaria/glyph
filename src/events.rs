@@ -52,11 +52,8 @@ impl<'a> Events<'a> {
             }
         }
 
-        match event {
-            Event::Resize(cols, rows) => {
-                return Some(KeyAction::Simple(Action::Resize(*cols, *rows)));
-            }
-            _ => (),
+        if let Event::Resize(cols, rows) = event {
+            return Some(KeyAction::Simple(Action::Resize(*cols, *rows)));
         }
 
         match mode {

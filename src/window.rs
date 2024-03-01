@@ -24,18 +24,17 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn resize(&mut self, new_size: Rect) -> anyhow::Result<()> {
+    pub fn resize(&mut self, new_size: Rect, mode: &Mode) -> anyhow::Result<()> {
         for pane in self.panes.values_mut() {
-            pane.resize(new_size.clone())?;
+            pane.resize(new_size.clone(), mode)?;
         }
         Ok(())
     }
 
     pub fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
-        match action {
-            KeyAction::Simple(_) => active_pane.handle_action(action, mode)?,
-            _ => {}
+        if let KeyAction::Simple(_) = action {
+            active_pane.handle_action(action, mode)?;
         }
         Ok(())
     }
@@ -108,7 +107,7 @@ mod tests {
             }
         );
 
-        window.resize((0, 0).into()).unwrap();
+        window.resize((0, 0).into(), &Mode::Normal).unwrap();
 
         assert_eq!(
             window.get_active_pane().size,
