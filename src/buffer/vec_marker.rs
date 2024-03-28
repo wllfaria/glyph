@@ -38,10 +38,13 @@ impl Marker for VecMarker {
     }
 
     fn get_by_cursor(&self, position: usize) -> Option<Mark> {
+        tracing::trace!("get_by_cursor: {}", position);
+        tracing::trace!("marks: {:?}", self.marks[1]);
+
         let index = self
             .marks
             .iter()
-            .position(|m| position >= m.start && position <= m.start + m.size);
+            .position(|m| position >= m.start && position < m.start + m.size);
         if let Some(index) = index {
             return Some(self.marks[index]);
         }

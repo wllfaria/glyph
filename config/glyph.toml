@@ -8,9 +8,9 @@ show_diagnostics = true
 
 [keys.normal]
 "n" = "FindNext"
-"S-K" = "Hover",
-"S-D" = "DeleteUntilEOL",
-"S-N" = "FindPrevious",
+"S-K" = "Hover"
+"S-D" = "DeleteUntilEOL"
+"S-N" = "FindPrevious"
 "w" = "NextWord"
 "b" = "PreviousWord"
 "p" = "PasteBelow"

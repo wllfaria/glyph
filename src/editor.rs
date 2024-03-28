@@ -1,20 +1,19 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::mpsc;
-use std::time::Duration;
+use std::{cell::RefCell, rc::Rc, sync::mpsc, time::Duration};
 
 use crossterm::event::EventStream;
 use futures::{future::FutureExt, StreamExt};
 use serde::{Deserialize, Serialize};
 
-use crate::buffer::Buffer;
-use crate::config::{Action, Config};
-use crate::events::Events;
-use crate::lsp::{IncomingMessage, LspClient};
-use crate::pane::Pane;
-use crate::theme::Theme;
-use crate::view::View;
-use crate::window::Window;
+use crate::{
+    buffer::Buffer,
+    config::{Action, Config},
+    events::Events,
+    lsp::{IncomingMessage, LspClient},
+    pane::Pane,
+    theme::Theme,
+    view::View,
+    window::Window,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Mode {
@@ -36,9 +35,6 @@ impl std::fmt::Display for Mode {
 }
 
 pub struct Editor<'a> {
-    // TODO: in the future, we want to have a GUI for the editor. thus
-    // the event pooling must maybe become a struct in order to allow
-    // for both crossterm and whatever GUI lib we come to use
     events: Events<'a>,
     view: View<'a>,
     lsp: LspClient,

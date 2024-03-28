@@ -192,6 +192,8 @@ impl Cursor {
 
     // FIXME: this is not behaving as vim would, currently we are not as
     // smart as vim W
+    //
+    //
     fn move_to_next_word(&mut self, buffer: &mut Buffer) {
         let content = buffer.to_string();
         let mut pos = self.absolute_position;
@@ -200,26 +202,9 @@ impl Cursor {
             .chars()
             .nth(pos)
             .expect("current position should never be out of bounds");
-        let starting_on_separator = self.is_separator(starting_char);
 
-        for char in content[pos..].chars() {
-            if starting_on_separator {
-                // we should skip repeated separators, such as :: or //
-                if !char.is_whitespace() && char != starting_char {
-                    break;
-                }
-                pos += 1;
-                continue;
-            }
-
-            // if its not a separator, we just skip it
-            if !self.is_separator(char) {
-                pos += 1;
-                continue;
-            }
-
-            // if it is a separator, and a whitespace, we skip until the next non whitespace
-            if char.is_whitespace() {
+        match starting_char {
+            c if c.is_whitespace() => {
                 while let Some(c) = content[pos..].chars().nth(0) {
                     if !c.is_whitespace() {
                         break;
@@ -227,7 +212,48 @@ impl Cursor {
                     pos += 1;
                 }
             }
-            break;
+            c if c.is_alphanumeric() => {
+                let mut found_whitespace = false;
+                while let Some(c) = content[pos..].chars().nth(0) {
+                    match (c, found_whitespace) {
+                        (c, false) if c.is_whitespace() => {
+                            found_whitespace = true;
+                        }
+                        (c, true) if c.is_alphanumeric() => {
+                            break;
+                        }
+                        (c, _) if !c.is_whitespace() && !c.is_alphanumeric() => {
+                            break;
+                        }
+                        _ => (),
+                    }
+                    pos += 1;
+                }
+            }
+            _ => {
+                let mut found_newline = false;
+                while let Some(c) = content[pos..].chars().nth(0) {
+                    match (c, found_newline) {
+                        ('\n', _) => {
+                            found_newline = true;
+                        }
+                        (c, _) if c.is_alphanumeric() => {
+                            break;
+                        }
+                        (_, true) => {
+                            let marker = buffer
+                                .marker
+                                .get_by_cursor(pos)
+                                .expect("should never be out of bounds");
+                            if marker.size == 1 || !c.is_whitespace() {
+                                break;
+                            }
+                        }
+                        _ => (),
+                    }
+                    pos += 1;
+                }
+            }
         }
 
         if let Some(mark) = buffer.marker.get_by_cursor(pos) {
@@ -236,10 +262,6 @@ impl Cursor {
             self.row = mark.line - 1;
             self.absolute_position = pos;
         }
-    }
-
-    fn is_separator(&self, c: char) -> bool {
-        matches!(c, ' ' | ':' | '-' | '}' | ')' | ']' | ',' | '(' | '>')
     }
 }
 
