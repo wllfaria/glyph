@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::config::KeyAction;
 use crate::editor::Mode;
 use crate::lsp::IncomingMessage;
-use crate::pane::{Pane, Rect};
+use crate::pane::Pane;
+use crate::tui::Rect;
 
 pub struct Window<'a> {
     pub id: usize,
@@ -36,16 +37,6 @@ impl<'a> Window<'a> {
         if let KeyAction::Simple(_) = action {
             active_pane.handle_action(action, mode)?;
         }
-        Ok(())
-    }
-
-    pub fn handle_lsp_message(
-        &mut self,
-        message: (IncomingMessage, Option<String>),
-        mode: &Mode,
-    ) -> anyhow::Result<()> {
-        let active_pane = self.panes.get_mut(&self.active_pane).unwrap();
-        active_pane.handle_lsp_message(message, mode)?;
         Ok(())
     }
 
@@ -101,8 +92,8 @@ mod tests {
         assert_eq!(
             window.get_active_pane().size,
             Rect {
-                row: 0,
-                col: 0,
+                x: 0,
+                y: 0,
                 height: 1,
                 width: 1
             }
@@ -113,8 +104,8 @@ mod tests {
         assert_eq!(
             window.get_active_pane().size,
             Rect {
-                row: 0,
-                col: 0,
+                x: 0,
+                y: 0,
                 height: 0,
                 width: 0
             }

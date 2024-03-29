@@ -190,10 +190,6 @@ impl Cursor {
         self.absolute_position = mark.start;
     }
 
-    // FIXME: this is not behaving as vim would, currently we are not as
-    // smart as vim W
-    //
-    //
     fn move_to_next_word(&mut self, buffer: &mut Buffer) {
         let content = buffer.to_string();
         let mut pos = self.absolute_position;

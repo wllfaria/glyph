@@ -4,7 +4,7 @@ use crossterm::style::Color;
 use serde::Deserialize;
 
 use crate::config::Config;
-use crate::theme::{Appearance, Gutter, Statusline, Style, Theme};
+use crate::theme::{Appearance, Gutter, Style, Theme};
 
 #[derive(Deserialize, Debug, Clone)]
 struct TokenStyle {
@@ -22,9 +22,7 @@ struct AppearanceStyle {
 }
 
 #[derive(Deserialize, Debug)]
-struct StatuslineStyle {
-    inner: TokenStyle,
-}
+struct StatuslineStyle {}
 
 #[derive(Deserialize, Debug)]
 struct GutterStyle {
@@ -114,13 +112,11 @@ impl From<AppearanceStyle> for Appearance {
     }
 }
 
-impl From<StatuslineStyle> for Statusline {
-    fn from(val: StatuslineStyle) -> Self {
-        Statusline {
-            inner: val.inner.into(),
-        }
-    }
-}
+// impl From<StatuslineStyle> for StatuslineStyle {
+//     fn from(val: StatuslineStyle) -> Self {
+//         StatuslineStyle {}
+//     }
+// }
 
 impl From<GutterStyle> for Gutter {
     fn from(val: GutterStyle) -> Self {

@@ -9,23 +9,21 @@ use crossterm::{terminal, QueueableCommand};
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
 use crate::lsp::IncomingMessage;
-use crate::pane::{Position, Rect};
+use crate::pane::Position;
 use crate::theme::{Style, Theme};
+use crate::tui::Rect;
 use crate::viewport::Viewport;
 use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Size {
-    pub height: usize,
-    pub width: usize,
+    pub height: u16,
+    pub width: u16,
 }
 
 impl From<(u16, u16)> for Size {
     fn from((width, height): (u16, u16)) -> Self {
-        Self {
-            width: width as usize,
-            height: height as usize,
-        }
+        Self { width, height }
     }
 }
 
@@ -74,23 +72,23 @@ impl<'a> View<'a> {
     }
 
     pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
-        let mut statusline = Viewport::new(self.size.width, 1);
-        let mut commandline = Viewport::new(self.size.width, 1);
+        // let mut statusline = Viewport::new(self.size.width, 1);
+        // let mut commandline = Viewport::new(self.size.width, 1);
         let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
             KeyAction::Simple(Action::Resize(cols, rows)) => {
                 self.size = (*cols, *rows).into();
                 active_window.resize(
                     Rect {
-                        row: 0,
-                        col: 0,
+                        x: 0,
+                        y: 0,
                         height: self.size.height - 2,
                         width: self.size.width,
                     },
                     &self.mode,
                 )?;
-                statusline = Viewport::new(self.size.width, 1);
-                commandline = Viewport::new(self.size.width, 1);
+                // statusline = Viewport::new(self.size.width, 1);
+                // commandline = Viewport::new(self.size.width, 1);
             }
             KeyAction::Simple(Action::Quit) => {
                 self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
@@ -140,12 +138,12 @@ impl<'a> View<'a> {
         self.stdout
             .queue(cursor::SavePosition)?
             .queue(cursor::Hide)?;
-        self.draw_statusline(&mut statusline, self.mode.clone());
-        self.draw_commandline(&mut commandline);
-        self.render_statusline(&statusline)?;
-        self.render_commandline(&commandline)?;
-        self.statusline = statusline;
-        self.commandline = commandline;
+        // self.draw_statusline(&mut statusline, self.mode.clone());
+        // self.draw_commandline(&mut commandline);
+        // self.render_statusline(&statusline)?;
+        // self.render_commandline(&commandline)?;
+        // self.statusline = statusline;
+        // self.commandline = commandline;
         self.stdout
             .queue(cursor::RestorePosition)?
             .queue(cursor::Show)?
@@ -228,20 +226,18 @@ impl<'a> View<'a> {
         terminal::enable_raw_mode()?;
         self.stdout.queue(terminal::EnterAlternateScreen)?;
 
-        let mut statusline = Viewport::new(self.size.width, 1);
-        let mut commandline = Viewport::new(self.size.width, 1);
         self.clear_screen()?;
-        self.draw_statusline(&mut statusline, self.mode.clone());
-        self.draw_commandline(&mut commandline);
-        self.render_statusline(&statusline)?;
-        self.render_commandline(&commandline)?;
+        // self.draw_statusline(&mut statusline, self.mode.clone());
+        // self.draw_commandline(&mut commandline);
+        // self.render_statusline(&statusline)?;
+        // self.render_commandline(&commandline)?;
 
         self.windows
             .get_mut(&self.active_window)
             .unwrap()
             .initialize(&self.mode)?;
-        self.statusline = statusline;
-        self.commandline = commandline;
+        // self.statusline = statusline;
+        // self.commandline = commandline;
         self.stdout.flush()?;
 
         Ok(())
@@ -278,63 +274,63 @@ impl<'a> View<'a> {
     }
 
     fn draw_statusline(&mut self, viewport: &mut Viewport, mode: Mode) {
-        let active_pane = self.get_active_window().get_active_pane();
-        let cursor_position = active_pane.get_cursor_readable_position();
-        let Position { col, row } = cursor_position;
-        let lines = active_pane.get_buffer().borrow().marker.len();
-
-        let cursor = format!("{}:{} ", row, col);
-        let percentage = match row {
-            1 => "TOP ".into(),
-            _ if row == lines => "BOT ".into(),
-            _ => format!("{}% ", (row as f64 / lines as f64 * 100.0) as usize),
-        };
-
-        let file_name = active_pane.get_buffer().borrow().file_name.clone();
-        let file_name = file_name.split('/').rev().nth(0).unwrap();
-        let file_name = format!(" {}", file_name);
-
-        let mode = format!(" {}", mode);
-
-        let padding = " ".repeat(
-            self.size.width - mode.len() - file_name.len() - cursor.len() - percentage.len(),
-        );
-        viewport.set_text(0, 0, &mode, &self.theme.statusline.inner);
-        viewport.set_text(mode.len(), 0, &file_name, &self.theme.statusline.inner);
-        viewport.set_text(
-            mode.len() + file_name.len(),
-            0,
-            &padding,
-            &self.theme.statusline.inner,
-        );
-
-        viewport.set_text(
-            self.size.width - 1 - cursor.len(),
-            0,
-            &cursor,
-            &self.theme.statusline.inner,
-        );
-
-        viewport.set_text(
-            self.size.width - cursor.len(),
-            0,
-            &cursor,
-            &self.theme.statusline.inner,
-        );
-
-        viewport.set_text(
-            self.size.width - cursor.len() - percentage.len(),
-            0,
-            &percentage,
-            &self.theme.statusline.inner,
-        );
+        // let active_pane = self.get_active_window().get_active_pane();
+        // let cursor_position = active_pane.get_cursor_readable_position();
+        // let Position { col, row } = cursor_position;
+        // let lines = active_pane.get_buffer().borrow().marker.len();
+        //
+        // let cursor = format!("{}:{} ", row, col);
+        // let percentage = match row {
+        //     1 => "TOP ".into(),
+        //     _ if row == lines => "BOT ".into(),
+        //     _ => format!("{}% ", (row as f64 / lines as f64 * 100.0) as usize),
+        // };
+        //
+        // let file_name = active_pane.get_buffer().borrow().file_name.clone();
+        // let file_name = file_name.split('/').rev().nth(0).unwrap();
+        // let file_name = format!(" {}", file_name);
+        //
+        // let mode = format!(" {}", mode);
+        //
+        // let padding = " ".repeat(
+        //     self.size.width - mode.len() - file_name.len() - cursor.len() - percentage.len(),
+        // );
+        // viewport.set_text(0, 0, &mode, &self.theme.statusline.inner);
+        // viewport.set_text(mode.len(), 0, &file_name, &self.theme.statusline.inner);
+        // viewport.set_text(
+        //     mode.len() + file_name.len(),
+        //     0,
+        //     &padding,
+        //     &self.theme.statusline.inner,
+        // );
+        //
+        // viewport.set_text(
+        //     self.size.width - 1 - cursor.len(),
+        //     0,
+        //     &cursor,
+        //     &self.theme.statusline.inner,
+        // );
+        //
+        // viewport.set_text(
+        //     self.size.width - cursor.len(),
+        //     0,
+        //     &cursor,
+        //     &self.theme.statusline.inner,
+        // );
+        //
+        // viewport.set_text(
+        //     self.size.width - cursor.len() - percentage.len(),
+        //     0,
+        //     &percentage,
+        //     &self.theme.statusline.inner,
+        // );
     }
 
     fn draw_commandline(&self, viewport: &mut Viewport) {
-        let command = &self.command;
-        let fill = " ".repeat(self.size.width - command.len());
-        let content = format!("{}{}", command, fill);
-        viewport.set_text(0, 0, &content, &self.theme.style);
+        // let command = &self.command;
+        // let fill = " ".repeat(self.size.width - command.len());
+        // let content = format!("{}{}", command, fill);
+        // viewport.set_text(0, 0, &content, &self.theme.style);
     }
 
     fn render_commandline(&mut self, commandline: &Viewport) -> anyhow::Result<()> {
@@ -351,15 +347,6 @@ impl<'a> View<'a> {
                 .queue(style::SetForegroundColor(fg))?
                 .queue(Print(cell.c))?;
         }
-        Ok(())
-    }
-
-    pub fn handle_lsp_message(
-        &mut self,
-        message: (IncomingMessage, Option<String>),
-    ) -> anyhow::Result<()> {
-        let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        active_window.handle_lsp_message(message, &self.mode)?;
         Ok(())
     }
 }

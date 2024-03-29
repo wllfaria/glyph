@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, sync::mpsc, time::Duration};
+use std::{cell::RefCell, io::stdout, rc::Rc, sync::mpsc, time::Duration};
 
 use crossterm::event::EventStream;
 use futures::{future::FutureExt, StreamExt};
@@ -11,7 +11,7 @@ use crate::{
     lsp::{IncomingMessage, LspClient},
     pane::Pane,
     theme::Theme,
-    view::View,
+    tui::{layout::Layout, Rect},
     window::Window,
 };
 
@@ -36,8 +36,8 @@ impl std::fmt::Display for Mode {
 
 pub struct Editor<'a> {
     events: Events<'a>,
-    view: View<'a>,
     lsp: LspClient,
+    layout: Layout,
     mode: Mode,
 }
 
@@ -53,9 +53,12 @@ impl<'a> Editor<'a> {
         let window = Window::new(1, pane);
         let (tx, rx) = mpsc::channel::<Action>();
         let mode = Mode::Normal;
+        let size = crossterm::terminal::size()?;
+        let size = Rect::from(size);
         let mut editor = Self {
             events: Events::new(config),
-            view: View::new(config, theme, window, tx, mode.clone())?,
+            // view: View::new(config, theme, window, tx, mode.clone())?,
+            layout: Layout::new(size),
             lsp,
             mode,
         };
@@ -66,19 +69,24 @@ impl<'a> Editor<'a> {
     }
 
     pub async fn start(&mut self, rx: mpsc::Receiver<Action>) -> anyhow::Result<()> {
-        self.view.initialize()?;
+        // self.view.initialize()?;
+        crossterm::execute!(
+            stdout(),
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
+        )?;
+        self.layout.render()?;
 
         let mut stream = EventStream::new();
         self.lsp.initialize().await?;
 
         loop {
-            let delay = futures_timer::Delay::new(Duration::from_millis(30)).fuse();
-            let event = stream.next().fuse();
+            let delay = futures_timer::Delay::new(Duration::from_millis(30));
+            let event = stream.next();
 
             if let Ok(action) = rx.try_recv() {
                 match action {
                     Action::Quit => {
-                        self.view.shutdown()?;
+                        // self.view.shutdown()?;
                         break;
                     }
                     _ => self.handle_action(action).await?,
@@ -88,13 +96,13 @@ impl<'a> Editor<'a> {
             tokio::select! {
                 _ = delay => {
                     if let Some(message) = self.lsp.try_read_message().await? {
-                        self.handle_lsp_message(message)?;
+                        // self.handle_lsp_message(message)?;
                     }
                 }
                 maybe_event = event => {
                     if let Some(Ok(event)) = maybe_event {
                         if let Some(action) = self.events.handle(&event, &self.mode) {
-                            self.view.handle_action(&action)?;
+                            // self.view.handle_action(&action)?;
                         }
                     };
                 }
@@ -110,12 +118,12 @@ impl<'a> Editor<'a> {
             Action::Hover => {
                 // TODO: find a better way to grab the file path and information. Maybe
                 // have the view give this data instead of querying like this.
-                let pane = self.view.get_active_window().get_active_pane();
-                let cursor = &pane.cursor;
-                let file_name = pane.buffer.borrow().file_name.clone();
-                let row = cursor.row;
-                let col = cursor.col;
-                self.lsp.request_hover(&file_name, row, col).await?;
+                // let pane = self.view.get_active_window().get_active_pane();
+                // let cursor = &pane.cursor;
+                // let file_name = pane.buffer.borrow().file_name.clone();
+                // let row = cursor.row;
+                // let col = cursor.col;
+                // self.lsp.request_hover(&file_name, row, col).await?;
             }
             _ => (),
         };
@@ -126,7 +134,7 @@ impl<'a> Editor<'a> {
         &mut self,
         message: (IncomingMessage, Option<String>),
     ) -> anyhow::Result<()> {
-        self.view.handle_lsp_message(message)?;
+        // self.view.handle_lsp_message(message)?;
         Ok(())
     }
 }

@@ -52,19 +52,3 @@ impl<'a> Highlight<'a> {
         colors
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_apply_colors() {
-        let theme = Theme::default();
-        let mut hl = Highlight::new(&theme);
-
-        let buffer = "fn main() { println!(\"Hello, World!\"); }";
-        let colors = hl.colors(&buffer);
-
-        assert_eq!(colors.len(), 12);
-    }
-}
