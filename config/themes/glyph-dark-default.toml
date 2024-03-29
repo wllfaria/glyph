@@ -1,11 +1,11 @@
 name = "glyph-dark-default.toml"
 
 [appearance]
-bg = "#242424"
+bg = "#101010"
 fg = "#cecece"
 
 [float]
-bg = "#1e1e1e"
+bg = "#242424"
 fg = "#cecece"
 
 [gutter]
@@ -13,7 +13,10 @@ bg = "#242424"
 fg = "#666666"
 
 [statusline]
-inner = { fg = "#cecece", bg = "#3c3e44" }
+file_name = { fg = "#909090", bg = "#242424" }
+mode = { fg = "#CECECE", bg = "#C586C0", bold = true }
+cursor = { fg = "#4EC9B0", bg = "#242424" }
+appearance = { bg = "#242424" }
 
 [tokens]
 function = { fg = "#7daea3" }

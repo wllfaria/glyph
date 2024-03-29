@@ -52,6 +52,7 @@ fn load_theme(
         std::fs::create_dir(&themes_dir)?;
         // TODO: install themes when first loading
     }
+    tracing::info!("{:?}", themes_dir);
     let default = match background {
         EditorBackground::Light => Theme::light()?,
         EditorBackground::Dark => Theme::dark()?,
@@ -59,7 +60,8 @@ fn load_theme(
     if theme_name.is_empty() {
         return Ok(default);
     }
-    let theme_path = themes_dir.join(theme_name);
+    // let theme_path = themes_dir.join(theme_name);
+    let theme_path = Path::new("./config/themes").join("glyph-dark-default.toml");
     match theme_path.exists() {
         false => Ok(default),
         true => {

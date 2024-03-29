@@ -21,11 +21,12 @@ pub struct Appearance {
     pub fg: Color,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct StatuslineTheming {
     pub file_name: Style,
     pub mode: Style,
     pub cursor: Style,
+    pub appearance: Style,
 }
 
 #[derive(Debug)]

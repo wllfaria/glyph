@@ -1,4 +1,10 @@
-use std::{cell::RefCell, io::stdout, rc::Rc, sync::mpsc, time::Duration};
+use std::{
+    cell::RefCell,
+    io::{stdout, Write},
+    rc::Rc,
+    sync::mpsc,
+    time::Duration,
+};
 
 use crossterm::event::EventStream;
 use futures::{future::FutureExt, StreamExt};
@@ -6,12 +12,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     buffer::Buffer,
-    config::{Action, Config},
+    config::{Action, Config, KeyAction},
     events::Events,
     lsp::{IncomingMessage, LspClient},
     pane::Pane,
     theme::Theme,
-    tui::{layout::Layout, Rect},
+    tui::{
+        layout::{Layout, LayoutUpdate},
+        rect::Rect,
+        statusline::{Statusline, StatuslineContext},
+        Renderable,
+    },
     window::Window,
 };
 
@@ -36,9 +47,13 @@ impl std::fmt::Display for Mode {
 
 pub struct Editor<'a> {
     events: Events<'a>,
+    window: Window<'a>,
+    theme: &'a Theme,
+
     lsp: LspClient,
-    layout: Layout,
     mode: Mode,
+
+    statusline: Statusline,
 }
 
 impl<'a> Editor<'a> {
@@ -48,50 +63,68 @@ impl<'a> Editor<'a> {
         lsp: LspClient,
         file_name: Option<String>,
     ) -> anyhow::Result<Self> {
-        let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name)?));
+        let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name.clone())?));
         let pane = Pane::new(1, buffer.clone(), theme, config);
         let window = Window::new(1, pane);
-        let (tx, rx) = mpsc::channel::<Action>();
-        let mode = Mode::Normal;
+
         let size = crossterm::terminal::size()?;
         let size = Rect::from(size);
+
         let mut editor = Self {
             events: Events::new(config),
-            // view: View::new(config, theme, window, tx, mode.clone())?,
-            layout: Layout::new(size),
+            window,
             lsp,
-            mode,
+            theme,
+            mode: Mode::Normal,
+            statusline: Statusline::new(Rect::new(size.x, size.bottom() - 2, size.width, 1)),
         };
 
-        editor.start(rx).await?;
+        editor.start().await?;
 
         Ok(editor)
     }
 
-    pub async fn start(&mut self, rx: mpsc::Receiver<Action>) -> anyhow::Result<()> {
-        // self.view.initialize()?;
+    fn setup_terminal(&self) -> anyhow::Result<()> {
+        crossterm::terminal::enable_raw_mode()?;
         crossterm::execute!(
             stdout(),
-            crossterm::terminal::Clear(crossterm::terminal::ClearType::All)
+            crossterm::terminal::EnterAlternateScreen,
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+            crossterm::cursor::MoveTo(0, 0),
         )?;
-        self.layout.render()?;
+
+        Ok(())
+    }
+
+    pub fn cleanup_terminal(&self) -> anyhow::Result<()> {
+        crossterm::execute!(stdout(), crossterm::terminal::LeaveAlternateScreen);
+        crossterm::terminal::disable_raw_mode()?;
+
+        Ok(())
+    }
+
+    pub async fn start(&mut self) -> anyhow::Result<()> {
+        self.setup_terminal()?;
 
         let mut stream = EventStream::new();
         self.lsp.initialize().await?;
 
+        self.statusline.render(&StatuslineContext {
+            cursor: (1, 1),
+            file_name: self
+                .window
+                .get_active_pane()
+                .buffer
+                .borrow()
+                .file_name
+                .clone(),
+            mode: self.mode.clone(),
+            statusline_style: self.theme.statusline.clone(),
+        });
+
         loop {
             let delay = futures_timer::Delay::new(Duration::from_millis(30));
             let event = stream.next();
-
-            if let Ok(action) = rx.try_recv() {
-                match action {
-                    Action::Quit => {
-                        // self.view.shutdown()?;
-                        break;
-                    }
-                    _ => self.handle_action(action).await?,
-                }
-            }
 
             tokio::select! {
                 _ = delay => {
@@ -102,20 +135,27 @@ impl<'a> Editor<'a> {
                 maybe_event = event => {
                     if let Some(Ok(event)) = maybe_event {
                         if let Some(action) = self.events.handle(&event, &self.mode) {
-                            // self.view.handle_action(&action)?;
+                            match action {
+                                KeyAction::Simple(Action::Quit) => break,
+                                _ => self.handle_action(action).await?,
+                            }
                         }
                     };
                 }
             }
+
+            crossterm::execute!(stdout(), crossterm::cursor::Show)?;
         }
+
+        self.cleanup_terminal()?;
 
         Ok(())
     }
 
-    async fn handle_action(&mut self, action: Action) -> anyhow::Result<()> {
+    async fn handle_action(&mut self, action: KeyAction) -> anyhow::Result<()> {
         match action {
-            Action::EnterMode(mode) => self.mode = mode,
-            Action::Hover => {
+            KeyAction::Simple(Action::EnterMode(mode)) => self.mode = mode,
+            KeyAction::Simple(Action::Hover) => {
                 // TODO: find a better way to grab the file path and information. Maybe
                 // have the view give this data instead of querying like this.
                 // let pane = self.view.get_active_window().get_active_pane();

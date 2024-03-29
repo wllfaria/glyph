@@ -9,7 +9,7 @@ use crate::highlight::Highlight;
 use crate::lsp::IncomingMessage;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
-use crate::tui::Rect;
+use crate::tui::rect::Rect;
 use crate::viewport::{Cell, Viewport};
 
 use self::gutter::absolute_line_gutter::AbsoluteLineGutter;

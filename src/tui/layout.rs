@@ -1,13 +1,13 @@
-use std::io::stdout;
-
-use crossterm::style::Stylize;
-
 use crate::{
     editor::Mode,
-    theme::{StatuslineStyle, Style},
+    theme::Theme,
+    tui::{
+        rect::Rect,
+        statusline::{Statusline, StatuslineContext},
+        Renderable,
+    },
+    window::Window,
 };
-
-use super::{rect::Rect, Renderable};
 
 pub enum Sections {
     LeftPanel,
@@ -21,7 +21,18 @@ pub enum Sections {
     EditorWindow,
 }
 
-pub struct Layout {
+pub struct LayoutUpdate {
+    pub cursor_position: (u16, u16),
+    pub current_file_name: String,
+    pub mode: Mode,
+}
+
+pub struct Layout<'a> {
+    cursor_position: (u16, u16),
+    current_file_name: String,
+    mode: Mode,
+
+    theme: &'a Theme,
     // left_panel: Option<Widget>,
     // right_panel: Option<Widget>,
     // top_panel: Option<Widget>,
@@ -30,82 +41,23 @@ pub struct Layout {
     // bufferline: Option<Widget>,
     statusline: Statusline,
     // commandline: Widget,
-    // editor_window: Widget,
+    editor_window: &'a Window<'a>,
     focused: Sections,
 }
 
-pub struct Statusline {
-    area: Rect,
-}
-
-impl Statusline {
-    pub fn new(area: Rect) -> Self {
-        Self { area }
-    }
-}
-
-pub struct StatuslineContext {
-    cursor: (u16, u16),
-    file_name: String,
-    mode: Mode,
-    statusline_style: StatuslineStyle,
-}
-
-pub trait Themed {
-    fn themed(self, style: Style) -> crossterm::style::StyledContent<String>;
-}
-
-impl Themed for String {
-    fn themed(self, style: Style) -> crossterm::style::StyledContent<String> {
-        let mut styled = self;
-        if let Some(fg) = style.fg {
-            styled = styled.with(fg);
-        }
-
-        if let Some(bg) = style.bg {
-            styled = styled.on(bg);
-        }
-
-        if let Some(italic) = style.italic {
-            styled = styled.italic();
-        }
-
-        if let Some(bold) = style.bold {
-            styled = styled.bold();
-        }
-    }
-}
-
-impl Renderable for Statusline {
-    type RenderContext = StatuslineContext;
-
-    fn render(&self, context: &Self::RenderContext) -> anyhow::Result<()> {
-        crossterm::queue!(
-            stdout(),
-            crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine),
-            crossterm::cursor::MoveTo(self.area.x, self.area.y),
-        )?;
-
-        let mode = format!("[{}]", context.mode).themed(context.statusline_style.mode);
-        let cursor = format!("{}:{}", context.cursor.1, context.cursor.0)
-            .themed(context.statusline_style.cursor);
-
-        crossterm::execute!(
-            stdout(),
-            crossterm::style::Print(mode),
-            crossterm::style::Print(" "),
-            crossterm::style::Print(&context.file_name),
-            crossterm::style::Print(" "),
-            crossterm::style::Print(cursor),
-        )?;
-
-        Ok(())
-    }
-}
-
-impl Layout {
-    pub fn new(size: Rect) -> Self {
+impl<'a> Layout<'a> {
+    pub fn new(
+        size: Rect,
+        theme: &'a Theme,
+        layout_update: LayoutUpdate,
+        window: &'a Window,
+    ) -> Self {
         Self {
+            cursor_position: layout_update.cursor_position,
+            current_file_name: layout_update.current_file_name,
+            mode: layout_update.mode,
+
+            theme,
             // left_panel: None,
             // right_panel: None,
             // top_panel: None,
@@ -117,22 +69,8 @@ impl Layout {
             //     state: WidgetState::Visible,
             //     area: Rect::new(size.x, size.bottom().saturating_sub(1), size.width, 1),
             // },
-            // editor_window: Widget {
-            //     state: WidgetState::Visible,
-            //     area: Rect::new(size.x, size.y, size.width, size.height.saturating_sub(2)),
-            // },
+            editor_window: window,
             focused: Sections::Statusline,
         }
-    }
-
-    pub fn render(&self) -> anyhow::Result<()> {
-        self.statusline.render(&StatuslineContext {
-            cursor: (0, 0),
-            file_name: "test.rs".to_string(),
-            mode: Mode::Normal,
-            statusline_style: StatuslineStyle::default(),
-        })?;
-
-        Ok(())
     }
 }

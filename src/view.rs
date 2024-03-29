@@ -11,7 +11,7 @@ use crate::editor::Mode;
 use crate::lsp::IncomingMessage;
 use crate::pane::Position;
 use crate::theme::{Style, Theme};
-use crate::tui::Rect;
+use crate::tui::rect::Rect;
 use crate::viewport::Viewport;
 use crate::window::Window;
 

@@ -1,7 +1,10 @@
+pub mod editor_window;
 pub mod layout;
-mod rect;
+pub mod rect;
+pub mod statusline;
+pub mod themed;
+
 mod tui_view;
-pub use rect::Rect;
 
 // fn maybe_scroll(&mut self, cursor: &Cursor) {
 //     let Rect { width, height, .. } = self.get_area();

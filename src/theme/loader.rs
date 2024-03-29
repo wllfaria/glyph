@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use crossterm::style::Color;
 use serde::Deserialize;
 
 use crate::config::Config;
-use crate::theme::{Appearance, Gutter, Style, Theme};
+use crate::theme::{Appearance, Gutter, StatuslineTheming, Style, Theme};
 
 #[derive(Deserialize, Debug, Clone)]
 struct TokenStyle {
@@ -12,7 +13,6 @@ struct TokenStyle {
     bg: Option<String>,
     italic: Option<bool>,
     bold: Option<bool>,
-    underline: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -22,7 +22,12 @@ struct AppearanceStyle {
 }
 
 #[derive(Deserialize, Debug)]
-struct StatuslineStyle {}
+struct StatuslineStyle {
+    file_name: TokenStyle,
+    mode: TokenStyle,
+    cursor: TokenStyle,
+    appearance: TokenStyle,
+}
 
 #[derive(Deserialize, Debug)]
 struct GutterStyle {
@@ -42,7 +47,7 @@ pub struct ThemeLoader {
 
 impl ThemeLoader {
     pub fn default_dark() -> anyhow::Result<Theme> {
-        let theme_path = Config::themes_path().join("glyph-dark-default.toml");
+        let theme_path = Path::new("./config/themes").join("glyph-dark-default.toml");
         let toml = std::fs::read_to_string(theme_path)?;
         let theme: ThemeLoader = toml::from_str(&toml).unwrap();
         Ok(theme.into())
@@ -98,7 +103,6 @@ impl From<AppearanceStyle> for Style {
             bg: hex_to_rgb(Some(value.bg)).unwrap(),
             bold: None,
             italic: None,
-            underline: None,
         }
     }
 }
@@ -112,11 +116,16 @@ impl From<AppearanceStyle> for Appearance {
     }
 }
 
-// impl From<StatuslineStyle> for StatuslineStyle {
-//     fn from(val: StatuslineStyle) -> Self {
-//         StatuslineStyle {}
-//     }
-// }
+impl From<StatuslineStyle> for StatuslineTheming {
+    fn from(val: StatuslineStyle) -> Self {
+        StatuslineTheming {
+            file_name: val.file_name.into(),
+            mode: val.mode.into(),
+            cursor: val.cursor.into(),
+            appearance: val.appearance.into(),
+        }
+    }
+}
 
 impl From<GutterStyle> for Gutter {
     fn from(val: GutterStyle) -> Self {
@@ -134,7 +143,6 @@ impl From<TokenStyle> for Style {
             bg: hex_to_rgb(val.bg).unwrap(),
             bold: val.bold,
             italic: val.italic,
-            underline: val.underline,
         }
     }
 }
