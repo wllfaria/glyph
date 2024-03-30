@@ -1,12 +1,13 @@
 use crate::{
     config::{Config, LineNumbers},
     theme::Theme,
-    tui::rect::Rect,
-};
-
-use self::{
-    absolute_line_gutter::AbsoluteLineGutter, noop_line_gutter::NoopLineDrawer,
-    relative_line_gutter::RelativeLineDrawer,
+    tui::{
+        gutter::{
+            absolute_line_gutter::AbsoluteLineGutter, noop_line_gutter::NoopLineDrawer,
+            relative_line_gutter::RelativeLineDrawer,
+        },
+        rect::Rect,
+    },
 };
 
 use super::Frame;

@@ -427,7 +427,7 @@ impl LspClient {
         }
     }
 
-    pub async fn request_hover(
+    pub async fn _request_hover(
         &mut self,
         file_path: &str,
         row: usize,

@@ -6,10 +6,8 @@ mod events;
 mod frame;
 mod highlight;
 mod lsp;
-mod pane;
 mod theme;
 mod tui;
-mod view;
 
 use std::{
     io::{Error, ErrorKind},

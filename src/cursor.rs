@@ -1,8 +1,7 @@
 use crate::buffer::TextObject;
 use crate::config::{Action, KeyAction};
 use crate::editor::Mode;
-
-use crate::pane::Position;
+use crate::tui::position::Position;
 
 #[derive(Debug, Default)]
 pub struct Cursor {
@@ -12,15 +11,6 @@ pub struct Cursor {
 }
 
 impl Cursor {
-    // TODO: remove this in favor of Default
-    pub fn new() -> Self {
-        Self {
-            absolute_position: 0,
-            row: 0,
-            col: 0,
-        }
-    }
-
     pub fn handle(&mut self, action: &KeyAction, buffer: &mut TextObject, mode: &Mode) {
         match action {
             KeyAction::Simple(Action::MoveToTop) => self.move_to_top(),
@@ -268,7 +258,7 @@ mod tests {
     #[test]
     fn test_cursor_move_up() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld\nEveryone", gap);
         cursor.row = 1;
 
@@ -285,8 +275,10 @@ mod tests {
 
     #[test]
     fn test_get_readable_position() {
-        let mut cursor = Cursor::new();
-        cursor.row = 1;
+        let cursor = Cursor {
+            row: 1,
+            ..Default::default()
+        };
 
         let pos = cursor.get_readable_position();
 
@@ -297,7 +289,7 @@ mod tests {
     #[test]
     fn move_to_line_start() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer =
             TextObject::from_string(1, "Hello World! This is a big line\n this isn't\n", gap);
 
@@ -322,7 +314,7 @@ mod tests {
     #[test]
     fn move_to_line_end() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer =
             TextObject::from_string(1, "Hello World! This is a big line\n this isn't\n", gap);
 
@@ -339,7 +331,7 @@ mod tests {
     #[test]
     fn test_cursor_move_down() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld\nEveryone", gap);
         cursor.row = 0;
 
@@ -357,7 +349,7 @@ mod tests {
     #[test]
     fn test_cursor_move_right() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld\nEveryone", gap);
 
         cursor.handle(
@@ -374,7 +366,7 @@ mod tests {
     #[test]
     fn test_cursor_move_left() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld\nEveryone", gap);
         cursor.col = 1;
         cursor.absolute_position = 1;
@@ -393,7 +385,7 @@ mod tests {
     #[test]
     fn test_moving_down_into_shorter_line() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer =
             TextObject::from_string(1, "Hello World! This is a big line\n this isn't\n", gap);
 
@@ -426,7 +418,7 @@ mod tests {
     #[test]
     fn test_moving_up_into_shorter_line() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer =
             TextObject::from_string(1, "Hello\nWorld! This is a big line we got here", gap);
         cursor.handle(
@@ -459,7 +451,7 @@ mod tests {
     #[test]
     fn test_moving_up_into_longer_line() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer =
             TextObject::from_string(1, "Hello World! This is a big line\nThis isn't", gap);
         cursor.handle(
@@ -493,7 +485,7 @@ mod tests {
     #[test]
     fn test_moving_down_into_longer_line() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld! This is a big line", gap);
         cursor.row = 0;
         cursor.col = 5;
@@ -519,7 +511,7 @@ mod tests {
     #[test]
     fn test_should_not_go_left_when_at_start_of_file() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld!", gap);
 
         cursor.handle(
@@ -536,7 +528,7 @@ mod tests {
     #[test]
     fn test_should_go_to_line_start_when_moving_up_from_start_of_file() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello World!", gap);
         cursor.absolute_position = 5;
         cursor.col = 5;
@@ -555,7 +547,7 @@ mod tests {
     #[test]
     fn test_should_go_to_line_end_when_moving_down_from_end_of_file() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello World!", gap);
 
         cursor.handle(
@@ -572,7 +564,7 @@ mod tests {
     #[test]
     fn test_should_not_go_right_when_at_end_of_file() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello World!", gap);
         cursor.absolute_position = 11;
         cursor.col = 11;
@@ -591,7 +583,7 @@ mod tests {
     #[test]
     fn test_move_to_top() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Random\nmultiline\nstring\ntext\nbuffer", gap);
 
         for _ in 0..5 {
@@ -620,7 +612,7 @@ mod tests {
     #[test]
     fn test_move_to_bottom() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Random\nmultiline\nstring\ntext\nbuffer", gap);
 
         cursor.handle(
@@ -637,7 +629,7 @@ mod tests {
     #[test]
     fn test_insert_char() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello, World!", gap);
 
         cursor.handle(
@@ -654,7 +646,7 @@ mod tests {
     #[test]
     fn test_delete_prev_char() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello, World!", gap);
         cursor.col = 3;
         cursor.absolute_position = 3;
@@ -672,7 +664,7 @@ mod tests {
     #[test]
     fn test_insert_line_below() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld!", gap);
         cursor.col = 3;
         cursor.absolute_position = 3;
@@ -691,7 +683,7 @@ mod tests {
     #[test]
     fn test_insert_line_above() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld!", gap);
         cursor.col = 3;
         cursor.row = 1;
@@ -711,7 +703,7 @@ mod tests {
     #[test]
     fn test_insert_line() {
         let gap = 5;
-        let mut cursor = Cursor::new();
+        let mut cursor = Cursor::default();
         let mut buffer = TextObject::from_string(1, "Hello\nWorld!", gap);
         cursor.col = 3;
         cursor.row = 0;

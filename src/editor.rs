@@ -19,7 +19,7 @@ use crate::{
     tui::{
         buffer::{Buffer, FocusableBuffer},
         rect::Rect,
-        statusline::Statusline,
+        statusline::{Statusline, StatuslineContext},
         Focusable, Renderable,
     },
 };
@@ -31,6 +31,12 @@ pub enum Mode {
     Insert,
     Command,
     Search,
+}
+
+impl Default for &Mode {
+    fn default() -> Self {
+        &Mode::Normal
+    }
 }
 
 impl std::fmt::Display for Mode {
@@ -71,7 +77,7 @@ impl<'a> Editor<'a> {
         let pane_size = size.clone().shrink_bottom(2);
 
         let text_object = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
-        let buffer = Buffer::focusable(1, text_object.clone(), pane_size, config, theme);
+        let buffer = Buffer::focusable(1, text_object.clone(), pane_size, config, theme, true);
 
         let mut editor = Self {
             events: Events::new(config),
@@ -247,6 +253,13 @@ impl<'a> Editor<'a> {
             }
             _ => (),
         };
+
+        self.statusline.update(StatuslineContext {
+            cursor: self.buffer.cursor.get_readable_position(),
+            file_name: self.buffer.get_file_name(),
+            mode: self.mode.clone(),
+        });
+
         self.render_next_frame()?;
         Ok(())
     }

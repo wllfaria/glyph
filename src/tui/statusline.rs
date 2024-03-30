@@ -5,13 +5,21 @@ use crate::{
     tui::{rect::Rect, Renderable},
 };
 
+use super::position::Position;
+
 #[derive(Debug)]
 pub struct Statusline<'a> {
     area: Rect,
-    pub cursor: (u16, u16),
-    pub file_name: &'a str,
+    pub cursor: Position,
+    pub file_name: String,
     pub mode: Mode,
     pub theme: &'a Theme,
+}
+
+pub struct StatuslineContext {
+    pub cursor: Position,
+    pub file_name: String,
+    pub mode: Mode,
 }
 
 impl<'a> Statusline<'a> {
@@ -25,10 +33,10 @@ impl<'a> Statusline<'a> {
         }
     }
 
-    pub fn update(&mut self, cursor: (u16, u16), file_name: &'a str, mode: Mode) {
-        self.cursor = cursor;
-        self.file_name = file_name;
-        self.mode = mode;
+    pub fn update(&mut self, context: StatuslineContext) {
+        self.cursor = context.cursor;
+        self.file_name = context.file_name;
+        self.mode = context.mode;
     }
 }
 
@@ -36,8 +44,8 @@ impl<'a> Renderable<'a> for Statusline<'_> {
     fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
         let mode = format!(" [{}] ", self.mode);
         let mode_gap = " ";
-        let file_name = self.file_name;
-        let cursor = format!("{}:{} ", self.cursor.1, self.cursor.0);
+        let file_name = &self.file_name;
+        let cursor = format!("{}:{} ", self.cursor.row, self.cursor.col);
         let style = self.theme.statusline;
         let remaining_space = [mode.len(), mode_gap.len(), file_name.len(), cursor.len()]
             .iter()

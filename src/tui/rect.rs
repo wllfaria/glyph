@@ -22,10 +22,6 @@ impl Rect {
         self.y.saturating_add(self.height)
     }
 
-    pub fn right(&self) -> u16 {
-        self.x.saturating_add(self.width)
-    }
-
     pub fn shrink_bottom(mut self, amount: u16) -> Self {
         self.height = self.height.saturating_sub(amount);
         self

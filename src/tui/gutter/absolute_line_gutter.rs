@@ -1,9 +1,10 @@
 use crate::config::Config;
-use crate::pane::Frame;
+use crate::frame::Frame;
 use crate::theme::Theme;
 
-use crate::pane::gutter::Gutter;
 use crate::tui::rect::Rect;
+
+use super::Gutter;
 
 #[derive(Debug, Clone)]
 pub struct AbsoluteLineGutter<'a> {

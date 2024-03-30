@@ -125,7 +125,7 @@ impl TextObject {
             .join("\n")
     }
 
-    pub fn lines(&self) -> Lines {
+    pub fn _lines(&self) -> Lines {
         Lines {
             buffer: &self.buffer,
             start: 0,

@@ -1,24 +1,21 @@
 mod focusable_buffer;
-mod scrollable_buffer;
 
 pub use focusable_buffer::FocusableBuffer;
-pub use scrollable_buffer::ScrollableBuffer;
 
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     buffer::TextObject,
-    config::Config,
+    config::{Config, LineNumbers},
     cursor::Cursor,
-    frame::cell::Cell,
+    frame::{cell::Cell, Frame},
     highlight::Highlight,
-    pane::gutter::{get_gutter, GutterKind},
     theme::Theme,
-    tui::{rect::Rect, Renderable},
+    tui::{gutter::GutterKind, rect::Rect, Renderable},
 };
 
 pub struct Buffer<'a> {
-    id: usize,
+    _id: usize,
     text_object: Rc<RefCell<TextObject>>,
     area: Rect,
     config: &'a Config,
@@ -28,44 +25,23 @@ pub struct Buffer<'a> {
 }
 
 impl<'a> Buffer<'a> {
-    pub fn new(
-        id: usize,
-        text_object: Rc<RefCell<TextObject>>,
-        area: Rect,
-        config: &'a Config,
-        theme: &'a Theme,
-    ) -> Self {
-        Self {
-            id,
-            text_object,
-            gutter: get_gutter(config, theme, area.clone()),
-            area,
-            config,
-            theme,
-            highlighter: Highlight::new(theme),
-        }
-    }
-
     pub fn focusable(
         id: usize,
         text_object: Rc<RefCell<TextObject>>,
         area: Rect,
         config: &'a Config,
         theme: &'a Theme,
+        is_scrollable: bool,
     ) -> FocusableBuffer<'a> {
-        let buffer = Self::new(id, text_object, area, config, theme);
-        FocusableBuffer::new(buffer, Cursor::default())
-    }
-
-    pub fn scrollable(
-        id: usize,
-        text_object: Rc<RefCell<TextObject>>,
-        area: Rect,
-        config: &'a Config,
-        theme: &'a Theme,
-    ) -> ScrollableBuffer<'a> {
-        let buffer = Self::focusable(id, text_object, area, config, theme);
-        ScrollableBuffer::new(buffer, Cursor::default())
+        FocusableBuffer::new(
+            id,
+            text_object,
+            area,
+            config,
+            theme,
+            Cursor::default(),
+            is_scrollable,
+        )
     }
 
     fn apply_highlights(&mut self) -> Vec<Cell> {
@@ -101,25 +77,19 @@ impl<'a> Buffer<'a> {
 }
 
 impl Renderable<'_> for Buffer<'_> {
-    fn render(&mut self, frame: &mut crate::frame::Frame) -> anyhow::Result<()> {
-        let cells = self.apply_highlights();
-        let mut row = self.area.y;
-        let mut col = self.gutter.width();
+    fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
+        let gutter_width = match self.config.line_numbers {
+            LineNumbers::None => 0,
+            _ => self.gutter.width(),
+        };
 
-        for cell in cells {
-            if col < self.area.width {
-                match cell.c {
-                    '\n' => frame.set_cell(col, row, ' ', &cell.style),
-                    _ => frame.set_cell(col, row, cell.c, &cell.style),
-                }
-                col += 1;
-            }
-
-            if cell.c == '\n' {
-                row += 1;
-                col = self.gutter.width();
-            }
-        }
+        render_within_bounds(
+            &self.apply_highlights(),
+            frame,
+            self.area.y,
+            gutter_width,
+            |col| col < self.area.width,
+        );
 
         self.gutter.render(
             frame,
@@ -133,7 +103,35 @@ impl Renderable<'_> for Buffer<'_> {
 
     fn resize(&mut self, new_area: Rect) -> anyhow::Result<()> {
         self.area = new_area;
-
         Ok(())
+    }
+}
+
+fn render_within_bounds<F>(
+    cells: &[Cell],
+    frame: &mut Frame,
+    row: u16,
+    col: u16,
+    is_within_bounds: F,
+) where
+    F: Fn(u16) -> bool,
+{
+    let initial_col = col;
+    let mut col = col;
+    let mut row = row;
+
+    for cell in cells {
+        if is_within_bounds(col) {
+            match cell.c {
+                '\n' => frame.set_cell(col, row, ' ', &cell.style),
+                _ => frame.set_cell(col, row, cell.c, &cell.style),
+            }
+            col += 1;
+        }
+
+        if cell.c == '\n' {
+            row += 1;
+            col = initial_col;
+        }
     }
 }
