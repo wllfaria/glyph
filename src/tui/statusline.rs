@@ -1,8 +1,8 @@
 use crate::{
     editor::Mode,
+    frame::Frame,
     theme::Theme,
     tui::{rect::Rect, Renderable},
-    viewport::Frame,
 };
 
 #[derive(Debug)]
@@ -55,6 +55,11 @@ impl<'a> Renderable<'a> for Statusline<'_> {
         col += remaining_space as u16;
         frame.set_text(col, self.area.y, &cursor, &style.cursor);
 
+        Ok(())
+    }
+
+    fn resize(&mut self, new_area: Rect) -> anyhow::Result<()> {
+        self.area = new_area;
         Ok(())
     }
 }

@@ -55,6 +55,8 @@ pub enum Action {
     ExecuteCommand,
     SaveBuffer,
     DeleteUntilEOL,
+    /// Action sent when the terminal is resized,
+    /// `Resize(width, height)`
     Resize(u16, u16),
 
     NextWord,

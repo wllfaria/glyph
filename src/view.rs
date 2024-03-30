@@ -7,8 +7,8 @@ use crossterm::{terminal, QueueableCommand};
 
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
+use crate::frame::Frame;
 use crate::theme::{Style, Theme};
-use crate::viewport::Frame;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Size {

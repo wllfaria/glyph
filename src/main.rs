@@ -3,13 +3,13 @@ mod config;
 mod cursor;
 mod editor;
 mod events;
+mod frame;
 mod highlight;
 mod lsp;
 mod pane;
 mod theme;
 mod tui;
 mod view;
-mod viewport;
 
 use std::{
     io::{Error, ErrorKind},

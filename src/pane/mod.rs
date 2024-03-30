@@ -1,19 +1,17 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::buffer::TextObject;
-use crate::config::{Action, Config, KeyAction, LineNumbers};
-use crate::cursor::Cursor;
-use crate::editor::Mode;
-use crate::highlight::Highlight;
-use crate::pane::gutter::Gutter;
-use crate::theme::Theme;
-use crate::tui::rect::Rect;
-use crate::viewport::{Cell, Frame};
-
-use self::gutter::absolute_line_gutter::AbsoluteLineGutter;
-use self::gutter::noop_line_gutter::NoopLineDrawer;
-use self::gutter::relative_line_gutter::RelativeLineDrawer;
+use crate::{
+    buffer::TextObject,
+    config::{Action, Config, KeyAction},
+    cursor::Cursor,
+    editor::Mode,
+    frame::{cell::Cell, Frame},
+    highlight::Highlight,
+    pane::gutter::Gutter,
+    theme::Theme,
+    tui::rect::Rect,
+};
 
 pub mod gutter;
 
@@ -75,22 +73,23 @@ impl<'a> Buffer<'a> {
                 self.handle_cursor_action(action, mode)?
             }
             KeyAction::Simple(Action::MoveToLineEnd) => self.handle_cursor_action(action, mode)?,
-            KeyAction::Simple(Action::DeletePreviousChar) => {
-                self.handle_buffer_action(action, mode)?
-            }
-            KeyAction::Simple(Action::DeleteCurrentChar) => {
-                self.handle_buffer_action(action, mode)?
-            }
             KeyAction::Simple(Action::NextWord) => self.handle_cursor_action(action, mode)?,
             KeyAction::Simple(Action::MoveLeft) => self.handle_cursor_action(action, mode)?,
             KeyAction::Simple(Action::MoveDown) => self.handle_cursor_action(action, mode)?,
             KeyAction::Simple(Action::MoveUp) => self.handle_cursor_action(action, mode)?,
             KeyAction::Simple(Action::MoveRight) => self.handle_cursor_action(action, mode)?,
             KeyAction::Simple(Action::MoveToTop) => self.handle_cursor_action(action, mode)?,
-            KeyAction::Simple(Action::SaveBuffer) => self.handle_buffer_action(action, mode)?,
             KeyAction::Simple(Action::MoveToBottom) => self.handle_cursor_action(action, mode)?,
+
+            KeyAction::Simple(Action::SaveBuffer) => self.handle_buffer_action(action, mode)?,
             KeyAction::Simple(Action::InsertLine) => self.handle_buffer_action(action, mode)?,
             KeyAction::Simple(Action::InsertLineBelow) => {
+                self.handle_buffer_action(action, mode)?
+            }
+            KeyAction::Simple(Action::DeletePreviousChar) => {
+                self.handle_buffer_action(action, mode)?
+            }
+            KeyAction::Simple(Action::DeleteCurrentChar) => {
                 self.handle_buffer_action(action, mode)?
             }
             KeyAction::Simple(Action::InsertLineAbove) => {

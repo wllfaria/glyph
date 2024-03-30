@@ -13,10 +13,15 @@ use crate::{
     buffer::TextObject,
     config::{Action, Config, KeyAction},
     events::Events,
+    frame::Frame,
     lsp::{IncomingMessage, LspClient},
     theme::Theme,
-    tui::{buffer::Buffer, rect::Rect, statusline::Statusline, Renderable},
-    viewport::Frame,
+    tui::{
+        buffer::{Buffer, FocusableBuffer},
+        rect::Rect,
+        statusline::Statusline,
+        Focusable, Renderable,
+    },
 };
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -41,14 +46,14 @@ impl std::fmt::Display for Mode {
 
 pub struct Editor<'a> {
     events: Events<'a>,
-    buffer: Buffer<'a>,
+    buffer: FocusableBuffer<'a>,
+    lsp: LspClient,
 
     theme: &'a Theme,
 
     area: Rect,
     frames: [Frame; 2],
 
-    lsp: LspClient,
     mode: Mode,
 
     statusline: Statusline<'a>,
@@ -65,14 +70,14 @@ impl<'a> Editor<'a> {
         let size = Rect::from(size);
         let pane_size = size.clone().shrink_bottom(2);
 
-        let buffer = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
-        let pane = Buffer::new(1, buffer.clone(), pane_size, config, theme);
+        let text_object = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
+        let buffer = Buffer::focusable(1, text_object.clone(), pane_size, config, theme);
 
         let mut editor = Self {
             events: Events::new(config),
             lsp,
             theme,
-            buffer: pane,
+            buffer,
             mode: Mode::Normal,
             frames: [
                 Frame::new(size.width, size.height),
@@ -147,7 +152,12 @@ impl<'a> Editor<'a> {
             )?;
         }
 
-        stdout().flush()?;
+        Ok(())
+    }
+
+    fn draw_cursor(&self) -> anyhow::Result<()> {
+        self.buffer.render_cursor(&self.mode)?;
+
         Ok(())
     }
 
@@ -158,6 +168,10 @@ impl<'a> Editor<'a> {
         self.buffer.render(frame)?;
 
         self.render_diff()?;
+        self.draw_cursor()?;
+
+        stdout().flush()?;
+
         self.swap_frames();
 
         Ok(())
@@ -187,8 +201,8 @@ impl<'a> Editor<'a> {
 
             tokio::select! {
                 _ = delay => {
-                    if (self.lsp.try_read_message().await?).is_some() {
-                        // self.handle_lsp_message(message)?;
+                    if let Some(message) = self.lsp.try_read_message().await? {
+                        self.handle_lsp_message(message)?;
                     }
                 }
                 maybe_event = event => {
@@ -223,16 +237,21 @@ impl<'a> Editor<'a> {
                 // let col = cursor.col;
                 // self.lsp.request_hover(&file_name, row, col).await?;
             }
+            KeyAction::Simple(Action::Resize(width, height)) => {
+                self.area = Rect::new(0, 0, width, height);
+                self.statusline.resize(Rect::new(0, height - 2, width, 1))?;
+                self.buffer.resize(Rect::new(0, 0, width, height - 2))?;
+            }
+            KeyAction::Simple(_) => {
+                self.buffer.handle_action(&action, &self.mode)?;
+            }
             _ => (),
         };
+        self.render_next_frame()?;
         Ok(())
     }
 
-    fn handle_lsp_message(
-        &mut self,
-        message: (IncomingMessage, Option<String>),
-    ) -> anyhow::Result<()> {
-        // self.view.handle_lsp_message(message)?;
+    fn handle_lsp_message(&mut self, _: (IncomingMessage, Option<String>)) -> anyhow::Result<()> {
         Ok(())
     }
 }

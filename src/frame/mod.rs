@@ -1,29 +1,16 @@
+pub mod cell;
+mod change;
+
 use crate::theme::Style;
+use cell::Cell;
 
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub struct Cell {
-    pub c: char,
-    pub style: Style,
-}
-
-impl Cell {
-    pub fn new(c: char, style: Style) -> Self {
-        Self { c, style }
-    }
-}
+use self::change::Change;
 
 #[derive(Clone, Debug)]
 pub struct Frame {
     pub cells: Vec<Cell>,
     pub width: u16,
     pub height: u16,
-}
-
-#[derive(Debug)]
-pub struct Change<'a> {
-    pub cell: &'a Cell,
-    pub row: u16,
-    pub col: u16,
 }
 
 impl Frame {

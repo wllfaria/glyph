@@ -1,12 +1,13 @@
-use crate::viewport::Frame;
-
 pub mod buffer;
 pub mod layout;
 pub mod rect;
 pub mod statusline;
-pub mod themed;
 
 mod tui_view;
+
+use crate::{config::KeyAction, editor::Mode, frame::Frame};
+
+use self::rect::Rect;
 
 // fn maybe_scroll(&mut self, cursor: &Cursor) {
 //     let Rect { width, height, .. } = self.get_area();
@@ -35,45 +36,15 @@ mod tui_view;
 //     self.set_scroll(scroll.clone());
 // }
 //
-// fn draw_cursor(&mut self, mode: &Mode, buffer: &Buffer, cursor: &Cursor) -> anyhow::Result<()> {
-//     let offset = self.get_offset();
-//     let scroll = self.get_scroll().clone();
-//
-//     let stdout = self.get_stdout();
-//
-//     let col = {
-//         let mut col = 0;
-//         if let Some(mark) = buffer.marker.get_by_line(cursor.row + 1) {
-//             col = match mode {
-//                 Mode::Normal => cursor.col.min(mark.size.saturating_sub(2)),
-//                 _ => cursor.col.min(mark.size.saturating_sub(1)),
-//             };
-//         }
-//         col
-//     };
-//     stdout.queue(crossterm::cursor::MoveTo(
-//         col.saturating_sub(scroll.col) as u16 + offset as u16,
-//         cursor.row.saturating_sub(scroll.row) as u16,
-//     ))?;
-//
-//     Ok(())
-// }
-//
 
 pub trait Renderable<'a> {
-    // fn render_diff(
-    //     &mut self,
-    //     last_view: &Viewport,
-    //     view: &Viewport,
-    //     default_style: &Style,
-    // ) -> anyhow::Result<()>;
     fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()>;
+    fn resize(&mut self, new_area: Rect) -> anyhow::Result<()>;
 }
 
 pub trait Focusable<'a>: Renderable<'a> {
-    fn focus(&mut self);
-    fn unfocus(&mut self);
-    fn render_cursor(&self) -> anyhow::Result<()>;
+    fn render_cursor(&self, mode: &Mode) -> anyhow::Result<()>;
+    fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()>;
 }
 
 pub trait Scrollable<'a>: Focusable<'a> {
