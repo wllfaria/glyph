@@ -10,7 +10,6 @@ mod theme;
 mod tui;
 mod view;
 mod viewport;
-mod window;
 
 use std::{
     io::{Error, ErrorKind},

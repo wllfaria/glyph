@@ -7,18 +7,11 @@ pub mod loader;
 #[derive(Debug, Clone)]
 pub struct Theme {
     pub name: String,
-    pub appearance: Appearance,
+    pub appearance: Style,
     pub statusline: StatuslineTheming,
     pub float: Style,
     pub gutter: Style,
     pub tokens: HashMap<String, Style>,
-    pub style: Style,
-}
-
-#[derive(Debug, Clone)]
-pub struct Appearance {
-    pub bg: Color,
-    pub fg: Color,
 }
 
 #[derive(Debug, Clone, Copy)]

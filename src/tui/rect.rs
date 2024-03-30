@@ -1,3 +1,5 @@
+use std::ops::Sub;
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Rect {
     pub x: u16,
@@ -23,6 +25,11 @@ impl Rect {
     pub fn right(&self) -> u16 {
         self.x.saturating_add(self.width)
     }
+
+    pub fn shrink_bottom(mut self, amount: u16) -> Self {
+        self.height = self.height.saturating_sub(amount);
+        self
+    }
 }
 
 impl From<(u16, u16)> for Rect {
@@ -32,6 +39,19 @@ impl From<(u16, u16)> for Rect {
             y: 0,
             width,
             height,
+        }
+    }
+}
+
+impl Sub for Rect {
+    type Output = Rect;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Rect {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            width: self.width - rhs.width,
+            height: self.height - rhs.height,
         }
     }
 }

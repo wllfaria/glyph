@@ -1,12 +1,11 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::buffer::Buffer;
+use crate::buffer::TextObject;
 use crate::config::{Action, Config, KeyAction, LineNumbers};
 use crate::cursor::Cursor;
 use crate::editor::Mode;
 use crate::highlight::Highlight;
-use crate::lsp::IncomingMessage;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
 use crate::tui::rect::Rect;
@@ -16,7 +15,7 @@ use self::gutter::absolute_line_gutter::AbsoluteLineGutter;
 use self::gutter::noop_line_gutter::NoopLineDrawer;
 use self::gutter::relative_line_gutter::RelativeLineDrawer;
 
-mod gutter;
+pub mod gutter;
 
 #[derive(Debug, Default, Clone)]
 pub struct Position {
@@ -24,39 +23,25 @@ pub struct Position {
     pub col: usize,
 }
 
-pub struct Pane<'a> {
+pub struct Buffer<'a> {
     pub id: usize,
     pub cursor: Cursor,
     highlight: Highlight<'a>,
     // buffer_view: Box<dyn Scrollable + 'a>,
-    pub buffer: Rc<RefCell<Buffer>>,
+    pub buffer: Rc<RefCell<TextObject>>,
     /// Currently, `layers[0]` is the buffer layer and `layers[1]` is the popups layer
     config: &'a Config,
-    gutter: Box<dyn Gutter>,
     pub size: Rect,
     theme: &'a Theme,
 }
 
-impl<'a> Pane<'a> {
+impl<'a> Buffer<'a> {
     pub fn new(
         id: usize,
-        buffer: Rc<RefCell<Buffer>>,
+        buffer: Rc<RefCell<TextObject>>,
         theme: &'a Theme,
         config: &'a Config,
     ) -> Self {
-        let gutter: Box<dyn Gutter> = match config.line_numbers {
-            LineNumbers::Absolute => {
-                Box::new(AbsoluteLineGutter::new(config.clone(), theme.clone()))
-            }
-            LineNumbers::Relative => {
-                Box::new(RelativeLineDrawer::new(config.clone(), theme.clone()))
-            }
-            LineNumbers::RelativeNumbered => {
-                Box::new(RelativeLineDrawer::new(config.clone(), theme.clone()))
-            }
-            LineNumbers::None => Box::new(NoopLineDrawer::new(config.clone(), theme.clone())),
-        };
-
         let size: Rect = (1, 1).into();
 
         Self {
@@ -66,7 +51,6 @@ impl<'a> Pane<'a> {
             cursor: Cursor::new(),
             // buffer_view: Box::new(TuiView::new(size.clone(), config.gutter_width)),
             size,
-            gutter,
             config,
             theme,
         }
@@ -218,7 +202,7 @@ impl<'a> Pane<'a> {
         // );
     }
 
-    pub fn get_buffer(&self) -> Rc<RefCell<Buffer>> {
+    pub fn get_buffer(&self) -> Rc<RefCell<TextObject>> {
         self.buffer.clone()
     }
 }

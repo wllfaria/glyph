@@ -1,17 +1,14 @@
 use crate::theme::Style;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Cell {
     pub c: char,
     pub style: Style,
 }
 
-impl Default for Cell {
-    fn default() -> Self {
-        Self {
-            c: ' ',
-            style: Style::default(),
-        }
+impl Cell {
+    pub fn new(c: char, style: Style) -> Self {
+        Self { c, style }
     }
 }
 

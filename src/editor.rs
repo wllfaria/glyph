@@ -2,32 +2,26 @@ use std::{
     cell::RefCell,
     io::{stdout, Write},
     rc::Rc,
-    sync::mpsc,
     time::Duration,
 };
 
 use crossterm::{event::EventStream, style::Stylize};
-use futures::{future::FutureExt, StreamExt};
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    buffer::Buffer,
+    buffer::TextObject,
     config::{Action, Config, KeyAction},
     events::Events,
     lsp::{IncomingMessage, LspClient},
-    pane::Pane,
     theme::Theme,
-    tui::{
-        rect::Rect,
-        statusline::{Statusline, StatuslineContext},
-        Renderable,
-    },
+    tui::{buffer::Buffer, rect::Rect, statusline::Statusline, Renderable},
     viewport::Frame,
-    window::Window,
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub enum Mode {
+    #[default]
     Normal,
     Insert,
     Command,
@@ -47,7 +41,8 @@ impl std::fmt::Display for Mode {
 
 pub struct Editor<'a> {
     events: Events<'a>,
-    window: Window<'a>,
+    buffer: Buffer<'a>,
+
     theme: &'a Theme,
 
     area: Rect,
@@ -56,7 +51,7 @@ pub struct Editor<'a> {
     lsp: LspClient,
     mode: Mode,
 
-    statusline: Statusline,
+    statusline: Statusline<'a>,
 }
 
 impl<'a> Editor<'a> {
@@ -66,25 +61,24 @@ impl<'a> Editor<'a> {
         lsp: LspClient,
         file_name: Option<String>,
     ) -> anyhow::Result<Self> {
-        let buffer = Rc::new(RefCell::new(Buffer::new(1, file_name.clone())?));
-        let pane = Pane::new(1, buffer.clone(), theme, config);
-        let mut window = Window::new(1, pane);
-
         let size = crossterm::terminal::size()?;
         let size = Rect::from(size);
-        window.resize(&size, &Mode::Normal)?;
+        let pane_size = size.clone().shrink_bottom(2);
+
+        let buffer = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
+        let pane = Buffer::new(1, buffer.clone(), pane_size, config, theme);
 
         let mut editor = Self {
             events: Events::new(config),
-            window,
             lsp,
             theme,
+            buffer: pane,
             mode: Mode::Normal,
             frames: [
                 Frame::new(size.width, size.height),
                 Frame::new(size.width, size.height),
             ],
-            statusline: Statusline::new(Rect::new(size.x, size.bottom() - 2, size.width, 1)),
+            statusline: Statusline::new(Rect::new(size.x, size.bottom() - 2, size.width, 1), theme),
             area: size,
         };
 
@@ -99,7 +93,6 @@ impl<'a> Editor<'a> {
             stdout(),
             crossterm::terminal::EnterAlternateScreen,
             crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
-            crossterm::cursor::MoveTo(0, 0),
         )?;
 
         Ok(())
@@ -128,12 +121,15 @@ impl<'a> Editor<'a> {
             let mut cell = diff.cell.c.stylize();
 
             if let Some(bg) = diff.cell.style.bg {
-                tracing::debug!("{:?}", bg);
                 cell = cell.on(bg);
+            } else {
+                cell = cell.on(self.theme.appearance.bg.unwrap());
             }
 
             if let Some(fg) = diff.cell.style.fg {
                 cell = cell.with(fg);
+            } else {
+                cell = cell.with(self.theme.appearance.fg.unwrap());
             }
 
             if let Some(true) = diff.cell.style.bold {
@@ -155,38 +151,32 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    fn prepare_frame(&mut self) -> anyhow::Result<()> {
-        let mode = &self.mode;
-        let statusline_style = self.theme.statusline;
-        let file_name = self
-            .window
-            .get_active_pane()
-            .buffer
-            .borrow()
-            .file_name
-            .clone();
+    fn render_next_frame(&mut self) -> anyhow::Result<()> {
         let frame = &mut self.frames[0];
 
-        self.statusline.render(
-            frame,
-            &StatuslineContext {
-                cursor: (1, 1),
-                file_name: &file_name,
-                mode,
-                statusline_style: &statusline_style,
-            },
-        )?;
+        self.statusline.render(frame)?;
+        self.buffer.render(frame)?;
 
-        self.window.render_panes(mode)?;
+        self.render_diff()?;
         self.swap_frames();
 
         Ok(())
     }
 
+    fn fill_frame(&mut self) {
+        let frame = &mut self.frames[0];
+
+        for row in 0..self.area.height {
+            for col in 0..self.area.width {
+                frame.set_cell(col, row, ' ', &self.theme.appearance);
+            }
+        }
+    }
+
     pub async fn start(&mut self) -> anyhow::Result<()> {
         self.setup_terminal()?;
-        self.prepare_frame()?;
-        self.render_diff()?;
+        self.fill_frame();
+        self.render_next_frame()?;
 
         let mut stream = EventStream::new();
         self.lsp.initialize().await?;
@@ -197,7 +187,7 @@ impl<'a> Editor<'a> {
 
             tokio::select! {
                 _ = delay => {
-                    if let Some(message) = self.lsp.try_read_message().await? {
+                    if (self.lsp.try_read_message().await?).is_some() {
                         // self.handle_lsp_message(message)?;
                     }
                 }

@@ -10,7 +10,7 @@ use crate::config::{Action, KeyAction};
 use marker::Mark;
 
 #[derive(Debug)]
-pub struct Buffer {
+pub struct TextObject {
     pub id: u16,
     pub buffer: Vec<char>,
     pub marker: Box<dyn Marker>,
@@ -20,14 +20,14 @@ pub struct Buffer {
     gap_size: usize,
 }
 
-impl Buffer {
+impl TextObject {
     pub fn new(id: u16, file_name: Option<String>) -> io::Result<Self> {
         let lines = match file_name {
             Some(ref name) => std::fs::read_to_string(name)?,
             None => String::new(),
         };
         let gap = 1000;
-        let mut buffer = Buffer::from_string(id, &lines, gap);
+        let mut buffer = TextObject::from_string(id, &lines, gap);
         buffer.file_name = file_name.unwrap_or_default();
         Ok(buffer)
     }
@@ -38,7 +38,7 @@ impl Buffer {
         let mut marker = <dyn Marker>::get_marker();
         marker.set_marks(&buffer);
 
-        Buffer {
+        TextObject {
             id,
             buffer,
             gap_start: 0,
@@ -47,6 +47,10 @@ impl Buffer {
             marker,
             file_name: String::new(),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.to_string().len()
     }
 
     pub fn insert_char(&mut self, char: char, cursor_pos: usize) {
@@ -178,7 +182,7 @@ impl Buffer {
     }
 }
 
-impl std::fmt::Display for Buffer {
+impl std::fmt::Display for TextObject {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let lines = self
             .buffer
@@ -197,7 +201,7 @@ mod tests {
     #[test]
     fn test_buffer_initialization() {
         let gap = 5;
-        let buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let buffer = TextObject::from_string(1, "Hello, World!", gap);
         let first_needle = &"Hello, World!".chars().collect::<Vec<_>>();
 
         assert_eq!(buffer.gap_end - buffer.gap_start, gap);
@@ -207,7 +211,7 @@ mod tests {
     #[test]
     fn test_move_gap() {
         let gap = 5;
-        let mut buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", gap);
         let first_needle = &"Hello".chars().collect::<Vec<_>>();
 
         buffer.move_gap(5);
@@ -220,7 +224,7 @@ mod tests {
     #[test]
     fn test_move_gap_left() {
         let gap = 5;
-        let mut buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", gap);
 
         buffer.move_gap(13);
 
@@ -235,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_insert_into_gap() {
-        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hello!".chars().collect::<Vec<_>>();
 
         buffer.insert_char('!', 5);
@@ -247,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_delete_from_gap() {
-        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hell".chars().collect::<Vec<_>>();
         let insert = "\nanother string\n";
 
@@ -267,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_delete_everything_to_the_left() {
-        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", 5);
         let first_needle = &"".chars().collect::<Vec<_>>();
 
         // this moves the gap to the right by 5
@@ -286,7 +290,7 @@ mod tests {
     #[test]
     fn test_should_resize_gap() {
         let gap = 5;
-        let mut buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", gap);
 
         buffer.insert_char('_', 5);
         buffer.insert_char('_', buffer.gap_start);
@@ -320,7 +324,7 @@ mod tests {
     #[test]
     fn test_marks_initialization() {
         let gap = 5;
-        let buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let buffer = TextObject::from_string(1, "Hello, World!", gap);
 
         assert_eq!(buffer.marker.len(), 1);
         assert_eq!(buffer.marker.get_by_line(0).unwrap(), Mark::new(0, 1, 13));
@@ -329,7 +333,7 @@ mod tests {
     #[test]
     fn test_return_line_from_mark() {
         let gap = 5;
-        let buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let buffer = TextObject::from_string(1, "Hello, World!", gap);
         let mark = Mark {
             size: 13,
             line: 1,
@@ -343,7 +347,7 @@ mod tests {
     #[test]
     fn test_return_empty_line_from_invalid_mark() {
         let gap = 5;
-        let buffer = Buffer::from_string(1, "Hello, World!", gap);
+        let buffer = TextObject::from_string(1, "Hello, World!", gap);
         let mark = Mark {
             size: 10,
             line: 2,
@@ -356,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_insert_char_through_command() {
-        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hello!".chars().collect::<Vec<_>>();
 
         _ = buffer.handle_action(&KeyAction::Simple(Action::InsertChar('!')), 5);
@@ -369,7 +373,7 @@ mod tests {
     #[test]
     fn test_initialization_with_empty_filename() {
         let gap = 1000;
-        let buffer = Buffer::new(1, None).unwrap();
+        let buffer = TextObject::new(1, None).unwrap();
 
         assert_eq!(buffer.buffer.len(), gap);
         assert_eq!(buffer.gap_start, 0);
@@ -379,14 +383,14 @@ mod tests {
 
     #[test]
     fn test_errors_with_invalid_filename() {
-        let buffer = Buffer::new(1, Some(String::from("some_invalid_filename.extension")));
+        let buffer = TextObject::new(1, Some(String::from("some_invalid_filename.extension")));
 
         assert!(buffer.is_err());
     }
 
     #[test]
     fn test_delete_char_through_command() {
-        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hell".chars().collect::<Vec<_>>();
 
         let _ = buffer.handle_action(&KeyAction::Simple(Action::DeletePreviousChar), 5);
@@ -398,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_insert_newline_through_command() {
-        let mut buffer = Buffer::from_string(1, "Hello, World!", 5);
+        let mut buffer = TextObject::from_string(1, "Hello, World!", 5);
         let first_needle = &"Hello".chars().collect::<Vec<_>>();
         let second_needle = &", World!".chars().collect::<Vec<_>>();
 

@@ -5,7 +5,7 @@ use crossterm::style::Color;
 use serde::Deserialize;
 
 use crate::config::Config;
-use crate::theme::{Appearance, Gutter, StatuslineTheming, Style, Theme};
+use crate::theme::{Gutter, StatuslineTheming, Style, Theme};
 
 #[derive(Deserialize, Debug, Clone)]
 struct TokenStyle {
@@ -13,12 +13,6 @@ struct TokenStyle {
     bg: Option<String>,
     italic: Option<bool>,
     bold: Option<bool>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct AppearanceStyle {
-    fg: String,
-    bg: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -38,7 +32,7 @@ struct GutterStyle {
 #[derive(Deserialize, Debug)]
 pub struct ThemeLoader {
     name: String,
-    appearance: AppearanceStyle,
+    appearance: TokenStyle,
     statusline: StatuslineStyle,
     float: TokenStyle,
     gutter: TokenStyle,
@@ -90,28 +84,7 @@ impl From<ThemeLoader> for Theme {
             gutter: val.gutter.into(),
             float: val.float.into(),
             tokens,
-            style: val.appearance.clone().into(),
             appearance: val.appearance.into(),
-        }
-    }
-}
-
-impl From<AppearanceStyle> for Style {
-    fn from(value: AppearanceStyle) -> Self {
-        Self {
-            fg: hex_to_rgb(Some(value.fg)).unwrap(),
-            bg: hex_to_rgb(Some(value.bg)).unwrap(),
-            bold: None,
-            italic: None,
-        }
-    }
-}
-
-impl From<AppearanceStyle> for Appearance {
-    fn from(val: AppearanceStyle) -> Self {
-        Appearance {
-            bg: hex_to_rgb(Some(val.bg)).unwrap().unwrap(),
-            fg: hex_to_rgb(Some(val.fg)).unwrap().unwrap(),
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::viewport::Frame;
 
+pub mod buffer;
 pub mod layout;
 pub mod rect;
 pub mod statusline;
@@ -60,14 +61,13 @@ mod tui_view;
 //
 
 pub trait Renderable<'a> {
-    type RenderContext: 'a;
     // fn render_diff(
     //     &mut self,
     //     last_view: &Viewport,
     //     view: &Viewport,
     //     default_style: &Style,
     // ) -> anyhow::Result<()>;
-    fn render(&self, frame: &mut Frame, context: &Self::RenderContext) -> anyhow::Result<()>;
+    fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()>;
 }
 
 pub trait Focusable<'a>: Renderable<'a> {

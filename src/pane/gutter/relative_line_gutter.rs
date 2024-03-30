@@ -2,22 +2,28 @@ use crate::config::{Config, LineNumbers};
 use crate::pane::gutter::Gutter;
 use crate::pane::Frame;
 use crate::theme::Theme;
+use crate::tui::rect::Rect;
 
 #[derive(Debug)]
-pub struct RelativeLineDrawer {
-    config: Config,
-    theme: Theme,
+pub struct RelativeLineDrawer<'a> {
+    config: &'a Config,
+    theme: &'a Theme,
+    area: Rect,
 }
 
-impl RelativeLineDrawer {
-    pub fn new(config: Config, theme: Theme) -> Self {
-        Self { config, theme }
+impl<'a> RelativeLineDrawer<'a> {
+    pub fn new(config: &'a Config, theme: &'a Theme, area: Rect) -> Self {
+        Self {
+            config,
+            theme,
+            area,
+        }
     }
 }
 
-impl Gutter for RelativeLineDrawer {
+impl Gutter for RelativeLineDrawer<'_> {
     fn draw(&self, viewport: &mut Frame, total_lines: usize, line: usize, scroll: usize) {
-        let total_lines = usize::min(viewport.height.into(), total_lines);
+        let total_lines = usize::min(self.area.height.into(), total_lines);
         let normalized_line = line + 1;
         let mut scroll_row = scroll;
         let style = &self.theme.gutter;
@@ -42,7 +48,7 @@ impl Gutter for RelativeLineDrawer {
             }
         }
 
-        if total_lines < viewport.height.into() {
+        if total_lines < self.area.height.into() {
             let mut line = " ".repeat(self.config.gutter_width - 2);
             line.push(self.config.empty_line_char);
             line.push(' ');
@@ -53,5 +59,9 @@ impl Gutter for RelativeLineDrawer {
                 }
             }
         }
+    }
+
+    fn width(&self) -> u16 {
+        self.config.gutter_width as u16
     }
 }

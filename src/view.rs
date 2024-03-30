@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::io::{stdout, Result, Stdout, Write};
 use std::sync::mpsc;
 
@@ -8,12 +7,8 @@ use crossterm::{terminal, QueueableCommand};
 
 use crate::config::{Action, Config, KeyAction};
 use crate::editor::Mode;
-use crate::lsp::IncomingMessage;
-use crate::pane::Position;
 use crate::theme::{Style, Theme};
-use crate::tui::rect::Rect;
 use crate::viewport::Frame;
-use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Size {
@@ -28,13 +23,9 @@ impl From<(u16, u16)> for Size {
 }
 
 pub struct View<'a> {
-    pub active_window: usize,
-    pub windows: HashMap<usize, Window<'a>>,
     size: Size,
     stdout: Stdout,
     config: &'a Config,
-    statusline: Frame,
-    commandline: Frame,
     command: String,
     theme: &'a Theme,
     tx: mpsc::Sender<Action>,
@@ -45,24 +36,15 @@ impl<'a> View<'a> {
     pub fn new(
         config: &'a Config,
         theme: &'a Theme,
-        mut window: Window<'a>,
         tx: mpsc::Sender<Action>,
         mode: Mode,
     ) -> anyhow::Result<Self> {
-        let mut windows = HashMap::new();
         let size = terminal::size()?;
-
-        let id = window.id;
-        windows.insert(window.id, window);
 
         Ok(Self {
             stdout: stdout(),
             size: size.into(),
-            active_window: id,
-            windows,
             config,
-            statusline: Frame::new(size.0, 1),
-            commandline: Frame::new(size.0, 1),
             command: String::new(),
             theme,
             tx,
@@ -73,7 +55,6 @@ impl<'a> View<'a> {
     pub fn handle_action(&mut self, action: &KeyAction) -> anyhow::Result<()> {
         // let mut statusline = Viewport::new(self.size.width, 1);
         // let mut commandline = Viewport::new(self.size.width, 1);
-        let active_window = self.windows.get_mut(&self.active_window).unwrap();
         match action {
             KeyAction::Simple(Action::Resize(cols, rows)) => {
                 self.size = (*cols, *rows).into();
@@ -92,13 +73,13 @@ impl<'a> View<'a> {
             KeyAction::Simple(Action::Hover) => {
                 self.tx.send(Action::Hover)?;
             }
-            KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
-                self.mode = Mode::Normal;
-                active_window.handle_action(action, &self.mode)?;
-                self.maybe_leave_command_mode()?;
-                self.tx.send(Action::EnterMode(Mode::Normal))?;
-                self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
-            }
+            // KeyAction::Simple(Action::EnterMode(Mode::Normal)) => {
+            //     self.mode = Mode::Normal;
+            //     active_window.handle_action(action, &self.mode)?;
+            //     self.maybe_leave_command_mode()?;
+            //     self.tx.send(Action::EnterMode(Mode::Normal))?;
+            //     self.stdout.queue(cursor::SetCursorStyle::SteadyBlock)?;
+            // }
             KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
                 self.tx.send(Action::EnterMode(Mode::Command))?;
                 self.mode = Mode::Command;
@@ -106,18 +87,18 @@ impl<'a> View<'a> {
             }
             KeyAction::Simple(Action::InsertCommand(c)) => {
                 self.command.push(*c);
-                self.commandline
-                    .set_text(0, 0, &self.command, &self.theme.style);
+                // self.commandline
+                //     .set_text(0, 0, &self.command, &self.theme.style);
                 self.stdout.queue(cursor::MoveRight(1))?;
             }
             KeyAction::Simple(Action::ExecuteCommand) => {
                 self.try_execute_command()?;
             }
-            KeyAction::Simple(Action::DeletePreviousChar) => match self.command.is_empty() {
-                true => active_window.handle_action(action, &self.mode)?,
-                false => self.delete_command_char()?,
-            },
-            KeyAction::Simple(_) => active_window.handle_action(action, &self.mode)?,
+            // KeyAction::Simple(Action::DeletePreviousChar) => match self.command.is_empty() {
+            //     true => active_window.handle_action(action, &self.mode)?,
+            //     false => self.delete_command_char()?,
+            // },
+            // KeyAction::Simple(_) => active_window.handle_action(action, &self.mode)?,
             KeyAction::Multiple(actions) => {
                 for action in actions {
                     self.handle_action(&KeyAction::Simple(action.clone()))?;
@@ -150,8 +131,8 @@ impl<'a> View<'a> {
             }
             _ => {
                 self.command.pop();
-                self.commandline
-                    .set_text(0, 0, &self.command, &self.theme.style);
+                // self.commandline
+                //     .set_text(0, 0, &self.command, &self.theme.style);
                 self.stdout.queue(cursor::MoveLeft(1))?;
             }
         }
@@ -176,11 +157,11 @@ impl<'a> View<'a> {
 
     fn enter_command_mode(&mut self) -> anyhow::Result<()> {
         self.command.push(':');
-        self.commandline
-            .set_text(0, 0, &self.command, &self.theme.style);
+        // self.commandline
+        //     .set_text(0, 0, &self.command, &self.theme.style);
         self.stdout
             .queue(cursor::SetCursorStyle::SteadyBar)?
-            .queue(cursor::MoveTo(1, self.size.height as u16 - 1))?;
+            .queue(cursor::MoveTo(1, self.size.height - 1))?;
         Ok(())
     }
 
@@ -188,20 +169,16 @@ impl<'a> View<'a> {
         if self.command.is_empty() {
             return Ok(());
         }
-        let active_window = self.windows.get_mut(&self.active_window).unwrap();
-        let cursor = &active_window.get_active_pane().cursor;
-        let col = self.config.gutter_width + cursor.col;
-        self.command = String::new();
-        self.commandline.clear();
-        self.stdout
-            .queue(cursor::SetCursorStyle::SteadyBlock)?
-            .queue(cursor::MoveTo(col as u16, cursor.row as u16))?
-            .flush()?;
+        // let active_window = self.windows.get_mut(&self.active_window).unwrap();
+        // let cursor = &active_window.get_active_pane().cursor;
+        // let col = self.config.gutter_width + cursor.col;
+        // self.command = String::new();
+        // self.commandline.clear();
+        // self.stdout
+        //     .queue(cursor::SetCursorStyle::SteadyBlock)?
+        //     .queue(cursor::MoveTo(col as u16, cursor.row as u16))?
+        //     .flush()?;
         Ok(())
-    }
-
-    pub fn get_active_window(&self) -> &Window {
-        self.windows.get(&self.active_window).unwrap()
     }
 
     pub fn shutdown(&mut self) -> Result<()> {
@@ -222,10 +199,6 @@ impl<'a> View<'a> {
         // self.render_statusline(&statusline)?;
         // self.render_commandline(&commandline)?;
 
-        self.windows
-            .get_mut(&self.active_window)
-            .unwrap()
-            .initialize(&self.mode)?;
         // self.statusline = statusline;
         // self.commandline = commandline;
         self.stdout.flush()?;
@@ -233,28 +206,28 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn render_statusline(&mut self, statusline: &Frame) -> Result<()> {
-        for (x, cell) in statusline.cells.iter().enumerate() {
-            self.stdout
-                .queue(cursor::MoveTo(x as u16, self.size.height as u16 - 2))?;
-
-            if let Some(bg) = cell.style.bg {
-                self.stdout.queue(style::SetBackgroundColor(bg))?;
-            } else {
-                self.stdout
-                    .queue(style::SetBackgroundColor(self.theme.style.bg.unwrap()))?;
-            }
-            if let Some(fg) = cell.style.fg {
-                self.stdout.queue(style::SetForegroundColor(fg))?;
-            } else {
-                self.stdout
-                    .queue(style::SetForegroundColor(self.theme.style.fg.unwrap()))?;
-            }
-
-            self.stdout.queue(Print(cell.c))?;
-        }
-        Ok(())
-    }
+    // fn render_statusline(&mut self, statusline: &Frame) -> Result<()> {
+    //     for (x, cell) in statusline.cells.iter().enumerate() {
+    //         self.stdout
+    //             .queue(cursor::MoveTo(x as u16, self.size.height - 2))?;
+    //
+    //         if let Some(bg) = cell.style.bg {
+    //             self.stdout.queue(style::SetBackgroundColor(bg))?;
+    //         } else {
+    //             self.stdout
+    //                 .queue(style::SetBackgroundColor(self.theme.style.bg.unwrap()))?;
+    //         }
+    //         if let Some(fg) = cell.style.fg {
+    //             self.stdout.queue(style::SetForegroundColor(fg))?;
+    //         } else {
+    //             self.stdout
+    //                 .queue(style::SetForegroundColor(self.theme.style.fg.unwrap()))?;
+    //         }
+    //
+    //         self.stdout.queue(Print(cell.c))?;
+    //     }
+    //     Ok(())
+    // }
 
     fn clear_screen(&mut self) -> Result<()> {
         self.stdout

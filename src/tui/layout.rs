@@ -1,12 +1,7 @@
 use crate::{
     editor::Mode,
     theme::Theme,
-    tui::{
-        rect::Rect,
-        statusline::{Statusline, StatuslineContext},
-        Renderable,
-    },
-    window::Window,
+    tui::{rect::Rect, statusline::Statusline},
 };
 
 pub enum Sections {
@@ -39,19 +34,12 @@ pub struct Layout<'a> {
     // bottom_panel: Option<Widget>,
     // middle_panel: Option<Widget>,
     // bufferline: Option<Widget>,
-    statusline: Statusline,
     // commandline: Widget,
-    editor_window: &'a Window<'a>,
     focused: Sections,
 }
 
 impl<'a> Layout<'a> {
-    pub fn new(
-        size: Rect,
-        theme: &'a Theme,
-        layout_update: LayoutUpdate,
-        window: &'a Window,
-    ) -> Self {
+    pub fn new(size: Rect, theme: &'a Theme, layout_update: LayoutUpdate) -> Self {
         Self {
             cursor_position: layout_update.cursor_position,
             current_file_name: layout_update.current_file_name,
@@ -64,12 +52,10 @@ impl<'a> Layout<'a> {
             // bottom_panel: None,
             // middle_panel: None,
             // bufferline: None,
-            statusline: Statusline::new(Rect::new(size.x, size.bottom() - 2, size.width, 1)),
             // commandline: Widget {
             //     state: WidgetState::Visible,
             //     area: Rect::new(size.x, size.bottom().saturating_sub(1), size.width, 1),
             // },
-            editor_window: window,
             focused: Sections::Statusline,
         }
     }
