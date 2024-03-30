@@ -1,9 +1,8 @@
-use std::io::stdout;
-
 use crate::{
     editor::Mode,
     theme::StatuslineTheming,
-    tui::{rect::Rect, themed::Themed, Renderable},
+    tui::{rect::Rect, Renderable},
+    viewport::Frame,
 };
 
 pub struct Statusline {
@@ -16,44 +15,53 @@ impl Statusline {
     }
 }
 
-pub struct StatuslineContext {
+pub struct StatuslineContext<'a> {
     pub cursor: (u16, u16),
-    pub file_name: String,
-    pub mode: Mode,
-    pub statusline_style: StatuslineTheming,
+    pub file_name: &'a str,
+    pub mode: &'a Mode,
+    pub statusline_style: &'a StatuslineTheming,
 }
 
-impl Renderable for Statusline {
-    type RenderContext = StatuslineContext;
+impl<'a> Renderable<'a> for Statusline {
+    type RenderContext = StatuslineContext<'a>;
 
-    fn render(&self, context: &Self::RenderContext) -> anyhow::Result<()> {
+    fn render(&self, frame: &mut Frame, context: &Self::RenderContext) -> anyhow::Result<()> {
         let mode = format!("[{}]", context.mode);
         let mode_gap = " ".repeat(2);
         let file_name = context.file_name.clone();
         let cursor = format!("{}:{} ", context.cursor.1, context.cursor.0);
 
-        let remaining_space =
-            self.area.width as usize - mode.len() - mode_gap.len() - file_name.len() - cursor.len();
+        let remaining_space = [mode.len(), mode_gap.len(), file_name.len(), cursor.len()]
+            .iter()
+            .fold(self.area.width as usize, |acc, len| acc - *len);
 
-        let mode = mode.themed(context.statusline_style.mode);
-        let mode_gap = mode_gap.themed(context.statusline_style.appearance);
-        let file_name = file_name.themed(context.statusline_style.file_name);
-        let cursor = cursor.themed(context.statusline_style.cursor);
+        let mut col = self.area.x;
 
-        let padding = " "
-            .repeat(remaining_space)
-            .themed(context.statusline_style.appearance);
+        frame.set_text(col, self.area.y, &mode, &context.statusline_style.mode);
+        col += mode.len() as u16;
+        frame.set_text(
+            col,
+            self.area.y,
+            &mode_gap,
+            &context.statusline_style.appearance,
+        );
+        col += mode_gap.len() as u16;
+        frame.set_text(
+            col,
+            self.area.y,
+            &file_name,
+            &context.statusline_style.file_name,
+        );
+        col += file_name.len() as u16;
+        frame.set_text(
+            col,
+            self.area.y,
+            &" ".repeat(remaining_space),
+            &context.statusline_style.appearance,
+        );
+        col += remaining_space as u16;
 
-        crossterm::queue!(
-            stdout(),
-            crossterm::cursor::MoveTo(self.area.x, self.area.y),
-            crossterm::terminal::Clear(crossterm::terminal::ClearType::CurrentLine),
-            crossterm::style::PrintStyledContent(mode),
-            crossterm::style::PrintStyledContent(mode_gap),
-            crossterm::style::PrintStyledContent(file_name),
-            crossterm::style::PrintStyledContent(padding),
-            crossterm::style::PrintStyledContent(cursor),
-        )?;
+        frame.set_text(col, self.area.y, &cursor, &context.statusline_style.cursor);
 
         Ok(())
     }

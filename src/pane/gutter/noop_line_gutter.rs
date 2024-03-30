@@ -1,6 +1,6 @@
 use crate::config::Config;
+use crate::pane::Frame;
 use crate::pane::Gutter;
-use crate::pane::Viewport;
 use crate::theme::Theme;
 
 #[derive(Debug)]
@@ -19,5 +19,5 @@ impl NoopLineDrawer {
 }
 
 impl Gutter for NoopLineDrawer {
-    fn draw(&self, _: &mut Viewport, _: usize, _: usize, _: usize) {}
+    fn draw(&self, _: &mut Frame, _: usize, _: usize, _: usize) {}
 }

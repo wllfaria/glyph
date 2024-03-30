@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::config::KeyAction;
 use crate::editor::Mode;
-use crate::lsp::IncomingMessage;
 use crate::pane::Pane;
 use crate::tui::rect::Rect;
 
@@ -25,7 +24,7 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn resize(&mut self, new_size: Rect, mode: &Mode) -> anyhow::Result<()> {
+    pub fn resize(&mut self, new_size: &Rect, mode: &Mode) -> anyhow::Result<()> {
         for pane in self.panes.values_mut() {
             pane.resize(new_size.clone(), mode)?;
         }
@@ -49,7 +48,7 @@ impl<'a> Window<'a> {
         self.panes.get(&self.active_pane).unwrap()
     }
 
-    fn render_panes(&mut self, mode: &Mode) -> anyhow::Result<()> {
+    pub fn render_panes(&mut self, mode: &Mode) -> anyhow::Result<()> {
         for pane in self.panes.values_mut() {
             pane.initialize(mode)?;
         }

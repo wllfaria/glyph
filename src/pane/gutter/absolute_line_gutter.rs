@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::pane::Viewport;
+use crate::pane::Frame;
 use crate::theme::Theme;
 
 use crate::pane::gutter::Gutter;
@@ -17,8 +17,8 @@ impl AbsoluteLineGutter {
 }
 
 impl Gutter for AbsoluteLineGutter {
-    fn draw(&self, viewport: &mut Viewport, total_lines: usize, _: usize, scroll: usize) {
-        let total_lines = usize::min(viewport.height, total_lines);
+    fn draw(&self, viewport: &mut Frame, total_lines: usize, _: usize, scroll: usize) {
+        let total_lines = usize::min(viewport.height.into(), total_lines);
         let mut scroll = scroll;
         let style = &self.theme.gutter;
 
@@ -29,18 +29,18 @@ impl Gutter for AbsoluteLineGutter {
             line.push(' ');
 
             for (x, c) in line.chars().enumerate() {
-                viewport.set_cell(x, y, c, style);
+                viewport.set_cell(x as u16, y as u16, c, style);
             }
         }
 
-        if total_lines < viewport.height {
-            for y in total_lines..viewport.height {
+        if total_lines < viewport.height.into() {
+            for y in total_lines..viewport.height.into() {
                 let mut line = " ".repeat(self.config.gutter_width - 2);
                 line.push(self.config.empty_line_char);
                 line.push(' ');
 
                 for (x, c) in line.chars().enumerate() {
-                    viewport.set_cell(x, y, c, style);
+                    viewport.set_cell(x as u16, y as u16, c, style);
                 }
             }
         }

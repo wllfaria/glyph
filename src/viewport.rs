@@ -15,46 +15,46 @@ impl Default for Cell {
     }
 }
 
-#[derive(Clone)]
-pub struct Viewport {
+#[derive(Clone, Debug)]
+pub struct Frame {
     pub cells: Vec<Cell>,
-    pub width: usize,
-    pub height: usize,
+    pub width: u16,
+    pub height: u16,
 }
 
 #[derive(Debug)]
 pub struct Change<'a> {
     pub cell: &'a Cell,
-    pub row: usize,
-    pub col: usize,
+    pub row: u16,
+    pub col: u16,
 }
 
-impl Viewport {
-    pub fn new(width: usize, height: usize) -> Self {
+impl Frame {
+    pub fn new(width: u16, height: u16) -> Self {
         Self {
             width,
             height,
-            cells: vec![Default::default(); width * height],
+            cells: vec![Default::default(); usize::from(width) * usize::from(height)],
         }
     }
 
-    pub fn set_cell(&mut self, col: usize, row: usize, c: char, style: &Style) {
+    pub fn set_cell(&mut self, col: u16, row: u16, c: char, style: &Style) {
         let pos = row * self.width + col;
-        self.cells[pos] = Cell { c, style: *style };
+        self.cells[usize::from(pos)] = Cell { c, style: *style };
     }
 
-    pub fn set_text(&mut self, col: usize, row: usize, text: &str, style: &Style) {
+    pub fn set_text(&mut self, col: u16, row: u16, text: &str, style: &Style) {
         let pos = (row * self.width) + col;
         for (i, c) in text.chars().enumerate() {
-            self.cells[pos + i] = Cell { c, style: *style }
+            self.cells[usize::from(pos) + i] = Cell { c, style: *style }
         }
     }
 
-    pub fn diff(&self, other: &Viewport) -> Vec<Change> {
+    pub fn diff(&self, other: &Frame) -> Vec<Change> {
         let mut changes = vec![];
         for (p, cell) in self.cells.iter().enumerate() {
-            let row = p / self.width;
-            let col = p % self.width;
+            let row = p as u16 / self.width;
+            let col = p as u16 % self.width;
 
             if other.cells.len() != self.cells.len() {
                 changes.push(Change { row, col, cell });
@@ -69,7 +69,7 @@ impl Viewport {
     }
 
     pub fn clear(&mut self) {
-        self.cells = vec![Default::default(); self.width * self.height];
+        self.cells = vec![Default::default(); usize::from(self.width) * usize::from(self.height)];
     }
 }
 
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_initialize_correctly() {
-        let vp = Viewport::new(10, 10);
+        let vp = Frame::new(10, 10);
 
         assert_eq!(vp.cells.len(), 100);
         assert_eq!(vp.width, 10);
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_insert_cell() {
-        let mut vp = Viewport::new(10, 10);
+        let mut vp = Frame::new(10, 10);
         let s = Style::default();
 
         vp.set_cell(10, 3, '!', &s);
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_insert_text() {
-        let mut vp = Viewport::new(10, 10);
+        let mut vp = Frame::new(10, 10);
         let s = Style::default();
 
         vp.set_text(10, 3, "Hello, World!", &s);
@@ -123,7 +123,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_insert_cell_out_of_bounds() {
-        let mut vp = Viewport::new(10, 10);
+        let mut vp = Frame::new(10, 10);
         let s = Style::default();
 
         vp.set_cell(11, 11, '!', &s);
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_insert_text_out_of_bounds() {
-        let mut vp = Viewport::new(10, 10);
+        let mut vp = Frame::new(10, 10);
         let s = Style::default();
 
         vp.set_text(10, 10, "Hello, World!", &s);
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let mut vp = Viewport::new(2, 2);
+        let mut vp = Frame::new(2, 2);
         let s = Style::default();
 
         vp.set_text(0, 0, "1234", &s);
@@ -160,8 +160,8 @@ mod tests {
 
     #[test]
     fn test_diff() {
-        let mut one = Viewport::new(2, 2);
-        let mut two = Viewport::new(2, 2);
+        let mut one = Frame::new(2, 2);
+        let mut two = Frame::new(2, 2);
         let s = Style::default();
 
         one.set_text(0, 0, "1234", &s);

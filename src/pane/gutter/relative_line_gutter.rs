@@ -1,6 +1,6 @@
 use crate::config::{Config, LineNumbers};
 use crate::pane::gutter::Gutter;
-use crate::pane::Viewport;
+use crate::pane::Frame;
 use crate::theme::Theme;
 
 #[derive(Debug)]
@@ -16,8 +16,8 @@ impl RelativeLineDrawer {
 }
 
 impl Gutter for RelativeLineDrawer {
-    fn draw(&self, viewport: &mut Viewport, total_lines: usize, line: usize, scroll: usize) {
-        let total_lines = usize::min(viewport.height, total_lines);
+    fn draw(&self, viewport: &mut Frame, total_lines: usize, line: usize, scroll: usize) {
+        let total_lines = usize::min(viewport.height.into(), total_lines);
         let normalized_line = line + 1;
         let mut scroll_row = scroll;
         let style = &self.theme.gutter;
@@ -38,18 +38,18 @@ impl Gutter for RelativeLineDrawer {
             line.push(' ');
 
             for (x, c) in line.chars().enumerate() {
-                viewport.set_cell(x, y, c, style);
+                viewport.set_cell(x as u16, y as u16, c, style);
             }
         }
 
-        if total_lines < viewport.height {
+        if total_lines < viewport.height.into() {
             let mut line = " ".repeat(self.config.gutter_width - 2);
             line.push(self.config.empty_line_char);
             line.push(' ');
 
-            for y in total_lines..viewport.height {
+            for y in total_lines..viewport.height.into() {
                 for (x, c) in line.chars().enumerate() {
-                    viewport.set_cell(x, y, c, style);
+                    viewport.set_cell(x as u16, y as u16, c, style);
                 }
             }
         }

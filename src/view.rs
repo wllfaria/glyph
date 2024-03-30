@@ -12,7 +12,7 @@ use crate::lsp::IncomingMessage;
 use crate::pane::Position;
 use crate::theme::{Style, Theme};
 use crate::tui::rect::Rect;
-use crate::viewport::Viewport;
+use crate::viewport::Frame;
 use crate::window::Window;
 
 #[derive(Default, Debug, Copy, Clone)]
@@ -33,8 +33,8 @@ pub struct View<'a> {
     size: Size,
     stdout: Stdout,
     config: &'a Config,
-    statusline: Viewport,
-    commandline: Viewport,
+    statusline: Frame,
+    commandline: Frame,
     command: String,
     theme: &'a Theme,
     tx: mpsc::Sender<Action>,
@@ -53,7 +53,6 @@ impl<'a> View<'a> {
         let size = terminal::size()?;
 
         let id = window.id;
-        window.resize((size.0, size.1 - 2).into(), &mode)?;
         windows.insert(window.id, window);
 
         Ok(Self {
@@ -62,8 +61,8 @@ impl<'a> View<'a> {
             active_window: id,
             windows,
             config,
-            statusline: Viewport::new(size.0 as usize, 1),
-            commandline: Viewport::new(size.0 as usize, 1),
+            statusline: Frame::new(size.0, 1),
+            commandline: Frame::new(size.0, 1),
             command: String::new(),
             theme,
             tx,
@@ -78,15 +77,6 @@ impl<'a> View<'a> {
         match action {
             KeyAction::Simple(Action::Resize(cols, rows)) => {
                 self.size = (*cols, *rows).into();
-                active_window.resize(
-                    Rect {
-                        x: 0,
-                        y: 0,
-                        height: self.size.height - 2,
-                        width: self.size.width,
-                    },
-                    &self.mode,
-                )?;
                 // statusline = Viewport::new(self.size.width, 1);
                 // commandline = Viewport::new(self.size.width, 1);
             }
@@ -243,7 +233,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn render_statusline(&mut self, statusline: &Viewport) -> Result<()> {
+    fn render_statusline(&mut self, statusline: &Frame) -> Result<()> {
         for (x, cell) in statusline.cells.iter().enumerate() {
             self.stdout
                 .queue(cursor::MoveTo(x as u16, self.size.height as u16 - 2))?;
@@ -273,7 +263,7 @@ impl<'a> View<'a> {
         Ok(())
     }
 
-    fn draw_statusline(&mut self, viewport: &mut Viewport, mode: Mode) {
+    fn draw_statusline(&mut self, viewport: &mut Frame, mode: Mode) {
         // let active_pane = self.get_active_window().get_active_pane();
         // let cursor_position = active_pane.get_cursor_readable_position();
         // let Position { col, row } = cursor_position;
@@ -326,14 +316,14 @@ impl<'a> View<'a> {
         // );
     }
 
-    fn draw_commandline(&self, viewport: &mut Viewport) {
+    fn draw_commandline(&self, viewport: &mut Frame) {
         // let command = &self.command;
         // let fill = " ".repeat(self.size.width - command.len());
         // let content = format!("{}{}", command, fill);
         // viewport.set_text(0, 0, &content, &self.theme.style);
     }
 
-    fn render_commandline(&mut self, commandline: &Viewport) -> anyhow::Result<()> {
+    fn render_commandline(&mut self, commandline: &Frame) -> anyhow::Result<()> {
         for (x, cell) in commandline.cells.iter().enumerate() {
             self.stdout
                 .queue(cursor::MoveTo(x as u16, self.size.height as u16 - 1))?;

@@ -1,4 +1,5 @@
-pub mod editor_window;
+use crate::viewport::Frame;
+
 pub mod layout;
 pub mod rect;
 pub mod statusline;
@@ -58,23 +59,23 @@ mod tui_view;
 // }
 //
 
-pub trait Renderable {
-    type RenderContext;
+pub trait Renderable<'a> {
+    type RenderContext: 'a;
     // fn render_diff(
     //     &mut self,
     //     last_view: &Viewport,
     //     view: &Viewport,
     //     default_style: &Style,
     // ) -> anyhow::Result<()>;
-    fn render(&self, context: &Self::RenderContext) -> anyhow::Result<()>;
+    fn render(&self, frame: &mut Frame, context: &Self::RenderContext) -> anyhow::Result<()>;
 }
 
-pub trait Focusable: Renderable {
+pub trait Focusable<'a>: Renderable<'a> {
     fn focus(&mut self);
     fn unfocus(&mut self);
     fn render_cursor(&self) -> anyhow::Result<()>;
 }
 
-pub trait Scrollable: Focusable {
+pub trait Scrollable<'a>: Focusable<'a> {
     fn maybe_scroll(&mut self);
 }

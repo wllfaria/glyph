@@ -10,7 +10,7 @@ use crate::lsp::IncomingMessage;
 use crate::pane::gutter::Gutter;
 use crate::theme::Theme;
 use crate::tui::rect::Rect;
-use crate::viewport::{Cell, Viewport};
+use crate::viewport::{Cell, Frame};
 
 use self::gutter::absolute_line_gutter::AbsoluteLineGutter;
 use self::gutter::noop_line_gutter::NoopLineDrawer;
@@ -74,8 +74,7 @@ impl<'a> Pane<'a> {
 
     pub fn initialize(&mut self, mode: &Mode) -> anyhow::Result<()> {
         // self.layers[0] = Viewport::new(self.size.width, self.size.height);
-        // self.layers[1] = Viewport::new(self.size.width, self.size.height);
-        // self.render(mode)?;
+        self.render(mode)?;
         Ok(())
     }
 
@@ -209,7 +208,7 @@ impl<'a> Pane<'a> {
         Ok(())
     }
 
-    fn draw_sidebar(&mut self, viewport: &mut Viewport) {
+    fn draw_sidebar(&mut self, viewport: &mut Frame) {
         // let scroll = self.buffer_view.get_scroll();
         // self.gutter.draw(
         //     viewport,
