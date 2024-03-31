@@ -34,7 +34,6 @@ impl Gutter for RelativeLineDrawer<'_> {
             let mut line = usize::abs_diff(scroll_row, normalized_line).to_string();
 
             if let LineNumbers::RelativeNumbered = self.config.line_numbers {
-                println!("idk why");
                 match normalized_line {
                     l if l == scroll_row => line = scroll_row.to_string(),
                     _ => (),

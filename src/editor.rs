@@ -13,7 +13,7 @@ use crate::{
     buffer::TextObject,
     config::{Action, Config, KeyAction},
     events::Events,
-    frame::Frame,
+    frame::{cell::Cell, Frame},
     lsp::{IncomingMessage, LspClient},
     theme::Theme,
     tui::{
@@ -75,6 +75,7 @@ impl<'a> Editor<'a> {
         let size = crossterm::terminal::size()?;
         let size = Rect::from(size);
         let pane_size = size.clone().shrink_bottom(2);
+        let statusline_size = Rect::new(size.x, size.bottom() - 2, size.width, 1);
 
         let text_object = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
         let buffer = Buffer::focusable(1, text_object.clone(), pane_size, config, theme, true);
@@ -89,7 +90,7 @@ impl<'a> Editor<'a> {
                 Frame::new(size.width, size.height),
                 Frame::new(size.width, size.height),
             ],
-            statusline: Statusline::new(Rect::new(size.x, size.bottom() - 2, size.width, 1), theme),
+            statusline: Statusline::new(statusline_size, theme),
             area: size,
         };
 
@@ -168,29 +169,25 @@ impl<'a> Editor<'a> {
     }
 
     fn render_next_frame(&mut self) -> anyhow::Result<()> {
-        let frame = &mut self.frames[0];
+        tracing::trace!("[Editor] rendering next frame");
 
+        let frame = &mut self.frames[0];
         self.statusline.render(frame)?;
         self.buffer.render(frame)?;
 
         self.render_diff()?;
         self.draw_cursor()?;
-
         stdout().flush()?;
 
         self.swap_frames();
-
         Ok(())
     }
 
     fn fill_frame(&mut self) {
-        let frame = &mut self.frames[0];
-
-        for row in 0..self.area.height {
-            for col in 0..self.area.width {
-                frame.set_cell(col, row, ' ', &self.theme.appearance);
-            }
-        }
+        self.frames[0]
+            .cells
+            .iter_mut()
+            .for_each(|cell| *cell = Cell::new(' ', self.theme.appearance));
     }
 
     pub async fn start(&mut self) -> anyhow::Result<()> {

@@ -14,7 +14,21 @@ pub struct Theme {
     pub tokens: HashMap<String, Style>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[cfg(test)]
+impl Default for Theme {
+    fn default() -> Self {
+        Self {
+            name: String::from("default"),
+            appearance: Style::default(),
+            statusline: StatuslineTheming::default(),
+            float: Style::default(),
+            gutter: Style::default(),
+            tokens: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
 pub struct StatuslineTheming {
     pub file_name: Style,
     pub mode: Style,

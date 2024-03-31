@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug, Formatter};
+
 use tree_sitter::{Parser, Query, QueryCursor};
 use tree_sitter_rust::{language, HIGHLIGHT_QUERY};
 
@@ -7,6 +9,15 @@ pub struct Highlight<'a> {
     parser: Parser,
     query: Query,
     theme: &'a Theme,
+}
+
+impl Debug for Highlight<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Highlight")
+            .field("query", &self.query)
+            .field("theme", &self.theme)
+            .finish()
+    }
 }
 
 #[derive(Debug)]

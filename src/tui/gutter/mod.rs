@@ -16,6 +16,7 @@ pub mod absolute_line_gutter;
 pub mod noop_line_gutter;
 pub mod relative_line_gutter;
 
+#[derive(Debug)]
 pub enum GutterKind<'a> {
     Relative(RelativeLineDrawer<'a>),
     Absolute(AbsoluteLineGutter<'a>),

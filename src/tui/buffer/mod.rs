@@ -88,6 +88,7 @@ impl Renderable<'_> for Buffer<'_> {
             frame,
             self.area.y,
             gutter_width,
+            0,
             |col| col < self.area.width,
         );
 
@@ -112,26 +113,34 @@ fn render_within_bounds<F>(
     frame: &mut Frame,
     row: u16,
     col: u16,
+    offset: u16,
     is_within_bounds: F,
 ) where
     F: Fn(u16) -> bool,
 {
-    let initial_col = col;
     let mut col = col;
     let mut row = row;
+    let mut i = 1;
 
     for cell in cells {
-        if is_within_bounds(col) {
+        if is_within_bounds(i) {
             match cell.c {
-                '\n' => frame.set_cell(col, row, ' ', &cell.style),
-                _ => frame.set_cell(col, row, cell.c, &cell.style),
+                '\n' => frame.set_cell(col + offset, row, ' ', &cell.style),
+                _ => frame.set_cell(col + offset, row, cell.c, &cell.style),
             }
             col += 1;
         }
 
+        for i in col..frame.width {
+            frame.set_cell(i + offset, row, ' ', &cell.style);
+        }
+
+        i += 1;
+
         if cell.c == '\n' {
             row += 1;
-            col = initial_col;
+            col = 0;
+            i = 1;
         }
     }
 }

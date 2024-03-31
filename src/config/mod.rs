@@ -37,6 +37,23 @@ pub struct Config {
     pub show_diagnostics: bool,
 }
 
+#[cfg(test)]
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            keys: Keys::default(),
+            theme: String::from("default"),
+            log_file: None,
+            mouse_scroll_lines: None,
+            gutter_width: 6,
+            line_numbers: LineNumbers::Relative,
+            background: EditorBackground::Light,
+            empty_line_char: ' ',
+            show_diagnostics: true,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Action {
     EnterMode(Mode),

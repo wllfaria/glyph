@@ -18,6 +18,7 @@ use crate::{
 
 use super::render_within_bounds;
 
+#[derive(Debug)]
 pub struct FocusableBuffer<'a> {
     _id: usize,
     text_object: Rc<RefCell<TextObject>>,
@@ -62,12 +63,6 @@ impl<'a> FocusableBuffer<'a> {
     fn handle_cursor_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         self.cursor
             .handle(action, &mut self.text_object.borrow_mut(), mode);
-
-        tracing::trace!(
-            "[FocusableBuffer] cursor: {:?} area: {:?}",
-            self.cursor,
-            self.area
-        );
 
         if self.is_scrollable {
             self.maybe_scroll();
@@ -149,12 +144,18 @@ impl<'a> FocusableBuffer<'a> {
 
 impl Renderable<'_> for FocusableBuffer<'_> {
     fn render(&mut self, frame: &mut crate::frame::Frame) -> anyhow::Result<()> {
+        let gutter = match self.config.line_numbers {
+            crate::config::LineNumbers::None => 0,
+            _ => self.gutter.width(),
+        };
+
         render_within_bounds(
             &self.apply_highlights(),
             frame,
             self.area.y,
-            self.gutter.width(),
-            |col| col >= self.scroll.col as u16 && col - (self.scroll.col as u16) < self.area.width,
+            self.area.x,
+            gutter,
+            |col| col > self.scroll.col as u16 && col - (self.scroll.col as u16) < self.area.width,
         );
 
         self.gutter.render(
@@ -260,9 +261,15 @@ impl Focusable<'_> for FocusableBuffer<'_> {
 
 impl<'a> Scrollable<'a> for FocusableBuffer<'_> {
     fn maybe_scroll(&mut self) {
+        let gutter_width = match self.config.line_numbers {
+            crate::config::LineNumbers::None => 0,
+            _ => self.gutter.width(),
+        };
         let Rect { width, height, .. } = &self.area;
-        // all the instances of `y + 1` or `x + 1` are just normalizing the row/col to be 1 indexed
-        match (self.cursor.col, self.cursor.row) {
+
+        let col = self.cursor.col;
+
+        match (col, self.cursor.row) {
             // should scroll down
             (_, y) if (y + 1).saturating_sub(self.scroll.row) >= *height as usize => {
                 self.scroll.row = y + 1 - *height as usize;
@@ -272,8 +279,11 @@ impl<'a> Scrollable<'a> for FocusableBuffer<'_> {
                 self.scroll.row = self.scroll.row - (self.scroll.row - y);
             }
             // Should scroll right
-            (x, _) if x.saturating_sub(self.scroll.col) >= *width as usize => {
-                self.scroll.col = x + 1 - *width as usize;
+            (x, _)
+                if (x + gutter_width as usize).saturating_sub(self.scroll.col)
+                    >= *width as usize =>
+            {
+                self.scroll.col = x + 1 + gutter_width as usize - *width as usize;
             }
             // Should scroll left
             (x, _) if (x + 1).saturating_sub(self.scroll.col) == 0 => {
@@ -281,5 +291,47 @@ impl<'a> Scrollable<'a> for FocusableBuffer<'_> {
             }
             _ => (),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tui::Frame;
+
+    #[test]
+    fn test_horizontal_scroll() {
+        let config = Config::default();
+        let theme = Theme::default();
+        let text_object = Rc::new(RefCell::new(TextObject::from_string(1, "Hello, World!", 1)));
+        let area = Rect::new(0, 0, 10, 2);
+        let cursor = Cursor::default();
+
+        let mut buffer = FocusableBuffer::new(1, text_object, area, &config, &theme, cursor, true);
+
+        let mut frame = Frame::new(10, 2);
+        buffer.render(&mut frame).unwrap();
+
+        frame.cells.iter().for_each(|c| println!("{}", c.c));
+
+        assert_eq!(frame.cells[6].c, 'H');
+        assert_eq!(frame.cells[9].c, 'l');
+        assert_eq!(buffer.cursor.col, 0);
+        assert_eq!(buffer.scroll.col, 0);
+
+        for _ in 0..6 {
+            buffer
+                .handle_cursor_action(&KeyAction::Simple(Action::MoveRight), &Mode::Normal)
+                .unwrap();
+        }
+
+        let mut frame = Frame::new(10, 2);
+        buffer.render(&mut frame).unwrap();
+
+        frame.cells.iter().for_each(|c| println!("{}", c.c));
+
+        assert_eq!(buffer.cursor.col, 6);
+        assert_eq!(buffer.scroll.col, 3);
+        assert_eq!(frame.cells[6].c, 'l');
     }
 }
