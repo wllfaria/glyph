@@ -155,7 +155,10 @@ impl Renderable<'_> for FocusableBuffer<'_> {
             self.area.y,
             self.area.x,
             gutter,
-            |col| col > self.scroll.col as u16 && col - (self.scroll.col as u16) < self.area.width,
+            |col| {
+                col > self.scroll.col as u16
+                    && col - (self.scroll.col as u16) < self.area.width - gutter
+            },
         );
 
         self.gutter.render(
@@ -261,6 +264,9 @@ impl Focusable<'_> for FocusableBuffer<'_> {
 
 impl<'a> Scrollable<'a> for FocusableBuffer<'_> {
     fn maybe_scroll(&mut self) {
+        // TODO: we are not handling when the user moves to a shorter line
+        // in which the last character is not in the viewport.
+
         let gutter_width = match self.config.line_numbers {
             crate::config::LineNumbers::None => 0,
             _ => self.gutter.width(),

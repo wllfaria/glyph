@@ -131,7 +131,7 @@ fn render_within_bounds<F>(
             col += 1;
         }
 
-        for i in col..frame.width {
+        for i in col..frame.width - offset {
             frame.set_cell(i + offset, row, ' ', &cell.style);
         }
 
