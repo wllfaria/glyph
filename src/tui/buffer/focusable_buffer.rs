@@ -149,17 +149,10 @@ impl Renderable<'_> for FocusableBuffer<'_> {
             _ => self.gutter.width(),
         };
 
-        render_within_bounds(
-            &self.apply_highlights(),
-            frame,
-            self.area.y,
-            self.area.x,
-            gutter,
-            |col| {
-                col > self.scroll.col as u16
-                    && col - (self.scroll.col as u16) <= self.area.width - gutter
-            },
-        );
+        render_within_bounds(&self.apply_highlights(), frame, &self.area, gutter, |col| {
+            col > self.scroll.col as u16
+                && col - (self.scroll.col as u16) <= self.area.width - gutter
+        });
 
         self.gutter.render(
             frame,

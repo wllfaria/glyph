@@ -53,7 +53,6 @@ impl std::fmt::Display for Mode {
 pub struct Editor<'a> {
     events: Events<'a>,
     buffer: FocusableBuffer<'a>,
-    asda: FocusableBuffer<'a>,
     lsp: LspClient,
 
     theme: &'a Theme,
@@ -79,34 +78,13 @@ impl<'a> Editor<'a> {
         let statusline_size = Rect::new(size.x, size.bottom() - 2, size.width, 1);
 
         let text_object = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
-        let asda = Buffer::focusable(
-            2,
-            text_object.clone(),
-            Rect::new(
-                pane_size.width / 2,
-                0,
-                pane_size.width / 2,
-                pane_size.height,
-            ),
-            config,
-            theme,
-            true,
-        );
-        let buffer = Buffer::focusable(
-            1,
-            text_object.clone(),
-            Rect::new(0, 0, pane_size.width / 2, pane_size.height),
-            config,
-            theme,
-            true,
-        );
+        let buffer = Buffer::focusable(1, text_object.clone(), pane_size, config, theme, true);
 
         let mut editor = Self {
             events: Events::new(config),
             lsp,
             theme,
             buffer,
-            asda,
             mode: Mode::Normal,
             frames: [
                 Frame::new(size.width, size.height),
@@ -196,7 +174,6 @@ impl<'a> Editor<'a> {
         let frame = &mut self.frames[0];
         self.statusline.render(frame)?;
         self.buffer.render(frame)?;
-        self.asda.render(frame)?;
 
         self.render_diff()?;
         self.draw_cursor()?;

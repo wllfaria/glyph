@@ -6,7 +6,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     buffer::TextObject,
-    config::{Config, LineNumbers},
+    config::Config,
     cursor::Cursor,
     frame::{cell::Cell, Frame},
     highlight::Highlight,
@@ -18,7 +18,6 @@ pub struct Buffer<'a> {
     _id: usize,
     text_object: Rc<RefCell<TextObject>>,
     area: Rect,
-    config: &'a Config,
     theme: &'a Theme,
     gutter: GutterKind<'a>,
     highlighter: Highlight<'a>,
@@ -78,19 +77,9 @@ impl<'a> Buffer<'a> {
 
 impl Renderable<'_> for Buffer<'_> {
     fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
-        let gutter_width = match self.config.line_numbers {
-            LineNumbers::None => 0,
-            _ => self.gutter.width(),
-        };
-
-        render_within_bounds(
-            &self.apply_highlights(),
-            frame,
-            self.area.y,
-            gutter_width,
-            0,
-            |col| col < self.area.width,
-        );
+        render_within_bounds(&self.apply_highlights(), frame, &self.area, 0, |col| {
+            col < self.area.width
+        });
 
         self.gutter.render(
             frame,
@@ -111,37 +100,42 @@ impl Renderable<'_> for Buffer<'_> {
 fn render_within_bounds<F>(
     cells: &[Cell],
     frame: &mut Frame,
-    row: u16,
-    col: u16,
+    area: &Rect,
     offset: u16,
     is_within_bounds: F,
 ) where
     F: Fn(u16) -> bool,
 {
-    let initial_col = col;
-    let mut col = col;
-    let mut row = row;
+    let mut col = 0;
+    let mut row = 0;
     let mut i = 1;
 
     for cell in cells {
         if is_within_bounds(i) {
             match cell.c {
-                '\n' => frame.set_cell(col + offset, row, ' ', &cell.style),
-                _ => frame.set_cell(col + offset, row, cell.c, &cell.style),
+                '\n' => frame.set_cell(col + area.x + offset, row + area.y, ' ', &cell.style),
+                _ => frame.set_cell(col + area.x + offset, row + area.y, cell.c, &cell.style),
             }
             col += 1;
         }
 
-        for i in col..frame.width - offset {
-            frame.set_cell(i + offset, row, ' ', &cell.style);
+        for i in col..area.width - offset {
+            frame.set_cell(i + area.x + offset, row + area.y, ' ', &cell.style);
         }
 
         i += 1;
 
         if cell.c == '\n' {
             row += 1;
-            col = initial_col;
+            col = 0;
             i = 1;
+        }
+    }
+
+    tracing::trace!("filling remaining cells from: {} to {}", row, area.height);
+    for i in row + 1..area.height {
+        for j in offset..area.width {
+            frame.set_cell(area.x + j, i + area.y, ' ', &Default::default());
         }
     }
 }
