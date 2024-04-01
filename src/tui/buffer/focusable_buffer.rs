@@ -157,7 +157,7 @@ impl Renderable<'_> for FocusableBuffer<'_> {
             gutter,
             |col| {
                 col > self.scroll.col as u16
-                    && col - (self.scroll.col as u16) < self.area.width - gutter
+                    && col - (self.scroll.col as u16) <= self.area.width - gutter
             },
         );
 

@@ -118,6 +118,7 @@ fn render_within_bounds<F>(
 ) where
     F: Fn(u16) -> bool,
 {
+    let initial_col = col;
     let mut col = col;
     let mut row = row;
     let mut i = 1;
@@ -139,7 +140,7 @@ fn render_within_bounds<F>(
 
         if cell.c == '\n' {
             row += 1;
-            col = 0;
+            col = initial_col;
             i = 1;
         }
     }
