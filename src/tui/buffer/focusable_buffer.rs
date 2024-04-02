@@ -25,7 +25,7 @@ pub struct FocusableBuffer<'a> {
     area: Rect,
     config: &'a Config,
     theme: &'a Theme,
-    gutter: GutterKind<'a>,
+    pub gutter: GutterKind<'a>,
     highlighter: Highlight<'a>,
     pub cursor: Cursor,
     scroll: Position,

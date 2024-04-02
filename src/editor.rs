@@ -18,6 +18,7 @@ use crate::{
     theme::Theme,
     tui::{
         buffer::{Buffer, FocusableBuffer},
+        create_popup,
         rect::Rect,
         statusline::{Statusline, StatuslineContext},
         Focusable, Renderable,
@@ -286,26 +287,15 @@ impl<'a> Editor<'a> {
                     if let Some(contents) = result.get("contents") {
                         if let Some(contents) = contents.as_object() {
                             if let Some(serde_json::Value::String(value)) = contents.get("value") {
-                                let text_object =
-                                    Rc::new(RefCell::new(TextObject::from_string(1, value, 10)));
-                                let height = u16::min(
-                                    text_object.borrow().marker.len() as u16,
-                                    self.area.height - self.buffer.cursor.row as u16 - 2,
-                                );
-                                tracing::info!("height: {}, area: {}", height, self.area.height);
-                                self.popup = Some(Buffer::new(
-                                    1,
-                                    text_object,
-                                    Rect::new(
-                                        self.buffer.cursor.col as u16 + 1,
-                                        self.buffer.cursor.row as u16 + 1,
-                                        60,
-                                        height,
-                                    ),
+                                let buffer = create_popup(
+                                    &self.area,
+                                    self.buffer.gutter.width(),
+                                    value.clone(),
+                                    &self.buffer.cursor,
                                     self.config,
                                     self.theme,
-                                    true,
-                                ));
+                                );
+                                self.popup = Some(buffer);
                                 self.render_next_frame()?;
                             }
                         }
