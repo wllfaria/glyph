@@ -64,6 +64,13 @@ pub fn create_popup<'a>(
     config: &'a Config,
     theme: &'a Theme,
 ) -> Buffer<'a> {
+    let mut padded_text = text
+        .lines()
+        .map(|l| format!(" {} ", l))
+        .collect::<Vec<String>>();
+    padded_text.insert(0, " ".to_string());
+    padded_text.push(" ".to_string());
+    let text = padded_text.join("\n");
     let (x, width) = calculate_popup_width(&text, gutter, area, cursor.col);
     let (y, height) = calculate_popup_height(&text, area, cursor.row);
 

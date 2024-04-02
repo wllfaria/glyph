@@ -242,8 +242,6 @@ impl<'a> Editor<'a> {
         match action {
             KeyAction::Simple(Action::EnterMode(mode)) => self.mode = mode,
             KeyAction::Simple(Action::Hover) => {
-                // TODO: find a better way to grab the file path and information. Maybe
-                // have the view give this data instead of querying like this.
                 let cursor = &self.buffer.cursor;
                 let file_name = self.buffer.text_object.borrow().file_name.clone();
                 let row = cursor.row;
