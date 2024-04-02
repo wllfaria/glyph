@@ -313,7 +313,7 @@ pub struct TextDocumentClientCapabilities {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HoverClientCapabilities {
     dynamic_registration: Option<bool>,
-    content_type: Option<String>,
+    content_format: Option<MarkupKind>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -427,7 +427,7 @@ impl LspClient {
         }
     }
 
-    pub async fn _request_hover(
+    pub async fn request_hover(
         &mut self,
         file_path: &str,
         row: usize,

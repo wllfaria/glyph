@@ -53,9 +53,11 @@ impl std::fmt::Display for Mode {
 pub struct Editor<'a> {
     events: Events<'a>,
     buffer: FocusableBuffer<'a>,
+
     lsp: LspClient,
 
     theme: &'a Theme,
+    config: &'a Config,
 
     area: Rect,
     frames: [Frame; 2],
@@ -63,6 +65,7 @@ pub struct Editor<'a> {
     mode: Mode,
 
     statusline: Statusline<'a>,
+    popup: Option<Buffer<'a>>,
 }
 
 impl<'a> Editor<'a> {
@@ -92,6 +95,8 @@ impl<'a> Editor<'a> {
             ],
             statusline: Statusline::new(statusline_size, theme),
             area: size,
+            config,
+            popup: None,
         };
 
         editor.start().await?;
@@ -175,6 +180,10 @@ impl<'a> Editor<'a> {
         self.statusline.render(frame)?;
         self.buffer.render(frame)?;
 
+        if let Some(popup) = &mut self.popup {
+            popup.render(frame)?;
+        }
+
         self.render_diff()?;
         self.draw_cursor()?;
         stdout().flush()?;
@@ -211,6 +220,7 @@ impl<'a> Editor<'a> {
                 maybe_event = event => {
                     if let Some(Ok(event)) = maybe_event {
                         if let Some(action) = self.events.handle(&event, &self.mode) {
+                            self.popup = None;
                             match action {
                                 KeyAction::Simple(Action::EnterMode(_)) => break,
                                 KeyAction::Simple(Action::Quit) => break,
@@ -233,12 +243,11 @@ impl<'a> Editor<'a> {
             KeyAction::Simple(Action::Hover) => {
                 // TODO: find a better way to grab the file path and information. Maybe
                 // have the view give this data instead of querying like this.
-                // let pane = self.view.get_active_window().get_active_pane();
-                // let cursor = &pane.cursor;
-                // let file_name = pane.buffer.borrow().file_name.clone();
-                // let row = cursor.row;
-                // let col = cursor.col;
-                // self.lsp.request_hover(&file_name, row, col).await?;
+                let cursor = &self.buffer.cursor;
+                let file_name = self.buffer.text_object.borrow().file_name.clone();
+                let row = cursor.row;
+                let col = cursor.col;
+                self.lsp.request_hover(&file_name, row, col).await?;
             }
             KeyAction::Simple(Action::Resize(width, height)) => {
                 self.area = Rect::new(0, 0, width, height);
@@ -261,7 +270,49 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    fn handle_lsp_message(&mut self, _: (IncomingMessage, Option<String>)) -> anyhow::Result<()> {
+    fn handle_lsp_message(
+        &mut self,
+        message: (IncomingMessage, Option<String>),
+    ) -> anyhow::Result<()> {
+        if let Some(method) = message.1 {
+            if method.as_str() == "textDocument/hover" {
+                let message = message.0;
+                if let IncomingMessage::Message(message) = message {
+                    let result = match message.result {
+                        serde_json::Value::Array(ref array) => array[0].as_object().unwrap(),
+                        serde_json::Value::Object(ref object) => object,
+                        _ => return Ok(()),
+                    };
+                    if let Some(contents) = result.get("contents") {
+                        if let Some(contents) = contents.as_object() {
+                            if let Some(serde_json::Value::String(value)) = contents.get("value") {
+                                let text_object =
+                                    Rc::new(RefCell::new(TextObject::from_string(1, value, 10)));
+                                let height = u16::min(
+                                    text_object.borrow().marker.len() as u16,
+                                    self.area.height - self.buffer.cursor.row as u16 - 2,
+                                );
+                                tracing::info!("height: {}, area: {}", height, self.area.height);
+                                self.popup = Some(Buffer::new(
+                                    1,
+                                    text_object,
+                                    Rect::new(
+                                        self.buffer.cursor.col as u16 + 1,
+                                        self.buffer.cursor.row as u16 + 1,
+                                        60,
+                                        height,
+                                    ),
+                                    self.config,
+                                    self.theme,
+                                    true,
+                                ));
+                                self.render_next_frame()?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
     }
 }

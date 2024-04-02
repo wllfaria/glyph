@@ -21,7 +21,7 @@ use super::render_within_bounds;
 #[derive(Debug)]
 pub struct FocusableBuffer<'a> {
     _id: usize,
-    text_object: Rc<RefCell<TextObject>>,
+    pub text_object: Rc<RefCell<TextObject>>,
     area: Rect,
     config: &'a Config,
     theme: &'a Theme,
@@ -46,11 +46,11 @@ impl<'a> FocusableBuffer<'a> {
             _id,
             text_object,
             gutter: get_gutter(config, theme, area.clone()),
+            highlighter: Highlight::new(theme),
             area,
             config,
             theme,
             cursor,
-            highlighter: Highlight::new(theme),
             scroll: Position::default(),
             is_scrollable,
         }

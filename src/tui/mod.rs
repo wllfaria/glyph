@@ -4,15 +4,9 @@ pub mod position;
 pub mod rect;
 pub mod statusline;
 
-mod tui_view;
-
 use crate::{config::KeyAction, editor::Mode, frame::Frame};
 
 use self::rect::Rect;
-
-// fn maybe_scroll(&mut self, cursor: &Cursor) {
-// }
-//
 
 pub trait Renderable<'a> {
     fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()>;

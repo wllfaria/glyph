@@ -6,7 +6,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     buffer::TextObject,
-    config::Config,
+    config::{Config, LineNumbers},
     cursor::Cursor,
     frame::{cell::Cell, Frame},
     highlight::Highlight,
@@ -14,16 +14,45 @@ use crate::{
     tui::{gutter::GutterKind, rect::Rect, Renderable},
 };
 
+use super::gutter::get_gutter;
+
 pub struct Buffer<'a> {
-    _id: usize,
+    id: usize,
     text_object: Rc<RefCell<TextObject>>,
     area: Rect,
     theme: &'a Theme,
-    gutter: GutterKind<'a>,
+    config: &'a Config,
+    gutter: Option<GutterKind<'a>>,
     highlighter: Highlight<'a>,
+    is_float: bool,
 }
 
 impl<'a> Buffer<'a> {
+    pub fn new(
+        id: usize,
+        text_object: Rc<RefCell<TextObject>>,
+        area: Rect,
+        config: &'a Config,
+        theme: &'a Theme,
+        is_float: bool,
+    ) -> Self {
+        let gutter = if is_float {
+            None
+        } else {
+            Some(get_gutter(config, theme, area.clone()))
+        };
+        Self {
+            id,
+            text_object,
+            theme,
+            gutter,
+            area,
+            config,
+            highlighter: Highlight::new(theme),
+            is_float,
+        }
+    }
+
     pub fn focusable(
         id: usize,
         text_object: Rc<RefCell<TextObject>>,
@@ -53,19 +82,19 @@ impl<'a> Buffer<'a> {
         let mut i = 0;
 
         for c in text.chars() {
-            let cell = match colors
+            let mut style = match colors
                 .iter()
                 .find(|token| i >= token.start && i < token.end)
             {
-                Some(token) => Cell {
-                    c,
-                    style: *token.style,
-                },
-                None => Cell {
-                    c,
-                    style: self.theme.appearance,
-                },
+                Some(token) => *token.style,
+                None => self.theme.appearance,
             };
+
+            if self.is_float {
+                style.bg = self.theme.float.bg;
+            }
+
+            let cell = Cell { c, style };
 
             cells.push(cell);
             i += c.len_utf8();
@@ -77,16 +106,29 @@ impl<'a> Buffer<'a> {
 
 impl Renderable<'_> for Buffer<'_> {
     fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
-        render_within_bounds(&self.apply_highlights(), frame, &self.area, 0, |col| {
-            col < self.area.width
-        });
-
-        self.gutter.render(
+        let gutter_width = match self.config.line_numbers {
+            LineNumbers::None => 0,
+            _ => match &self.gutter {
+                Some(gutter) => gutter.width(),
+                None => 0,
+            },
+        };
+        render_within_bounds(
+            &self.apply_highlights(),
             frame,
-            self.text_object.borrow().len(),
-            self.area.height as usize,
-            0,
+            &self.area,
+            gutter_width,
+            |col| col < self.area.width,
         );
+
+        if let Some(gutter) = &self.gutter {
+            gutter.render(
+                frame,
+                self.text_object.borrow().len(),
+                self.area.height as usize,
+                0,
+            );
+        }
 
         Ok(())
     }

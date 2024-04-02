@@ -38,16 +38,3 @@ impl From<(u16, u16)> for Rect {
         }
     }
 }
-
-impl Sub for Rect {
-    type Output = Rect;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Rect {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-            width: self.width - rhs.width,
-            height: self.height - rhs.height,
-        }
-    }
-}
