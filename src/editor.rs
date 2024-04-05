@@ -12,12 +12,13 @@ use serde::{Deserialize, Serialize};
 use crate::{
     buffer::TextObject,
     config::{Action, Config, KeyAction},
+    cursor::Cursor,
     events::Events,
     frame::{cell::Cell, Frame},
     lsp::{IncomingMessage, LspClient},
     theme::Theme,
     tui::{
-        buffer::{Buffer, FocusableBuffer},
+        buffer::{Buffer, WithCursor},
         create_popup,
         rect::Rect,
         statusline::{Statusline, StatuslineContext},
@@ -53,7 +54,7 @@ impl std::fmt::Display for Mode {
 
 pub struct Editor<'a> {
     events: Events<'a>,
-    buffer: FocusableBuffer<'a>,
+    buffer: Buffer<'a, WithCursor>,
 
     lsp: LspClient,
 
@@ -82,7 +83,8 @@ impl<'a> Editor<'a> {
         let statusline_size = Rect::new(size.x, size.bottom() - 2, size.width, 1);
 
         let text_object = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
-        let buffer = Buffer::focusable(1, text_object.clone(), pane_size, config, theme, true);
+        let buffer =
+            Buffer::new(1, text_object.clone(), pane_size, config, theme, false).with_cursor();
 
         let mut editor = Self {
             events: Events::new(config),
@@ -242,10 +244,8 @@ impl<'a> Editor<'a> {
         match action {
             KeyAction::Simple(Action::EnterMode(mode)) => self.mode = mode,
             KeyAction::Simple(Action::Hover) => {
-                let cursor = &self.buffer.cursor;
+                let Cursor { col, row, .. } = self.buffer.cursor;
                 let file_name = self.buffer.text_object.borrow().file_name.clone();
-                let row = cursor.row;
-                let col = cursor.col;
                 self.lsp.request_hover(&file_name, row, col).await?;
             }
             KeyAction::Simple(Action::Resize(width, height)) => {
@@ -287,7 +287,7 @@ impl<'a> Editor<'a> {
                             if let Some(serde_json::Value::String(value)) = contents.get("value") {
                                 let buffer = create_popup(
                                     &self.area,
-                                    self.buffer.gutter.width(),
+                                    self.buffer.gutter.as_ref().map(|g| g.width()).unwrap_or(0),
                                     value.clone(),
                                     &self.buffer.cursor,
                                     self.config,

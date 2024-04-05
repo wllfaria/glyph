@@ -1,5 +1,3 @@
-use std::ops::Sub;
-
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Rect {
     pub x: u16,

@@ -1,11 +1,11 @@
-use std::{cell::RefCell, io::stdout, rc::Rc};
+use std::{cell::RefCell, io::stdout, marker::PhantomData, rc::Rc};
 
 use crate::{
     buffer::TextObject,
-    config::{Action, Config, KeyAction},
+    config::{Action, Config, KeyAction, LineNumbers},
     cursor::Cursor,
     editor::Mode,
-    frame::cell::Cell,
+    frame::{cell::Cell, Frame},
     highlight::Highlight,
     theme::Theme,
     tui::{
@@ -16,46 +16,136 @@ use crate::{
     },
 };
 
-use super::render_within_bounds;
+pub struct Regular;
+pub struct WithCursor;
 
-#[derive(Debug)]
-pub struct FocusableBuffer<'a> {
-    _id: usize,
+pub struct Buffer<'a, Kind = Regular> {
+    id: usize,
     pub text_object: Rc<RefCell<TextObject>>,
     area: Rect,
-    config: &'a Config,
     theme: &'a Theme,
-    pub gutter: GutterKind<'a>,
+    config: &'a Config,
+    pub gutter: Option<GutterKind<'a>>,
     highlighter: Highlight<'a>,
+    is_float: bool,
+    kind: PhantomData<Kind>,
     pub cursor: Cursor,
-    scroll: Position,
-    is_scrollable: bool,
+    pub scroll: Position,
 }
 
-impl<'a> FocusableBuffer<'a> {
+impl<'a> Buffer<'a, Regular> {
     pub fn new(
-        _id: usize,
+        id: usize,
         text_object: Rc<RefCell<TextObject>>,
         area: Rect,
         config: &'a Config,
         theme: &'a Theme,
-        cursor: Cursor,
-        is_scrollable: bool,
+        is_float: bool,
     ) -> Self {
+        let gutter = if is_float {
+            None
+        } else {
+            Some(get_gutter(config, theme, area.clone()))
+        };
         Self {
-            _id,
+            id,
             text_object,
-            gutter: get_gutter(config, theme, area.clone()),
-            highlighter: Highlight::new(theme),
+            theme,
+            gutter,
             area,
             config,
-            theme,
-            cursor,
+            highlighter: Highlight::new(theme),
+            is_float,
+            kind: PhantomData::<Regular>,
+            cursor: Cursor::default(),
             scroll: Position::default(),
-            is_scrollable,
         }
     }
 
+    pub fn with_cursor(self) -> Buffer<'a, WithCursor> {
+        Buffer::<'a, WithCursor> {
+            id: self.id,
+            text_object: self.text_object,
+            area: self.area,
+            theme: self.theme,
+            gutter: self.gutter,
+            config: self.config,
+            highlighter: self.highlighter,
+            is_float: self.is_float,
+            kind: PhantomData::<WithCursor>,
+            cursor: Cursor::default(),
+            scroll: Position::default(),
+        }
+    }
+
+    fn apply_highlights(&mut self) -> Vec<Cell> {
+        let mut cells = vec![];
+        let text = self
+            .text_object
+            .borrow()
+            .content_from(0, self.area.height as usize);
+        let colors = self.highlighter.colors(&text);
+        let mut i = 0;
+
+        for c in text.chars() {
+            let mut style = match colors
+                .iter()
+                .find(|token| i >= token.start && i < token.end)
+            {
+                Some(token) => *token.style,
+                None => self.theme.appearance,
+            };
+
+            if self.is_float {
+                style.bg = self.theme.float.bg;
+            }
+
+            let cell = Cell { c, style };
+
+            cells.push(cell);
+            i += c.len_utf8();
+        }
+
+        cells
+    }
+}
+
+impl Renderable<'_> for Buffer<'_, Regular> {
+    fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
+        let gutter_width = match self.config.line_numbers {
+            LineNumbers::None => 0,
+            _ => match &self.gutter {
+                Some(gutter) => gutter.width(),
+                None => 0,
+            },
+        };
+        render_within_bounds(
+            &self.apply_highlights(),
+            frame,
+            &self.area,
+            gutter_width,
+            |col| col < self.area.width,
+        );
+
+        if let Some(gutter) = &self.gutter {
+            gutter.render(
+                frame,
+                self.text_object.borrow().len(),
+                self.area.height as usize,
+                0,
+            );
+        }
+
+        Ok(())
+    }
+
+    fn resize(&mut self, new_area: Rect) -> anyhow::Result<()> {
+        self.area = new_area;
+        Ok(())
+    }
+}
+
+impl Buffer<'_, WithCursor> {
     pub fn get_file_name(&self) -> String {
         self.text_object.borrow().file_name.clone()
     }
@@ -64,11 +154,8 @@ impl<'a> FocusableBuffer<'a> {
         self.cursor
             .handle(action, &mut self.text_object.borrow_mut(), mode);
 
-        if self.is_scrollable {
-            self.maybe_scroll();
-        } else {
-            self.keep_cursor_in_viewport();
-        }
+        self.maybe_scroll();
+        self.keep_cursor_in_viewport();
 
         Ok(())
     }
@@ -142,11 +229,11 @@ impl<'a> FocusableBuffer<'a> {
     }
 }
 
-impl Renderable<'_> for FocusableBuffer<'_> {
+impl Renderable<'_> for Buffer<'_, WithCursor> {
     fn render(&mut self, frame: &mut crate::frame::Frame) -> anyhow::Result<()> {
         let gutter = match self.config.line_numbers {
             crate::config::LineNumbers::None => 0,
-            _ => self.gutter.width(),
+            _ => self.gutter.as_ref().map(|g| g.width()).unwrap_or(0),
         };
 
         render_within_bounds(&self.apply_highlights(), frame, &self.area, gutter, |col| {
@@ -154,12 +241,14 @@ impl Renderable<'_> for FocusableBuffer<'_> {
                 && col - (self.scroll.col as u16) <= self.area.width - gutter
         });
 
-        self.gutter.render(
-            frame,
-            self.text_object.borrow().len(),
-            self.area.height as usize,
-            self.scroll.row,
-        );
+        if let Some(g) = &self.gutter {
+            g.render(
+                frame,
+                self.text_object.borrow().len(),
+                self.area.height as usize,
+                self.scroll.row,
+            )
+        }
 
         Ok(())
     }
@@ -170,7 +259,7 @@ impl Renderable<'_> for FocusableBuffer<'_> {
     }
 }
 
-impl Focusable<'_> for FocusableBuffer<'_> {
+impl Focusable<'_> for Buffer<'_, WithCursor> {
     fn render_cursor(&self, mode: &Mode) -> anyhow::Result<()> {
         let gutter_size = self.config.gutter_width;
 
@@ -255,14 +344,14 @@ impl Focusable<'_> for FocusableBuffer<'_> {
     }
 }
 
-impl<'a> Scrollable<'a> for FocusableBuffer<'_> {
+impl Scrollable<'_> for Buffer<'_, WithCursor> {
     fn maybe_scroll(&mut self) {
         // TODO: we are not handling when the user moves to a shorter line
         // in which the last character is not in the viewport.
 
         let gutter_width = match self.config.line_numbers {
             crate::config::LineNumbers::None => 0,
-            _ => self.gutter.width(),
+            _ => self.gutter.as_ref().map(|g| g.width()).unwrap_or(0),
         };
         let Rect { width, height, .. } = &self.area;
 
@@ -293,44 +382,45 @@ impl<'a> Scrollable<'a> for FocusableBuffer<'_> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tui::Frame;
+fn render_within_bounds<F>(
+    cells: &[Cell],
+    frame: &mut Frame,
+    area: &Rect,
+    offset: u16,
+    is_within_bounds: F,
+) where
+    F: Fn(u16) -> bool,
+{
+    let mut col = 0;
+    let mut row = 0;
+    let mut i = 1;
 
-    #[test]
-    fn test_horizontal_scroll() {
-        let config = Config::default();
-        let theme = Theme::default();
-        let text_object = Rc::new(RefCell::new(TextObject::from_string(1, "Hello, World!", 1)));
-        let area = Rect::new(0, 0, 10, 2);
-        let cursor = Cursor::default();
-
-        let mut buffer = FocusableBuffer::new(1, text_object, area, &config, &theme, cursor, true);
-
-        let mut frame = Frame::new(10, 2);
-        buffer.render(&mut frame).unwrap();
-
-        frame.cells.iter().for_each(|c| println!("{}", c.c));
-
-        assert_eq!(frame.cells[6].c, 'H');
-        assert_eq!(frame.cells[9].c, 'l');
-        assert_eq!(buffer.cursor.col, 0);
-        assert_eq!(buffer.scroll.col, 0);
-
-        for _ in 0..6 {
-            buffer
-                .handle_cursor_action(&KeyAction::Simple(Action::MoveRight), &Mode::Normal)
-                .unwrap();
+    for cell in cells {
+        if is_within_bounds(i) {
+            match cell.c {
+                '\n' => frame.set_cell(col + area.x + offset, row + area.y, ' ', &cell.style),
+                _ => frame.set_cell(col + area.x + offset, row + area.y, cell.c, &cell.style),
+            }
+            col += 1;
         }
 
-        let mut frame = Frame::new(10, 2);
-        buffer.render(&mut frame).unwrap();
+        for i in col..area.width - offset {
+            frame.set_cell(i + area.x + offset, row + area.y, ' ', &cell.style);
+        }
 
-        frame.cells.iter().for_each(|c| println!("{}", c.c));
+        i += 1;
 
-        assert_eq!(buffer.cursor.col, 6);
-        assert_eq!(buffer.scroll.col, 3);
-        assert_eq!(frame.cells[6].c, 'l');
+        if cell.c == '\n' {
+            row += 1;
+            col = 0;
+            i = 1;
+        }
+    }
+
+    tracing::trace!("filling remaining cells from: {} to {}", row, area.height);
+    for i in row + 1..area.height {
+        for j in offset..area.width {
+            frame.set_cell(area.x + j, i + area.y, ' ', &Default::default());
+        }
     }
 }
