@@ -1,9 +1,9 @@
-use crate::config::{Config, LineNumbers};
-use crate::frame::Frame;
-use crate::theme::Theme;
-use crate::tui::rect::Rect;
-
-use super::Gutter;
+use crate::{
+    config::{Config, LineNumbers},
+    frame::Frame,
+    theme::Theme,
+    tui::{gutter::Gutter, rect::Rect},
+};
 
 #[derive(Debug)]
 pub struct RelativeLineDrawer<'a> {

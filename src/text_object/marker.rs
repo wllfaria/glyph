@@ -1,4 +1,4 @@
-use super::vec_marker::VecMarker;
+use crate::text_object::vec_marker::VecMarker;
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct Mark {

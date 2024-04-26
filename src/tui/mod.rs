@@ -5,17 +5,17 @@ pub mod position;
 pub mod rect;
 pub mod statusline;
 
-use std::{cell::RefCell, rc::Rc};
-
 use crate::{
-    buffer::TextObject,
     config::{Config, KeyAction},
     cursor::Cursor,
     editor::Mode,
     frame::Frame,
+    text_object::TextObject,
     theme::Theme,
     tui::{buffer::Buffer, rect::Rect},
 };
+
+use std::{cell::RefCell, rc::Rc};
 
 pub trait Renderable<'a> {
     fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()>;

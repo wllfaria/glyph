@@ -2,10 +2,8 @@ use crate::{
     editor::Mode,
     frame::Frame,
     theme::Theme,
-    tui::{rect::Rect, Renderable},
+    tui::{position::Position, rect::Rect, Renderable},
 };
-
-use super::position::Position;
 
 #[derive(Debug)]
 pub struct Statusline<'a> {

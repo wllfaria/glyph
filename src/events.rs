@@ -1,10 +1,10 @@
+use crate::{
+    config::{Action, Config, KeyAction},
+    editor::Mode,
+};
+
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use std::collections::HashMap;
-
-use crossterm::event::Event;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-use crate::config::{Action, Config, KeyAction};
-use crate::editor::Mode;
 
 #[derive(Debug)]
 pub struct Events<'a> {

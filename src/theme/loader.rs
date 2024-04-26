@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use std::path::Path;
+use crate::{
+    config::Config,
+    theme::{Gutter, StatuslineTheming, Style, Theme},
+};
 
 use crossterm::style::Color;
 use serde::Deserialize;
-
-use crate::config::Config;
-use crate::theme::{Gutter, StatuslineTheming, Style, Theme};
+use std::{collections::HashMap, path::Path};
 
 #[derive(Deserialize, Debug, Clone)]
 struct TokenStyle {

@@ -1,12 +1,10 @@
-use std::{cell::RefCell, io::stdout, marker::PhantomData, rc::Rc};
-
 use crate::{
-    buffer::TextObject,
     config::{Action, Config, KeyAction, LineNumbers},
     cursor::Cursor,
     editor::Mode,
     frame::{cell::Cell, Frame},
     highlight::Highlight,
+    text_object::TextObject,
     theme::Theme,
     tui::{
         gutter::{get_gutter, GutterKind},
@@ -15,6 +13,8 @@ use crate::{
         Focusable, Renderable, Scrollable,
     },
 };
+
+use std::{cell::RefCell, io::stdout, marker::PhantomData, rc::Rc};
 
 pub struct Regular;
 pub struct WithCursor;

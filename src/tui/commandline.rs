@@ -1,20 +1,19 @@
-use std::io::stdout;
-
 use crate::{
     config::{Action, KeyAction},
     cursor::Cursor,
     editor::Mode,
     frame::Frame,
     theme::Theme,
+    tui::{rect::Rect, Renderable},
 };
 
-use super::{rect::Rect, Renderable};
+use std::{io::stdout, ops::Add};
 
 pub struct Commandline<'a> {
     size: Rect,
     theme: &'a Theme,
     cursor: Cursor,
-    command_kind: CommandKind,
+    command_prefix: CommandKind,
     command: String,
 }
 
@@ -46,7 +45,7 @@ impl<'a> Commandline<'a> {
             size,
             theme,
             cursor,
-            command_kind: CommandKind::None,
+            command_prefix: CommandKind::None,
             command: String::default(),
         }
     }
@@ -64,8 +63,13 @@ impl<'a> Commandline<'a> {
         Ok(())
     }
 
+    pub fn clear(&mut self) {
+        self.command.clear();
+        self.command_prefix = CommandKind::None;
+    }
+
     pub fn update_kind(&mut self, kind: CommandKind) {
-        self.command_kind = kind;
+        self.command_prefix = kind;
     }
 
     pub fn handle_action(&mut self, action: &KeyAction) -> Option<Action> {
@@ -76,7 +80,7 @@ impl<'a> Commandline<'a> {
             }
             KeyAction::Simple(Action::DeletePreviousChar) => {
                 if self.command.is_empty() {
-                    self.command_kind = CommandKind::None;
+                    self.command_prefix = CommandKind::None;
                     return Some(Action::EnterMode(Mode::Normal));
                 }
                 self.cursor.col = self.cursor.col.saturating_sub(1);
@@ -93,13 +97,9 @@ impl Renderable<'_> for Commandline<'_> {
     fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
         let command = format!(
             "{}{}{}",
-            self.command_kind,
+            self.command_prefix,
             self.command,
-            " ".repeat(
-                self.size
-                    .width
-                    .saturating_sub(self.command.len() as u16 + 1) as usize
-            )
+            " ".repeat(usize::from(self.size.width).saturating_sub(self.command.len().add(1)))
         );
 
         frame.set_text(0, self.size.y, &command, &self.theme.appearance);

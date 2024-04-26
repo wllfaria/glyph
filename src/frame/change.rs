@@ -1,4 +1,4 @@
-use super::cell::Cell;
+use crate::frame::cell::Cell;
 
 #[derive(Debug)]
 pub struct Change<'a> {

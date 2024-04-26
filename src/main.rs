@@ -1,4 +1,3 @@
-mod buffer;
 mod config;
 mod cursor;
 mod editor;
@@ -6,6 +5,7 @@ mod events;
 mod frame;
 mod highlight;
 mod lsp;
+mod text_object;
 mod theme;
 mod tui;
 

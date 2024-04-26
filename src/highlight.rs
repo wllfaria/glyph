@@ -1,9 +1,8 @@
-use std::fmt::{self, Debug, Formatter};
+use crate::theme::{Style, Theme};
 
+use std::fmt::{self, Debug, Formatter};
 use tree_sitter::{Parser, Query, QueryCursor};
 use tree_sitter_rust::{language, HIGHLIGHT_QUERY};
-
-use crate::theme::{Style, Theme};
 
 pub struct Highlight<'a> {
     parser: Parser,

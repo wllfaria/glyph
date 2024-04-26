@@ -2,9 +2,9 @@ pub mod cell;
 mod change;
 
 use crate::theme::Style;
-use cell::Cell;
+use change::Change;
 
-use self::change::Change;
+use cell::Cell;
 
 #[derive(Clone, Debug)]
 pub struct Frame {

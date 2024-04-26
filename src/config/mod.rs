@@ -1,12 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
-
-use serde::{Deserialize, Serialize};
-
 use crate::editor::Mode;
 
-const fn default_true() -> bool {
-    true
-}
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum LineNumbers {
@@ -27,14 +22,10 @@ pub struct Config {
     #[serde()]
     pub keys: Keys,
     pub theme: String,
-    pub log_file: Option<String>,
-    pub mouse_scroll_lines: Option<usize>,
     pub gutter_width: usize,
     pub line_numbers: LineNumbers,
     pub background: EditorBackground,
     pub empty_line_char: char,
-    #[serde(default = "default_true")]
-    pub show_diagnostics: bool,
 }
 
 #[cfg(test)]
@@ -43,13 +34,10 @@ impl Default for Config {
         Self {
             keys: Keys::default(),
             theme: String::from("default"),
-            log_file: None,
-            mouse_scroll_lines: None,
             gutter_width: 6,
             line_numbers: LineNumbers::Relative,
             background: EditorBackground::Light,
             empty_line_char: ' ',
-            show_diagnostics: true,
         }
     }
 }

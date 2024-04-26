@@ -2,13 +2,14 @@ mod lines;
 pub mod marker;
 mod vec_marker;
 
-use std::io;
-use std::path::{Path, PathBuf};
-
-use crate::buffer::lines::Lines;
-use crate::buffer::marker::Marker;
-use crate::config::{Action, KeyAction};
-use marker::Mark;
+use crate::{
+    config::{Action, KeyAction},
+    text_object::{
+        lines::Lines,
+        marker::{Mark, Marker},
+    },
+};
+use std::{io, path::Path};
 
 #[derive(Debug)]
 pub struct TextObject {
@@ -204,7 +205,7 @@ impl std::fmt::Display for TextObject {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::marker::Mark;
+    use crate::text_object::marker::Mark;
 
     #[test]
     fn test_buffer_initialization() {
@@ -381,7 +382,7 @@ mod tests {
     #[test]
     fn test_initialization_with_empty_filename() {
         let gap = 1000;
-        let buffer = TextObject::new(1, None).unwrap();
+        let buffer = TextObject::new::<String>(1, None).unwrap();
 
         assert_eq!(buffer.buffer.len(), gap);
         assert_eq!(buffer.gap_start, 0);

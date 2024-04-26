@@ -1,8 +1,7 @@
-use std::collections::HashMap;
+pub mod loader;
 
 use crossterm::style::Color;
-
-pub mod loader;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Theme {

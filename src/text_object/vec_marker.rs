@@ -1,6 +1,7 @@
-use crate::buffer::marker::{Mark, Marker};
-
-use super::lines::Lines;
+use crate::text_object::{
+    lines::Lines,
+    marker::{Mark, Marker},
+};
 
 #[derive(Debug)]
 pub struct VecMarker {
@@ -77,7 +78,7 @@ impl Marker for VecMarker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::marker::Mark;
+    use crate::text_object::marker::Mark;
 
     #[test]
     fn test_add_mark() {

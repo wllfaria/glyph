@@ -1,9 +1,11 @@
-use std::ops::Add;
+use crate::{
+    config::{Action, KeyAction},
+    editor::Mode,
+    text_object::TextObject,
+    tui::position::Position,
+};
 
-use crate::buffer::TextObject;
-use crate::config::{Action, KeyAction};
-use crate::editor::Mode;
-use crate::tui::position::Position;
+use std::ops::Add;
 
 #[derive(Debug, Default)]
 pub struct Cursor {

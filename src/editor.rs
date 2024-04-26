@@ -1,24 +1,10 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    io::{stdout, Write},
-    path::{Path, PathBuf},
-    rc::Rc,
-    time::Duration,
-};
-
-use crossterm::{event::EventStream, execute, style::Stylize};
-use futures::StreamExt;
-use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-
 use crate::{
-    buffer::TextObject,
     config::{Action, Config, KeyAction},
     cursor::Cursor,
     events::Events,
     frame::{cell::Cell, Frame},
     lsp::{IncomingMessage, LspClient},
+    text_object::TextObject,
     theme::Theme,
     tui::{
         buffer::{Buffer, WithCursor},
@@ -29,6 +15,19 @@ use crate::{
         Focusable, Renderable,
     },
 };
+
+use crossterm::{event::EventStream, execute, style::Stylize};
+use futures::StreamExt;
+use serde::{Deserialize, Serialize};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    io::{stdout, Write},
+    path::{Path, PathBuf},
+    rc::Rc,
+    time::Duration,
+};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Mode {
@@ -189,6 +188,11 @@ impl<'a> Editor<'a> {
     }
 
     fn render_next_frame(&mut self) -> anyhow::Result<()> {
+        assert!(
+            self.buffers.get(&self.current_buffer).is_some(),
+            "editor should always have at least 1 buffer"
+        );
+
         tracing::trace!("[Editor] rendering next frame");
         execute!(stdout(), crossterm::cursor::Hide)?;
 
@@ -301,6 +305,11 @@ impl<'a> Editor<'a> {
         action: KeyAction,
         action_tx: UnboundedSender<Action>,
     ) -> anyhow::Result<()> {
+        assert!(
+            self.buffers.get(&self.current_buffer).is_some(),
+            "editor should always have at least 1 buffer"
+        );
+
         match action {
             KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
                 self.commandline.update_kind(CommandKind::Command);
@@ -378,7 +387,6 @@ impl<'a> Editor<'a> {
     fn handle_user_command(&mut self, action_tx: UnboundedSender<Action>) -> anyhow::Result<()> {
         let command = self.commandline.command();
 
-        // TODO: change this to get available commands from a map instead of matching on a raw &str
         match command.chars().nth(0) {
             Some('q') => action_tx.send(Action::Quit)?,
             Some('e') => {
@@ -393,6 +401,8 @@ impl<'a> Editor<'a> {
             _ => {}
         };
 
+        self.commandline.clear();
+
         Ok(())
     }
 
@@ -400,6 +410,11 @@ impl<'a> Editor<'a> {
         &mut self,
         message: (IncomingMessage, Option<String>),
     ) -> anyhow::Result<()> {
+        assert!(
+            self.buffers.get(&self.current_buffer).is_some(),
+            "editor should always have at least 1 buffer"
+        );
+
         if let Some(method) = message.1 {
             if method.as_str() == "textDocument/hover" {
                 let message = message.0;
@@ -412,6 +427,11 @@ impl<'a> Editor<'a> {
                     if let Some(contents) = result.get("contents") {
                         if let Some(contents) = contents.as_object() {
                             if let Some(serde_json::Value::String(value)) = contents.get("value") {
+                                assert!(
+                                    self.buffers.get(&self.current_buffer).is_some(),
+                                    "editor should always have at least 1 buffer"
+                                );
+
                                 let buffer = create_popup(
                                     &self.area,
                                     self.buffers
@@ -434,6 +454,7 @@ impl<'a> Editor<'a> {
                 }
             }
         }
+
         Ok(())
     }
 }
