@@ -5,9 +5,10 @@ use std::{
     time::Duration,
 };
 
-use crossterm::{event::EventStream, style::Stylize};
+use crossterm::{event::EventStream, execute, style::Stylize};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 use crate::{
     buffer::TextObject,
@@ -19,6 +20,7 @@ use crate::{
     theme::Theme,
     tui::{
         buffer::{Buffer, WithCursor},
+        commandline::{CommandKind, Commandline},
         create_popup,
         rect::Rect,
         statusline::{Statusline, StatuslineContext},
@@ -26,7 +28,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Mode {
     #[default]
     Normal,
@@ -67,7 +69,10 @@ pub struct Editor<'a> {
     mode: Mode,
 
     statusline: Statusline<'a>,
+    commandline: Commandline<'a>,
     popup: Option<Buffer<'a>>,
+
+    action_rx: UnboundedReceiver<Action>,
 }
 
 impl<'a> Editor<'a> {
@@ -81,10 +86,13 @@ impl<'a> Editor<'a> {
         let size = Rect::from(size);
         let pane_size = size.clone().shrink_bottom(2);
         let statusline_size = Rect::new(size.x, size.bottom() - 2, size.width, 1);
+        let commandline_size = Rect::new(size.x, size.bottom() - 1, size.width, 1);
 
         let text_object = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
         let buffer =
             Buffer::new(1, text_object.clone(), pane_size, config, theme, false).with_cursor();
+
+        let (action_tx, action_rx) = unbounded_channel::<Action>();
 
         let mut editor = Self {
             events: Events::new(config),
@@ -97,12 +105,14 @@ impl<'a> Editor<'a> {
                 Frame::new(size.width, size.height),
             ],
             statusline: Statusline::new(statusline_size, theme),
+            commandline: Commandline::new(commandline_size, theme),
             area: size,
             config,
             popup: None,
+            action_rx,
         };
 
-        editor.start().await?;
+        editor.start(action_tx.clone()).await?;
 
         Ok(editor)
     }
@@ -170,17 +180,15 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    fn draw_cursor(&self) -> anyhow::Result<()> {
-        self.buffer.render_cursor(&self.mode)?;
-
-        Ok(())
-    }
-
     fn render_next_frame(&mut self) -> anyhow::Result<()> {
         tracing::trace!("[Editor] rendering next frame");
+        execute!(stdout(), crossterm::cursor::Hide)?;
 
         let frame = &mut self.frames[0];
+
         self.statusline.render(frame)?;
+        self.commandline.render(frame)?;
+
         self.buffer.render(frame)?;
 
         if let Some(popup) = &mut self.popup {
@@ -188,7 +196,14 @@ impl<'a> Editor<'a> {
         }
 
         self.render_diff()?;
-        self.draw_cursor()?;
+
+        if self.mode.eq(&Mode::Command) {
+            self.commandline.render_cursor()?;
+        } else {
+            self.buffer.render_cursor(&self.mode)?;
+        }
+
+        execute!(stdout(), crossterm::cursor::Show)?;
         stdout().flush()?;
 
         self.swap_frames();
@@ -202,7 +217,7 @@ impl<'a> Editor<'a> {
             .for_each(|cell| *cell = Cell::new(' ', self.theme.appearance));
     }
 
-    pub async fn start(&mut self) -> anyhow::Result<()> {
+    pub async fn start(&mut self, action_tx: UnboundedSender<Action>) -> anyhow::Result<()> {
         self.setup_terminal()?;
         self.fill_frame();
         self.render_next_frame()?;
@@ -214,6 +229,11 @@ impl<'a> Editor<'a> {
             let delay = futures_timer::Delay::new(Duration::from_millis(30));
             let event = stream.next();
 
+            if let Ok(Action::Quit) = self.action_rx.try_recv() {
+                tracing::info!("user requested quit...");
+                break;
+            };
+
             tokio::select! {
                 _ = delay => {
                     if let Some(message) = self.lsp.try_read_message().await? {
@@ -224,11 +244,7 @@ impl<'a> Editor<'a> {
                     if let Some(Ok(event)) = maybe_event {
                         if let Some(action) = self.events.handle(&event, &self.mode) {
                             self.popup = None;
-                            match action {
-                                KeyAction::Simple(Action::EnterMode(Mode::Command)) => break,
-                                KeyAction::Simple(Action::Quit) => break,
-                                _ => self.handle_action(action).await?,
-                            }
+                            self.handle_action(action, action_tx.clone()).await?;
                         }
                     };
                 }
@@ -240,8 +256,16 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    async fn handle_action(&mut self, action: KeyAction) -> anyhow::Result<()> {
+    async fn handle_action(
+        &mut self,
+        action: KeyAction,
+        action_tx: UnboundedSender<Action>,
+    ) -> anyhow::Result<()> {
         match action {
+            KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
+                self.commandline.update_kind(CommandKind::Command);
+                self.mode = Mode::Command;
+            }
             KeyAction::Simple(Action::EnterMode(mode)) => self.mode = mode,
             KeyAction::Simple(Action::Hover) => {
                 let Cursor { col, row, .. } = self.buffer.cursor;
@@ -253,6 +277,20 @@ impl<'a> Editor<'a> {
                 self.statusline.resize(Rect::new(0, height - 2, width, 1))?;
                 self.buffer.resize(Rect::new(0, 0, width, height - 2))?;
             }
+            KeyAction::Simple(Action::ExecuteCommand) => {
+                self.handle_user_command(action_tx.clone())?
+            }
+            KeyAction::Simple(Action::InsertCommand(_)) => {
+                self.commandline.handle_action(&action);
+            }
+            KeyAction::Simple(Action::DeletePreviousChar) => match self.mode {
+                Mode::Command => {
+                    if let Some(Action::EnterMode(mode)) = self.commandline.handle_action(&action) {
+                        self.mode = mode;
+                    }
+                }
+                _ => self.buffer.handle_action(&action, &self.mode)?,
+            },
             KeyAction::Simple(_) => {
                 self.buffer.handle_action(&action, &self.mode)?;
             }
@@ -266,6 +304,20 @@ impl<'a> Editor<'a> {
         });
 
         self.render_next_frame()?;
+
+        Ok(())
+    }
+
+    fn handle_user_command(&mut self, action_tx: UnboundedSender<Action>) -> anyhow::Result<()> {
+        let command = self.commandline.command();
+
+        // TODO: change this to get available commands from a map instead of matching on a raw &str
+        match command {
+            "q" => action_tx.send(Action::Quit)?,
+            "w" => todo!(),
+            _ => {}
+        };
+
         Ok(())
     }
 

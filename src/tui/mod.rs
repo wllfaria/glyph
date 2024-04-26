@@ -1,4 +1,5 @@
 pub mod buffer;
+pub mod commandline;
 pub mod gutter;
 pub mod position;
 pub mod rect;
