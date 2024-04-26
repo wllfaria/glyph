@@ -75,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
     let (writer, _guard) = tracing_appender::non_blocking(appender);
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::TRACE)
+        .with_ansi(false)
         .with_writer(writer)
         .finish();
 
