@@ -3,6 +3,7 @@ pub mod marker;
 mod vec_marker;
 
 use std::io;
+use std::path::{Path, PathBuf};
 
 use crate::buffer::lines::Lines;
 use crate::buffer::marker::Marker;
@@ -21,14 +22,21 @@ pub struct TextObject {
 }
 
 impl TextObject {
-    pub fn new(id: u16, file_name: Option<String>) -> io::Result<Self> {
+    pub fn new<S>(id: u16, file_name: Option<S>) -> io::Result<Self>
+    where
+        S: AsRef<Path>,
+    {
         let lines = match file_name {
             Some(ref name) => std::fs::read_to_string(name)?,
             None => String::new(),
         };
         let gap = 1000;
         let mut buffer = TextObject::from_string(id, &lines, gap);
-        buffer.file_name = file_name.unwrap_or_default();
+
+        if let Some(file_name) = file_name {
+            buffer.file_name = file_name.as_ref().to_string_lossy().to_string();
+        }
+
         Ok(buffer)
     }
 

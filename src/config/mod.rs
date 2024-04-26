@@ -75,6 +75,7 @@ pub enum Action {
     /// Action sent when the terminal is resized,
     /// `Resize(width, height)`
     Resize(u16, u16),
+    LoadFile(PathBuf),
 
     NextWord,
     PreviousWord,

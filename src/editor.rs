@@ -1,6 +1,8 @@
 use std::{
     cell::RefCell,
+    collections::HashMap,
     io::{stdout, Write},
+    path::{Path, PathBuf},
     rc::Rc,
     time::Duration,
 };
@@ -56,7 +58,9 @@ impl std::fmt::Display for Mode {
 
 pub struct Editor<'a> {
     events: Events<'a>,
-    buffer: Buffer<'a, WithCursor>,
+    buffers: HashMap<usize, Buffer<'a, WithCursor>>,
+    current_buffer: usize,
+    next_buffer: usize,
 
     lsp: LspClient,
 
@@ -82,34 +86,38 @@ impl<'a> Editor<'a> {
         lsp: LspClient,
         file_name: Option<String>,
     ) -> anyhow::Result<Self> {
-        let size = crossterm::terminal::size()?;
-        let size = Rect::from(size);
-        let pane_size = size.clone().shrink_bottom(2);
-        let statusline_size = Rect::new(size.x, size.bottom() - 2, size.width, 1);
-        let commandline_size = Rect::new(size.x, size.bottom() - 1, size.width, 1);
+        let area = crossterm::terminal::size()?;
+        let area = Rect::from(area);
+        let pane_size = area.clone().shrink_bottom(2);
+        let statusline_size = Rect::new(area.x, area.bottom() - 2, area.width, 1);
+        let commandline_size = Rect::new(area.x, area.bottom() - 1, area.width, 1);
 
         let text_object = Rc::new(RefCell::new(TextObject::new(1, file_name.clone())?));
         let buffer =
             Buffer::new(1, text_object.clone(), pane_size, config, theme, false).with_cursor();
 
         let (action_tx, action_rx) = unbounded_channel::<Action>();
+        let mut buffers = HashMap::new();
+        buffers.insert(1, buffer);
 
         let mut editor = Self {
             events: Events::new(config),
             lsp,
             theme,
-            buffer,
             mode: Mode::Normal,
             frames: [
-                Frame::new(size.width, size.height),
-                Frame::new(size.width, size.height),
+                Frame::new(area.width, area.height),
+                Frame::new(area.width, area.height),
             ],
             statusline: Statusline::new(statusline_size, theme),
             commandline: Commandline::new(commandline_size, theme),
-            area: size,
+            area,
             config,
             popup: None,
             action_rx,
+            buffers,
+            current_buffer: 1,
+            next_buffer: 2,
         };
 
         editor.start(action_tx.clone()).await?;
@@ -189,7 +197,10 @@ impl<'a> Editor<'a> {
         self.statusline.render(frame)?;
         self.commandline.render(frame)?;
 
-        self.buffer.render(frame)?;
+        self.buffers
+            .get_mut(&self.current_buffer)
+            .unwrap()
+            .render(frame)?;
 
         if let Some(popup) = &mut self.popup {
             popup.render(frame)?;
@@ -200,7 +211,10 @@ impl<'a> Editor<'a> {
         if self.mode.eq(&Mode::Command) {
             self.commandline.render_cursor()?;
         } else {
-            self.buffer.render_cursor(&self.mode)?;
+            self.buffers
+                .get(&self.current_buffer)
+                .unwrap()
+                .render_cursor(&self.mode)?;
         }
 
         execute!(stdout(), crossterm::cursor::Show)?;
@@ -217,6 +231,28 @@ impl<'a> Editor<'a> {
             .for_each(|cell| *cell = Cell::new(' ', self.theme.appearance));
     }
 
+    fn open_buffer<S>(&mut self, path: S) -> anyhow::Result<()>
+    where
+        S: AsRef<Path>,
+    {
+        let text_object = Rc::new(RefCell::new(TextObject::new(1, Some(path))?));
+        let pane_size = self.area.clone().shrink_bottom(2);
+        let buffer = Buffer::new(
+            self.next_buffer,
+            text_object.clone(),
+            pane_size,
+            self.config,
+            self.theme,
+            false,
+        )
+        .with_cursor();
+        self.buffers.insert(self.next_buffer, buffer);
+        self.current_buffer = self.next_buffer;
+        self.next_buffer += 1;
+
+        Ok(())
+    }
+
     pub async fn start(&mut self, action_tx: UnboundedSender<Action>) -> anyhow::Result<()> {
         self.setup_terminal()?;
         self.fill_frame();
@@ -229,9 +265,13 @@ impl<'a> Editor<'a> {
             let delay = futures_timer::Delay::new(Duration::from_millis(30));
             let event = stream.next();
 
-            if let Ok(Action::Quit) = self.action_rx.try_recv() {
-                tracing::info!("user requested quit...");
-                break;
+            match self.action_rx.try_recv() {
+                Ok(Action::Quit) => break,
+                Ok(Action::LoadFile(path)) => {
+                    self.open_buffer(path)?;
+                    self.render_next_frame()?;
+                }
+                _ => {}
             };
 
             tokio::select! {
@@ -268,14 +308,25 @@ impl<'a> Editor<'a> {
             }
             KeyAction::Simple(Action::EnterMode(mode)) => self.mode = mode,
             KeyAction::Simple(Action::Hover) => {
-                let Cursor { col, row, .. } = self.buffer.cursor;
-                let file_name = self.buffer.text_object.borrow().file_name.clone();
+                let Cursor { col, row, .. } =
+                    self.buffers.get_mut(&self.current_buffer).unwrap().cursor;
+                let file_name = self
+                    .buffers
+                    .get_mut(&self.current_buffer)
+                    .unwrap()
+                    .text_object
+                    .borrow()
+                    .file_name
+                    .clone();
                 self.lsp.request_hover(&file_name, row, col).await?;
             }
             KeyAction::Simple(Action::Resize(width, height)) => {
                 self.area = Rect::new(0, 0, width, height);
                 self.statusline.resize(Rect::new(0, height - 2, width, 1))?;
-                self.buffer.resize(Rect::new(0, 0, width, height - 2))?;
+                self.buffers
+                    .get_mut(&self.current_buffer)
+                    .unwrap()
+                    .resize(Rect::new(0, 0, width, height - 2))?;
             }
             KeyAction::Simple(Action::ExecuteCommand) => {
                 self.handle_user_command(action_tx.clone())?
@@ -289,17 +340,33 @@ impl<'a> Editor<'a> {
                         self.mode = mode;
                     }
                 }
-                _ => self.buffer.handle_action(&action, &self.mode)?,
+                _ => self
+                    .buffers
+                    .get_mut(&self.current_buffer)
+                    .unwrap()
+                    .handle_action(&action, &self.mode)?,
             },
             KeyAction::Simple(_) => {
-                self.buffer.handle_action(&action, &self.mode)?;
+                self.buffers
+                    .get_mut(&self.current_buffer)
+                    .unwrap()
+                    .handle_action(&action, &self.mode)?;
             }
             _ => (),
         };
 
         self.statusline.update(StatuslineContext {
-            cursor: self.buffer.cursor.get_readable_position(),
-            file_name: self.buffer.get_file_name(),
+            cursor: self
+                .buffers
+                .get(&self.current_buffer)
+                .unwrap()
+                .cursor
+                .get_readable_position(),
+            file_name: self
+                .buffers
+                .get(&self.current_buffer)
+                .unwrap()
+                .get_file_name(),
             mode: self.mode.clone(),
         });
 
@@ -312,9 +379,17 @@ impl<'a> Editor<'a> {
         let command = self.commandline.command();
 
         // TODO: change this to get available commands from a map instead of matching on a raw &str
-        match command {
-            "q" => action_tx.send(Action::Quit)?,
-            "w" => todo!(),
+        match command.chars().nth(0) {
+            Some('q') => action_tx.send(Action::Quit)?,
+            Some('e') => {
+                if let Some((_, file_path)) = command.split_once(' ') {
+                    let cwd = std::env::current_dir()?;
+                    let file_path = cwd.join(PathBuf::from(file_path));
+                    if file_path.exists() {
+                        action_tx.send(Action::LoadFile(file_path))?;
+                    }
+                }
+            }
             _ => {}
         };
 
@@ -339,9 +414,15 @@ impl<'a> Editor<'a> {
                             if let Some(serde_json::Value::String(value)) = contents.get("value") {
                                 let buffer = create_popup(
                                     &self.area,
-                                    self.buffer.gutter.as_ref().map(|g| g.width()).unwrap_or(0),
+                                    self.buffers
+                                        .get(&self.current_buffer)
+                                        .unwrap()
+                                        .gutter
+                                        .as_ref()
+                                        .map(|g| g.width())
+                                        .unwrap_or(0),
                                     value.clone(),
-                                    &self.buffer.cursor,
+                                    &self.buffers.get(&self.current_buffer).unwrap().cursor,
                                     self.config,
                                     self.theme,
                                 );

@@ -5,11 +5,6 @@ use crate::config::{Action, KeyAction};
 use crate::editor::Mode;
 use crate::tui::position::Position;
 
-/// Cursor implementation
-///
-/// alkjs dlkjaslkjh lkasdlkj
-///
-/// ijalksdjhlkasdjlk
 #[derive(Debug, Default)]
 pub struct Cursor {
     pub absolute_position: usize,
