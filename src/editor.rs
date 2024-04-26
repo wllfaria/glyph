@@ -225,7 +225,7 @@ impl<'a> Editor<'a> {
                         if let Some(action) = self.events.handle(&event, &self.mode) {
                             self.popup = None;
                             match action {
-                                KeyAction::Simple(Action::EnterMode(_)) => break,
+                                KeyAction::Simple(Action::EnterMode(Mode::Command)) => break,
                                 KeyAction::Simple(Action::Quit) => break,
                                 _ => self.handle_action(action).await?,
                             }

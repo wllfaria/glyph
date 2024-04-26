@@ -153,7 +153,6 @@ impl Buffer<'_, WithCursor> {
     fn handle_cursor_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
         self.cursor
             .handle(action, &mut self.text_object.borrow_mut(), mode);
-
         self.maybe_scroll();
         self.keep_cursor_in_viewport();
 
@@ -165,7 +164,7 @@ impl Buffer<'_, WithCursor> {
             (x, _) if x as u16 >= self.area.width => {
                 self.cursor.col = self.area.width.saturating_sub(1) as usize;
             }
-            (_, y) if y as u16 >= self.area.height => {
+            (_, y) if y.saturating_sub(self.scroll.row) as u16 >= self.area.height => {
                 self.cursor.row = self.area.height.saturating_sub(1) as usize;
             }
             _ => (),

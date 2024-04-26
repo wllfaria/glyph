@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use crate::buffer::TextObject;
 use crate::config::{Action, KeyAction};
 use crate::editor::Mode;
@@ -123,7 +125,7 @@ impl Cursor {
     }
 
     fn move_down(&mut self, buffer: &mut TextObject, mode: &Mode) {
-        let next_line = 2 + self.row;
+        let next_line = self.row.add(2);
         match buffer.marker.get_by_line(next_line) {
             Some(mark) => {
                 self.row += 1;
