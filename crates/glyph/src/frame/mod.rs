@@ -60,7 +60,6 @@ impl Frame {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::Style;
 
     #[test]
     fn test_initialize_correctly() {
@@ -136,10 +135,10 @@ mod tests {
 
         vp.clear();
 
-        assert_eq!(vp.cells[0].c, ' ');
-        assert_eq!(vp.cells[1].c, ' ');
-        assert_eq!(vp.cells[2].c, ' ');
-        assert_eq!(vp.cells[3].c, ' ');
+        assert_eq!(vp.cells[0].c, '\0');
+        assert_eq!(vp.cells[1].c, '\0');
+        assert_eq!(vp.cells[2].c, '\0');
+        assert_eq!(vp.cells[3].c, '\0');
     }
 
     #[test]
