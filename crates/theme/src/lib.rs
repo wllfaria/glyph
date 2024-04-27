@@ -1,6 +1,7 @@
 mod default_dark;
 mod default_light;
-pub mod loader;
+mod loader;
 mod theme;
 
+pub use loader::load_theme;
 pub use theme::{Style, Theme};

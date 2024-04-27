@@ -1,7 +1,7 @@
 mod config;
 mod default_config;
 
-pub use config::load_config;
+pub use config::{get_config_dir, load_config, setup_logger, APP_NAME, THEMES_DIR};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 

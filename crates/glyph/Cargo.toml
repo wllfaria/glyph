@@ -22,7 +22,5 @@ crossterm.workspace = true
 futures.workspace = true
 futures-timer.workspace = true
 
-tracing-subscriber = "0.3.18"
-tracing-appender = "0.2.3"
 tree-sitter = "0.20.10"
 tree-sitter-rust = "0.20.4"

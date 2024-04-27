@@ -86,6 +86,8 @@ dependencies = [
  "serde",
  "toml",
  "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -293,8 +295,6 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
- "tracing-appender",
- "tracing-subscriber",
  "tree-sitter",
  "tree-sitter-rust",
 ]
@@ -711,6 +711,7 @@ name = "theme"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "config",
  "crossterm",
  "serde",
  "toml",

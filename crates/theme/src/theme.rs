@@ -1,4 +1,3 @@
-use crate::loader::ThemeLoader;
 use crossterm::style::Color;
 use std::collections::HashMap;
 
@@ -46,14 +45,4 @@ pub struct Style {
     pub bg: Option<Color>,
     pub italic: Option<bool>,
     pub bold: Option<bool>,
-}
-
-impl Theme {
-    pub fn dark() -> anyhow::Result<Self> {
-        ThemeLoader::default_dark()
-    }
-
-    pub fn light() -> anyhow::Result<Self> {
-        ThemeLoader::default_light()
-    }
 }

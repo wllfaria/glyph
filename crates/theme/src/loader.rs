@@ -3,9 +3,10 @@ use crate::{
     default_light::DEFAULT_LIGHT,
     theme::{Gutter, StatuslineTheming, Style, Theme},
 };
+use config::{EditorBackground, APP_NAME, THEMES_DIR};
 use crossterm::style::Color;
 use serde::Deserialize;
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 #[derive(Deserialize, Debug, Clone)]
 struct TokenStyle {
@@ -30,7 +31,7 @@ struct GutterStyle {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ThemeLoader {
+struct ThemeLoader {
     name: String,
     appearance: TokenStyle,
     statusline: StatuslineStyle,
@@ -39,19 +40,47 @@ pub struct ThemeLoader {
     tokens: HashMap<String, TokenStyle>,
 }
 
-impl ThemeLoader {
-    pub fn default_dark() -> anyhow::Result<Theme> {
-        let theme: ThemeLoader = toml::from_str(DEFAULT_DARK).unwrap();
-        Ok(theme.into())
-    }
+fn default_dark() -> Theme {
+    parse_default_dark().into()
+}
 
-    pub fn default_light() -> anyhow::Result<Theme> {
-        let theme: ThemeLoader = toml::from_str(DEFAULT_LIGHT).unwrap();
-        Ok(theme.into())
+fn default_light() -> Theme {
+    parse_default_light().into()
+}
+
+fn parse_default_dark() -> ThemeLoader {
+    toml::from_str(DEFAULT_DARK).unwrap()
+}
+
+fn parse_default_light() -> ThemeLoader {
+    toml::from_str(DEFAULT_LIGHT).unwrap()
+}
+
+fn load_custom(theme_name: &str, background: &EditorBackground) -> Theme {
+    let theme_path = config::get_config_dir()
+        .join(APP_NAME)
+        .join(THEMES_DIR)
+        .join(theme_name);
+
+    std::fs::read_to_string(theme_path)
+        .map(|toml| toml::from_str::<ThemeLoader>(&toml))
+        .unwrap_or_else(|_| match background {
+            EditorBackground::Dark => Ok(parse_default_dark()),
+            EditorBackground::Light => Ok(parse_default_light()),
+        })
+        .unwrap()
+        .into()
+}
+
+pub fn load_theme(theme_name: &str, background: &EditorBackground) -> Theme {
+    match (theme_name.is_empty(), background) {
+        (true, EditorBackground::Dark) => default_dark(),
+        (true, EditorBackground::Light) => default_light(),
+        (_, _) => load_custom(theme_name, background),
     }
 }
 
-pub fn hex_to_rgb(hex: Option<String>) -> Result<Option<Color>, &'static str> {
+fn hex_to_rgb(hex: Option<String>) -> Result<Option<Color>, &'static str> {
     match hex {
         Some(hex) => {
             if hex.starts_with('#') && hex.len() == 7 {

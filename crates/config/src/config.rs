@@ -1,9 +1,11 @@
-use std::path::PathBuf;
-
 use crate::{default_config::DEFAULT_CONFIG, Config};
 
+use std::path::PathBuf;
+use tracing_subscriber::FmtSubscriber;
+
+pub static APP_NAME: &str = "glyph";
+pub static THEMES_DIR: &str = "themes";
 static CONFIG_FILE: &str = "glyph.toml";
-static APP_NAME: &str = "glyph";
 
 #[cfg(unix)]
 static XDG_ENV_VARS: [&str; 2] = ["XDG_CONFIG_HOME", "XDG_DATA_HOME"];
@@ -17,7 +19,7 @@ static XDG_DEFAULTS: [&str; 2] = [".config", ".local/share"];
 #[cfg(windows)]
 static XDG_DEFAULTS: [&str; 2] = ["AppData\\Local", "AppData\\Local"];
 
-fn get_config_dir() -> PathBuf {
+pub fn get_config_dir() -> PathBuf {
     let path = std::env::var(XDG_ENV_VARS[0])
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(XDG_DEFAULTS[0]));
@@ -34,4 +36,18 @@ pub fn load_config() -> Config {
         .map(|toml| toml::from_str::<Config>(&toml))
         .unwrap_or_else(|_| toml::from_str::<Config>(DEFAULT_CONFIG))
         .unwrap()
+}
+
+#[tracing::instrument]
+pub fn setup_logger() -> tracing_appender::non_blocking::WorkerGuard {
+    tracing::info!("setting up logger");
+    let appender = tracing_appender::rolling::never(".", "glyph.log");
+    let (writer, guard) = tracing_appender::non_blocking(appender);
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(tracing::Level::TRACE)
+        .with_ansi(false)
+        .with_writer(writer)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
+    guard
 }
