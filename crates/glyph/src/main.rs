@@ -5,63 +5,19 @@ mod frame;
 mod highlight;
 mod tui;
 
-use config::{Config, EditorBackground};
+use config::EditorBackground;
 use editor::Editor;
 use lsp::LspClient;
-use theme::{loader::ThemeLoader, Theme};
+use theme::Theme;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use std::{
-    io::{Error, ErrorKind},
-    path::{Path, PathBuf},
-};
-
-fn load_config() -> anyhow::Result<Config> {
-    let config_dir = Config::get_path();
-    let config_file = config_dir.join("glyph.toml");
-    let config_file = Path::new(&config_file);
-    // TODO: in the future, the initial config should be installed automatically
-    if !config_file.exists() {
-        tracing::error!("loaded failed");
-        return Err(anyhow::Error::new(Error::new(
-            ErrorKind::NotFound,
-            "config file not found. please refer to the configuration section of the readme",
-        )));
-    }
-    let toml = std::fs::read_to_string(config_file)?;
-    tracing::error!("loaded config");
-    let config: Config = toml::from_str(&toml)?;
-    Ok(config)
-}
-
-fn load_theme(
-    background: &EditorBackground,
-    theme_name: &str,
-    themes_dir: PathBuf,
-) -> anyhow::Result<Theme> {
-    if !themes_dir.exists() {
-        std::fs::create_dir(&themes_dir)?;
-        // TODO: install themes when first loading
-    }
-    tracing::info!("{:?}", themes_dir);
+fn load_theme(background: &EditorBackground) -> anyhow::Result<Theme> {
     let default = match background {
         EditorBackground::Light => Theme::light()?,
         EditorBackground::Dark => Theme::dark()?,
     };
-    if theme_name.is_empty() {
-        return Ok(default);
-    }
-    // let theme_path = themes_dir.join(theme_name);
-    let theme_path = Path::new("./config/themes").join("glyph-dark-default.toml");
-    match theme_path.exists() {
-        false => Ok(default),
-        true => {
-            let toml = std::fs::read_to_string(theme_path)?;
-            let theme: ThemeLoader = toml::from_str(&toml)?;
-            Ok(theme.into())
-        }
-    }
+    Ok(default)
 }
 
 #[tokio::main]
@@ -73,13 +29,14 @@ async fn main() -> anyhow::Result<()> {
         .with_ansi(false)
         .with_writer(writer)
         .finish();
-
     tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
     let file_name = std::env::args().nth(1);
+
     let lsp = LspClient::start().await?;
-    let config = load_config()?;
-    let theme = load_theme(&config.background, &config.theme, Config::themes_path())?;
+    let config = config::load_config();
+    let theme = load_theme(&config.background)?;
+
     Editor::new(&config, &theme, lsp, file_name).await?;
     Ok(())
 }

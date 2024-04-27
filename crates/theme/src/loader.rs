@@ -1,6 +1,8 @@
-use config::Config;
-
-use crate::theme::{Gutter, StatuslineTheming, Style, Theme};
+use crate::{
+    default_dark::DEFAULT_DARK,
+    default_light::DEFAULT_LIGHT,
+    theme::{Gutter, StatuslineTheming, Style, Theme},
+};
 use crossterm::style::Color;
 use serde::Deserialize;
 use std::{collections::HashMap, path::Path};
@@ -39,16 +41,12 @@ pub struct ThemeLoader {
 
 impl ThemeLoader {
     pub fn default_dark() -> anyhow::Result<Theme> {
-        let theme_path = Path::new("./config/themes").join("glyph-dark-default.toml");
-        let toml = std::fs::read_to_string(theme_path)?;
-        let theme: ThemeLoader = toml::from_str(&toml).unwrap();
+        let theme: ThemeLoader = toml::from_str(DEFAULT_DARK).unwrap();
         Ok(theme.into())
     }
 
     pub fn default_light() -> anyhow::Result<Theme> {
-        let theme_path = Config::themes_path().join("glyph-light-default.toml");
-        let toml = std::fs::read_to_string(theme_path)?;
-        let theme: ThemeLoader = toml::from_str(&toml).unwrap();
+        let theme: ThemeLoader = toml::from_str(DEFAULT_LIGHT).unwrap();
         Ok(theme.into())
     }
 }

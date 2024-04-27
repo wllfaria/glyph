@@ -1,4 +1,4 @@
-name = "glyph-light-default.toml"
+name = "glyph-default-light.toml"
 
 [appearance]
 bg = "#fefefe"

@@ -81,8 +81,11 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 name = "config"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "dirs",
  "serde",
+ "toml",
+ "tracing",
 ]
 
 [[package]]
@@ -708,7 +711,6 @@ name = "theme"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "config",
  "crossterm",
  "serde",
  "toml",

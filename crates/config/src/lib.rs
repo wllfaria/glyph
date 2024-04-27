@@ -1,3 +1,7 @@
+mod config;
+mod default_config;
+
+pub use config::load_config;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
@@ -37,31 +41,6 @@ impl std::fmt::Display for Mode {
             Self::Insert => f.write_str("INSERT"),
             Self::Normal => f.write_str("NORMAL"),
             Self::Command => f.write_str("COMMAND"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
-    #[serde()]
-    pub keys: Keys,
-    pub theme: String,
-    pub gutter_width: usize,
-    pub line_numbers: LineNumbers,
-    pub background: EditorBackground,
-    pub empty_line_char: char,
-}
-
-#[cfg(test)]
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            keys: Keys::default(),
-            theme: String::from("default"),
-            gutter_width: 6,
-            line_numbers: LineNumbers::Relative,
-            background: EditorBackground::Light,
-            empty_line_char: ' ',
         }
     }
 }
@@ -110,16 +89,6 @@ pub enum Action {
     Hover,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Keys {
-    #[serde(default)]
-    pub normal: HashMap<String, KeyAction>,
-    #[serde(default)]
-    pub insert: HashMap<String, KeyAction>,
-    #[serde(default)]
-    pub command: HashMap<String, KeyAction>,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum KeyAction {
@@ -128,14 +97,37 @@ pub enum KeyAction {
     Complex(HashMap<String, KeyAction>),
 }
 
-impl Config {
-    pub fn get_path() -> PathBuf {
-        let home = dirs::home_dir().unwrap();
-        home.join(".config/glyph")
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    #[serde()]
+    pub keys: Keys,
+    pub theme: String,
+    pub gutter_width: usize,
+    pub line_numbers: LineNumbers,
+    pub background: EditorBackground,
+    pub empty_line_char: char,
+}
 
-    pub fn themes_path() -> PathBuf {
-        let config_path = Config::get_path();
-        config_path.join("themes")
+#[cfg(test)]
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            keys: Keys::default(),
+            theme: String::from("default"),
+            gutter_width: 6,
+            line_numbers: LineNumbers::Relative,
+            background: EditorBackground::Light,
+            empty_line_char: ' ',
+        }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Keys {
+    #[serde(default)]
+    pub normal: HashMap<String, KeyAction>,
+    #[serde(default)]
+    pub insert: HashMap<String, KeyAction>,
+    #[serde(default)]
+    pub command: HashMap<String, KeyAction>,
 }
