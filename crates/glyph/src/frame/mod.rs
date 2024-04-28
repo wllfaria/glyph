@@ -1,10 +1,9 @@
 pub mod cell;
 mod change;
 
+use cell::Cell;
 use change::Change;
 use theme::Style;
-
-use cell::Cell;
 
 #[derive(Clone, Debug)]
 pub struct Frame {

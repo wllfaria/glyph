@@ -15,6 +15,7 @@ pub struct Commandline<'a> {
     cursor: Cursor,
     command_prefix: CommandKind,
     command: String,
+    message: String,
 }
 
 pub enum CommandKind {
@@ -47,6 +48,7 @@ impl<'a> Commandline<'a> {
             cursor,
             command_prefix: CommandKind::None,
             command: String::default(),
+            message: String::default(),
         }
     }
 
@@ -65,7 +67,14 @@ impl<'a> Commandline<'a> {
 
     pub fn clear(&mut self) {
         self.command.clear();
+        self.cursor.absolute_position = 0;
+        self.cursor.col = self.size.x.add(1).into();
+        self.cursor.row = self.size.y.into();
         self.command_prefix = CommandKind::None;
+    }
+
+    pub fn clear_message(&mut self) {
+        self.message.clear();
     }
 
     pub fn update_kind(&mut self, kind: CommandKind) {

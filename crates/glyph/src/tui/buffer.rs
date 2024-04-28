@@ -130,7 +130,7 @@ impl Renderable<'_> for Buffer<'_, Regular> {
         if let Some(gutter) = &self.gutter {
             gutter.render(
                 frame,
-                self.text_object.borrow().len(),
+                self.text_object.borrow().marker.len(),
                 self.area.height as usize,
                 0,
             );
@@ -243,7 +243,7 @@ impl Renderable<'_> for Buffer<'_, WithCursor> {
         if let Some(g) = &self.gutter {
             g.render(
                 frame,
-                self.text_object.borrow().len(),
+                self.text_object.borrow().marker.len(),
                 self.cursor.row,
                 self.scroll.row,
             )
@@ -285,8 +285,10 @@ impl Focusable<'_> for Buffer<'_, WithCursor> {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     fn handle_action(&mut self, action: &KeyAction, mode: &Mode) -> anyhow::Result<()> {
-        tracing::debug!("[FocusableBuffer] handling action: {:?}", action);
+        tracing::debug!("handling action");
+
         match action {
             KeyAction::Simple(Action::MoveToLineStart) => {
                 self.handle_cursor_action(action, mode)?;
@@ -416,7 +418,6 @@ fn render_within_bounds<F>(
         }
     }
 
-    tracing::trace!("filling remaining cells from: {} to {}", row, area.height);
     for i in row + 1..area.height {
         for j in offset..area.width {
             frame.set_cell(area.x + j, i + area.y, ' ', &Default::default());

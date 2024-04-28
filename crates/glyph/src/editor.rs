@@ -161,17 +161,16 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), err)]
     fn render_next_frame(&mut self) -> anyhow::Result<()> {
         assert!(
             self.buffers.get(&self.current_buffer).is_some(),
             "editor should always have at least 1 buffer"
         );
 
-        tracing::trace!("[Editor] rendering next frame");
         execute!(stdout(), crossterm::cursor::Hide)?;
 
         let frame = &mut self.frames[0];
-
         self.statusline.render(frame)?;
         self.commandline.render(frame)?;
 
@@ -244,7 +243,10 @@ impl<'a> Editor<'a> {
             let event = stream.next();
 
             match self.action_rx.try_recv() {
-                Ok(Action::Quit) => break,
+                Ok(Action::Quit) => {
+                    tracing::debug!("should quit");
+                    break;
+                }
                 Ok(Action::LoadFile(path)) => {
                     self.open_buffer(path)?;
                     self.render_next_frame()?;
@@ -358,24 +360,30 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all)]
     fn handle_user_command(&mut self, action_tx: UnboundedSender<Action>) -> anyhow::Result<()> {
-        let command = self.commandline.command();
+        let command = self
+            .commandline
+            .command()
+            .split_whitespace()
+            .collect::<Vec<_>>();
 
-        match command.chars().nth(0) {
-            Some('q') => action_tx.send(Action::Quit)?,
-            Some('e') => {
-                if let Some((_, file_path)) = command.split_once(' ') {
-                    let cwd = std::env::current_dir()?;
-                    let file_path = cwd.join(PathBuf::from(file_path));
-                    if file_path.exists() {
-                        action_tx.send(Action::LoadFile(file_path))?;
-                    }
+        match command[0] {
+            "q!" => action_tx.send(Action::Quit)?,
+            "q" => action_tx.send(Action::Quit)?,
+            "e" => {
+                if command[1].is_empty() {
+                    // TODO: maybe we need to do something here
+                    return Ok(());
                 }
+                let cwd = std::env::current_dir()?;
+                action_tx.send(Action::LoadFile(cwd.join(PathBuf::from(command[1]))))?;
             }
             _ => {}
         };
 
         self.commandline.clear();
+        self.mode = Mode::Normal;
 
         Ok(())
     }

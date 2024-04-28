@@ -22,9 +22,12 @@ impl TextObject {
         S: AsRef<Path>,
     {
         let lines = match file_name {
-            Some(ref name) => std::fs::read_to_string(name)?,
-            None => String::new(),
+            Some(ref name) if name.as_ref().to_path_buf().exists() => {
+                std::fs::read_to_string(name)?
+            }
+            _ => String::default(),
         };
+
         let gap = 1000;
         let mut buffer = TextObject::from_string(id, &lines, gap);
 
