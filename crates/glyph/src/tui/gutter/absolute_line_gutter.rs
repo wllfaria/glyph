@@ -32,12 +32,8 @@ impl Gutter for AbsoluteLineGutter<'_> {
         for y in 0..total_lines {
             scroll += 1;
             let mut line = scroll.to_string();
-            line = " ".repeat(self.config.gutter_width - 1 - line.len()) + &line;
-            line.push(' ');
-
-            for (x, c) in line.chars().enumerate() {
-                viewport.set_cell(self.area.x + x as u16, self.area.y + y as u16, c, style);
-            }
+            line = " ".repeat(self.config.gutter_width - 1 - line.len()) + &line + " ";
+            viewport.set_text(self.area.x, self.area.y + y as u16, &line, style);
         }
 
         if total_lines < self.area.height.into() {

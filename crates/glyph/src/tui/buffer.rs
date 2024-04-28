@@ -1,7 +1,3 @@
-use config::{Action, Config, KeyAction, LineNumbers, Mode};
-use text_object::TextObject;
-use theme::Theme;
-
 use crate::{
     cursor::Cursor,
     frame::{cell::Cell, Frame},
@@ -13,8 +9,10 @@ use crate::{
         Focusable, Renderable, Scrollable,
     },
 };
-
+use config::{Action, Config, KeyAction, LineNumbers, Mode};
 use std::{cell::RefCell, io::stdout, marker::PhantomData, rc::Rc};
+use text_object::TextObject;
+use theme::Theme;
 
 pub struct Regular;
 pub struct WithCursor;

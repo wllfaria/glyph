@@ -46,8 +46,7 @@ impl Gutter for RelativeLineDrawer<'_> {
             } else {
                 " ".repeat(self.config.gutter_width - 1 - line.len()) + &line
             };
-
-            line.push(' ');
+            line = " ".repeat(self.config.gutter_width - 1 - line.len()) + &line + " ";
 
             viewport.set_text(self.area.x, self.area.y + y as u16, &line, style);
         }
