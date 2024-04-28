@@ -45,7 +45,7 @@ impl std::fmt::Display for Mode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Action {
     EnterMode(Mode),
     Quit,
@@ -87,6 +87,8 @@ pub enum Action {
 
     GoToDefinition,
     Hover,
+
+    ShowMessage(String),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

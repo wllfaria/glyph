@@ -13,7 +13,7 @@ pub struct Commandline<'a> {
     size: Rect,
     theme: &'a Theme,
     cursor: Cursor,
-    command_prefix: CommandKind,
+    command_kind: CommandKind,
     command: String,
     message: String,
 }
@@ -22,6 +22,7 @@ pub enum CommandKind {
     None,
     Command,
     Search,
+    Message,
 }
 
 impl std::fmt::Display for CommandKind {
@@ -30,6 +31,7 @@ impl std::fmt::Display for CommandKind {
             CommandKind::None => write!(f, ""),
             CommandKind::Command => write!(f, ":"),
             CommandKind::Search => write!(f, "/"),
+            CommandKind::Message => write!(f, ""),
         }
     }
 }
@@ -46,7 +48,7 @@ impl<'a> Commandline<'a> {
             size,
             theme,
             cursor,
-            command_prefix: CommandKind::None,
+            command_kind: CommandKind::None,
             command: String::default(),
             message: String::default(),
         }
@@ -70,7 +72,7 @@ impl<'a> Commandline<'a> {
         self.cursor.absolute_position = 0;
         self.cursor.col = self.size.x.add(1).into();
         self.cursor.row = self.size.y.into();
-        self.command_prefix = CommandKind::None;
+        self.command_kind = CommandKind::None;
     }
 
     pub fn clear_message(&mut self) {
@@ -78,18 +80,22 @@ impl<'a> Commandline<'a> {
     }
 
     pub fn update_kind(&mut self, kind: CommandKind) {
-        self.command_prefix = kind;
+        self.command_kind = kind;
     }
 
     pub fn handle_action(&mut self, action: &KeyAction) -> Option<Action> {
         match action {
+            KeyAction::Simple(Action::ShowMessage(message)) => {
+                self.command_kind = CommandKind::Message;
+                self.message = message.to_string();
+            }
             KeyAction::Simple(Action::InsertCommand(c)) => {
                 self.cursor.col += 1;
                 self.command.push(*c);
             }
             KeyAction::Simple(Action::DeletePreviousChar) => {
                 if self.command.is_empty() {
-                    self.command_prefix = CommandKind::None;
+                    self.command_kind = CommandKind::None;
                     return Some(Action::EnterMode(Mode::Normal));
                 }
                 self.cursor.col = self.cursor.col.saturating_sub(1);
@@ -100,18 +106,29 @@ impl<'a> Commandline<'a> {
 
         None
     }
+
+    fn build_content(&self) -> String {
+        match self.command_kind {
+            CommandKind::Command => format!(
+                "{}{}{}",
+                self.command_kind,
+                self.command,
+                " ".repeat(usize::from(self.size.width).saturating_sub(self.command.len().add(1)))
+            ),
+            CommandKind::Message => format!(
+                "{}{}",
+                self.message,
+                " ".repeat(usize::from(self.size.width).saturating_sub(self.message.len()))
+            ),
+            _ => String::default(),
+        }
+    }
 }
 
 impl Renderable<'_> for Commandline<'_> {
     fn render(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
-        let command = format!(
-            "{}{}{}",
-            self.command_prefix,
-            self.command,
-            " ".repeat(usize::from(self.size.width).saturating_sub(self.command.len().add(1)))
-        );
-
-        frame.set_text(0, self.size.y, &command, &self.theme.appearance);
+        let content = self.build_content();
+        frame.set_text(0, self.size.y, &content, &self.theme.appearance);
 
         Ok(())
     }

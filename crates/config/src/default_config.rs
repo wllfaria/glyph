@@ -37,6 +37,7 @@ show_diagnostics = true
 "Right" = "MoveRight"
 "C-d" = "PageDown"
 "C-u" = "PageUp"
+"C-z" = "Quit"
 "End" = "MoveToLineEnd"
 "Home" = "MoveToLineStart"
 "g" = { "g" = "MoveToTop", "d" = "GoToDefinition" } 

@@ -22,12 +22,24 @@ use futures::StreamExt;
 use std::{
     cell::RefCell,
     collections::HashMap,
+    fs::File,
     io::{stdout, Write},
     path::{Path, PathBuf},
     rc::Rc,
     time::Duration,
 };
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+
+struct SaveBuffer<'sb> {
+    file_name: &'sb str,
+    content: &'sb str,
+}
+
+impl<'sb> SaveBuffer<'sb> {
+    pub fn new(file_name: &'sb str, content: &'sb str) -> Self {
+        Self { file_name, content }
+    }
+}
 
 pub struct Editor<'a> {
     events: Events<'a>,
@@ -49,7 +61,7 @@ pub struct Editor<'a> {
     commandline: Commandline<'a>,
     popup: Option<Buffer<'a>>,
 
-    action_rx: UnboundedReceiver<Action>,
+    action_rx: UnboundedReceiver<KeyAction>,
 }
 
 impl<'a> Editor<'a> {
@@ -69,7 +81,7 @@ impl<'a> Editor<'a> {
         let buffer =
             Buffer::new(1, text_object.clone(), pane_size, config, theme, false).with_cursor();
 
-        let (action_tx, action_rx) = unbounded_channel::<Action>();
+        let (action_tx, action_rx) = unbounded_channel::<KeyAction>();
         let mut buffers = HashMap::new();
         buffers.insert(1, buffer);
 
@@ -230,7 +242,7 @@ impl<'a> Editor<'a> {
         Ok(())
     }
 
-    pub async fn start(&mut self, action_tx: UnboundedSender<Action>) -> anyhow::Result<()> {
+    pub async fn start(&mut self, action_tx: UnboundedSender<KeyAction>) -> anyhow::Result<()> {
         self.setup_terminal()?;
         self.fill_frame();
         self.render_next_frame()?;
@@ -243,14 +255,14 @@ impl<'a> Editor<'a> {
             let event = stream.next();
 
             match self.action_rx.try_recv() {
-                Ok(Action::Quit) => {
-                    tracing::debug!("should quit");
-                    break;
+                Ok(KeyAction::Simple(Action::Quit)) => break,
+                Ok(KeyAction::Multiple(actions)) => {
+                    for action in actions {
+                        self.handle_action(KeyAction::Simple(action), action_tx.clone())
+                            .await?;
+                    }
                 }
-                Ok(Action::LoadFile(path)) => {
-                    self.open_buffer(path)?;
-                    self.render_next_frame()?;
-                }
+                Ok(action) => self.handle_action(action, action_tx.clone()).await?,
                 _ => {}
             };
 
@@ -279,7 +291,7 @@ impl<'a> Editor<'a> {
     async fn handle_action(
         &mut self,
         action: KeyAction,
-        action_tx: UnboundedSender<Action>,
+        action_tx: UnboundedSender<KeyAction>,
     ) -> anyhow::Result<()> {
         assert!(
             self.buffers.get(&self.current_buffer).is_some(),
@@ -291,7 +303,9 @@ impl<'a> Editor<'a> {
                 self.commandline.update_kind(CommandKind::Command);
                 self.mode = Mode::Command;
             }
+            KeyAction::Simple(Action::Quit) => action_tx.send(KeyAction::Simple(Action::Quit))?,
             KeyAction::Simple(Action::EnterMode(mode)) => self.mode = mode,
+            KeyAction::Simple(Action::LoadFile(path)) => self.open_buffer(path)?,
             KeyAction::Simple(Action::Hover) => {
                 let Cursor { col, row, .. } =
                     self.buffers.get_mut(&self.current_buffer).unwrap().cursor;
@@ -304,6 +318,9 @@ impl<'a> Editor<'a> {
                     .file_name
                     .clone();
                 self.lsp.request_hover(&file_name, row, col).await?;
+            }
+            KeyAction::Simple(Action::ShowMessage(_)) => {
+                self.commandline.handle_action(&action);
             }
             KeyAction::Simple(Action::Resize(width, height)) => {
                 self.area = Rect::new(0, 0, width, height);
@@ -318,6 +335,28 @@ impl<'a> Editor<'a> {
             }
             KeyAction::Simple(Action::InsertCommand(_)) => {
                 self.commandline.handle_action(&action);
+            }
+            KeyAction::Simple(Action::SaveBuffer) => {
+                let buffer = self.buffers.get(&self.current_buffer);
+                assert!(
+                    buffer.is_some(),
+                    "should always have a buffer at this point"
+                );
+                let buffer = buffer.unwrap();
+                let text_object = buffer.text_object.borrow();
+                let file_name = &text_object.file_name;
+                let content = &text_object.to_string();
+
+                save_buffers(&[SaveBuffer::new(file_name, content)])?;
+
+                let save_message = format!(
+                    r#"{}" {}L, {}B written"#,
+                    file_name,
+                    text_object.marker.len(),
+                    content.len()
+                );
+
+                action_tx.send(KeyAction::Simple(Action::ShowMessage(save_message)))?;
             }
             KeyAction::Simple(Action::DeletePreviousChar) => match self.mode {
                 Mode::Command => {
@@ -361,23 +400,29 @@ impl<'a> Editor<'a> {
     }
 
     #[tracing::instrument(skip_all)]
-    fn handle_user_command(&mut self, action_tx: UnboundedSender<Action>) -> anyhow::Result<()> {
+    fn handle_user_command(&mut self, action_tx: UnboundedSender<KeyAction>) -> anyhow::Result<()> {
         let command = self
             .commandline
             .command()
             .split_whitespace()
             .collect::<Vec<_>>();
 
+        tracing::debug!("{command:?}");
+
         match command[0] {
-            "q!" => action_tx.send(Action::Quit)?,
-            "q" => action_tx.send(Action::Quit)?,
+            "q!" => action_tx.send(KeyAction::Simple(Action::Quit))?,
+            "q" => action_tx.send(KeyAction::Simple(Action::Quit))?,
+            "w" => action_tx.send(KeyAction::Simple(Action::SaveBuffer))?,
+            "wq" => action_tx.send(KeyAction::Multiple(vec![Action::SaveBuffer, Action::Quit]))?,
             "e" => {
                 if command[1].is_empty() {
                     // TODO: maybe we need to do something here
                     return Ok(());
                 }
                 let cwd = std::env::current_dir()?;
-                action_tx.send(Action::LoadFile(cwd.join(PathBuf::from(command[1]))))?;
+                action_tx.send(KeyAction::Simple(Action::LoadFile(
+                    cwd.join(PathBuf::from(command[1])),
+                )))?;
             }
             _ => {}
         };
@@ -439,4 +484,16 @@ impl<'a> Editor<'a> {
 
         Ok(())
     }
+}
+
+#[tracing::instrument(skip(buffers))]
+fn save_buffers(buffers: &[SaveBuffer<'_>]) -> anyhow::Result<()> {
+    for buffer in buffers {
+        tracing::debug!("{}", buffer.file_name);
+        let file_path = PathBuf::from(buffer.file_name);
+        let mut f = File::create(file_path)?;
+        f.write_all(buffer.content.as_bytes())?;
+    }
+
+    Ok(())
 }
