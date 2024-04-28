@@ -300,11 +300,17 @@ impl<'a> Editor<'a> {
 
         match action {
             KeyAction::Simple(Action::EnterMode(Mode::Command)) => {
+                self.commandline.clear_message();
                 self.commandline.update_kind(CommandKind::Command);
                 self.mode = Mode::Command;
             }
             KeyAction::Simple(Action::Quit) => action_tx.send(KeyAction::Simple(Action::Quit))?,
-            KeyAction::Simple(Action::EnterMode(mode)) => self.mode = mode,
+            KeyAction::Simple(Action::EnterMode(mode)) => {
+                if self.mode.eq(&Mode::Command) {
+                    self.commandline.clear();
+                }
+                self.mode = mode
+            }
             KeyAction::Simple(Action::LoadFile(path)) => self.open_buffer(path)?,
             KeyAction::Simple(Action::Hover) => {
                 let Cursor { col, row, .. } =
@@ -350,7 +356,7 @@ impl<'a> Editor<'a> {
                 save_buffers(&[SaveBuffer::new(file_name, content)])?;
 
                 let save_message = format!(
-                    r#"{}" {}L, {}B written"#,
+                    r#""{}" {}L, {}B written"#,
                     file_name,
                     text_object.marker.len(),
                     content.len()
@@ -489,7 +495,6 @@ impl<'a> Editor<'a> {
 #[tracing::instrument(skip(buffers))]
 fn save_buffers(buffers: &[SaveBuffer<'_>]) -> anyhow::Result<()> {
     for buffer in buffers {
-        tracing::debug!("{}", buffer.file_name);
         let file_path = PathBuf::from(buffer.file_name);
         let mut f = File::create(file_path)?;
         f.write_all(buffer.content.as_bytes())?;

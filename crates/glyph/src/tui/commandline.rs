@@ -73,6 +73,7 @@ impl<'a> Commandline<'a> {
         self.cursor.col = self.size.x.add(1).into();
         self.cursor.row = self.size.y.into();
         self.command_kind = CommandKind::None;
+        self.clear_message();
     }
 
     pub fn clear_message(&mut self) {
@@ -120,7 +121,7 @@ impl<'a> Commandline<'a> {
                 self.message,
                 " ".repeat(usize::from(self.size.width).saturating_sub(self.message.len()))
             ),
-            _ => String::default(),
+            _ => " ".repeat(usize::from(self.size.width)),
         }
     }
 }
@@ -133,7 +134,8 @@ impl Renderable<'_> for Commandline<'_> {
         Ok(())
     }
 
-    fn resize(&mut self, new_area: Rect) -> anyhow::Result<()> {
+    fn resize(&mut self, new_size: Rect) -> anyhow::Result<()> {
+        self.size = new_size;
         Ok(())
     }
 }
