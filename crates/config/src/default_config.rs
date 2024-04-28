@@ -1,7 +1,7 @@
 pub static DEFAULT_CONFIG: &str = r##"theme = ""
 mouse_scroll_lines = 3
 gutter_width = 6
-line_numbers = "Absolute"
+line_numbers = "RelativeNumbered"
 background = "Dark"
 empty_line_char = "~"
 show_diagnostics = true

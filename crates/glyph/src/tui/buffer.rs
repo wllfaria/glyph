@@ -244,7 +244,7 @@ impl Renderable<'_> for Buffer<'_, WithCursor> {
             g.render(
                 frame,
                 self.text_object.borrow().len(),
-                self.area.height as usize,
+                self.cursor.row,
                 self.scroll.row,
             )
         }
