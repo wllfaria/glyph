@@ -57,9 +57,7 @@ impl Gutter for RelativeLineDrawer<'_> {
             line.push(' ');
 
             for y in total_lines..self.area.height.into() {
-                for (x, c) in line.chars().enumerate() {
-                    viewport.set_cell(self.area.x + x as u16, self.area.y + y as u16, c, style);
-                }
+                viewport.set_text(self.area.x, self.area.y + y as u16, &line, style);
             }
         }
     }

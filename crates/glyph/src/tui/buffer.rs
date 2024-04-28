@@ -129,7 +129,7 @@ impl Renderable<'_> for Buffer<'_, Regular> {
             gutter.render(
                 frame,
                 self.text_object.borrow().marker.len(),
-                self.area.height as usize,
+                self.cursor.row,
                 0,
             );
         }
@@ -228,6 +228,7 @@ impl Buffer<'_, WithCursor> {
 
 impl Renderable<'_> for Buffer<'_, WithCursor> {
     fn render(&mut self, frame: &mut crate::frame::Frame) -> anyhow::Result<()> {
+        tracing::debug!("{:?}", self.config.line_numbers);
         let gutter = match self.config.line_numbers {
             LineNumbers::None => 0,
             _ => self.gutter.as_ref().map(|g| g.width()).unwrap_or(0),
@@ -238,8 +239,8 @@ impl Renderable<'_> for Buffer<'_, WithCursor> {
                 && col - (self.scroll.col as u16) <= self.area.width - gutter
         });
 
-        if let Some(g) = &self.gutter {
-            g.render(
+        if let Some(gutter) = &self.gutter {
+            gutter.render(
                 frame,
                 self.text_object.borrow().marker.len(),
                 self.cursor.row,

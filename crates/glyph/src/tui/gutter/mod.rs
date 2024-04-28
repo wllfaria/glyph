@@ -50,7 +50,7 @@ pub fn get_gutter<'a>(config: &'a Config, theme: &'a Theme, area: Rect) -> Gutte
         LineNumbers::RelativeNumbered => {
             GutterKind::Relative(RelativeLineDrawer::new(config, theme, area))
         }
-        LineNumbers::None => GutterKind::Noop(NoopLineDrawer::new(config, theme, area)),
         LineNumbers::Absolute => GutterKind::Absolute(AbsoluteLineGutter::new(config, theme, area)),
+        LineNumbers::None => GutterKind::Noop(NoopLineDrawer::new(config, theme, area)),
     }
 }

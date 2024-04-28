@@ -37,14 +37,12 @@ impl Gutter for AbsoluteLineGutter<'_> {
         }
 
         if total_lines < self.area.height.into() {
-            for y in total_lines..viewport.height.into() {
+            for y in total_lines..self.area.height.into() {
                 let mut line = " ".repeat(self.config.gutter_width - 2);
                 line.push(self.config.empty_line_char);
                 line.push(' ');
 
-                for (x, c) in line.chars().enumerate() {
-                    viewport.set_cell(self.area.x + x as u16, self.area.y + y as u16, c, style);
-                }
+                viewport.set_text(self.area.x, self.area.y + y as u16, &line, style);
             }
         }
     }
