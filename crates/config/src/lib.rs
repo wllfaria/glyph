@@ -62,6 +62,7 @@ pub enum Action {
     InsertCommand(char),
     ExecuteCommand,
     SaveBuffer,
+    SaveAllBuffers,
     DeleteUntilEOL,
     Resize(u16, u16),
     LoadFile(PathBuf),

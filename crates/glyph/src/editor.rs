@@ -342,6 +342,27 @@ impl<'a> Editor<'a> {
             KeyAction::Simple(Action::InsertCommand(_)) => {
                 self.commandline.handle_action(&action);
             }
+            KeyAction::Simple(Action::SaveAllBuffers) => {
+                let mut buffers_to_save = vec![];
+
+                for buffer in self.buffers.values() {
+                    let text_object = buffer.text_object.borrow();
+                    let file_name = &text_object.file_name;
+                    let content = text_object.to_string();
+
+                    buffers_to_save.push((file_name.clone(), content.clone()));
+                }
+
+                let buffers_to_save = buffers_to_save
+                    .iter()
+                    .map(|buffer| SaveBuffer::new(&buffer.0, &buffer.1))
+                    .collect::<Vec<_>>();
+
+                save_buffers(&buffers_to_save)?;
+
+                let save_message = format!("{} buffers written", buffers_to_save.len());
+                action_tx.send(KeyAction::Simple(Action::ShowMessage(save_message)))?;
+            }
             KeyAction::Simple(Action::SaveBuffer) => {
                 let buffer = self.buffers.get(&self.current_buffer);
                 assert!(
@@ -419,6 +440,7 @@ impl<'a> Editor<'a> {
             "q!" => action_tx.send(KeyAction::Simple(Action::Quit))?,
             "q" => action_tx.send(KeyAction::Simple(Action::Quit))?,
             "w" => action_tx.send(KeyAction::Simple(Action::SaveBuffer))?,
+            "wa" => action_tx.send(KeyAction::Simple(Action::SaveAllBuffers))?,
             "wq" => action_tx.send(KeyAction::Multiple(vec![Action::SaveBuffer, Action::Quit]))?,
             "e" => {
                 if command[1].is_empty() {
