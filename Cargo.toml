@@ -1,27 +1,13 @@
 [workspace]
-default_members = "crates/glyph"
+default_members = "glyph"
 resolver = "2"
 members = [
-    "crates/glyph",
-    "crates/text_object",
-    "crates/config",
-    "crates/theme",
-    "crates/lsp",
+    "glyph",
+    "glyph-tui",
 ]
 
 [workspace.dependencies]
-config = { path = "crates/config" }
-glyph = { path = "crates/glyph" }
-lsp = { path = "crates/lsp" }
-text_object = { path = "crates/text_object" }
-theme = { path = "crates/theme" }
+glyph-tui = { path = "glyph-tui" }
 
-anyhow = "1.0.80"
-crossterm = { version = "0.27.0", features = ["event-stream"] }
-serde = { version = "1.0.196", features = ["derive"] }
-toml = "0.8.10"
-serde_json = "1.0.113"
-tokio = { version = "1.36.0", features = ["full"] }
-futures-timer = "3.0.2"
-futures = "0.3.30"
-tracing = "0.1.40"
+thiserror = "2.0.3"
+tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread"] }

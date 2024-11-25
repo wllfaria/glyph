@@ -1,0 +1,12 @@
+[package]
+name = "glyph"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+glyph-tui.workspace = true
+
+tokio.workspace = true
+
+crossterm = { version = "0.28.1", features = ["event-stream"] }
+futures = { version = "0.3.31" }
