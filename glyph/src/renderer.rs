@@ -1,9 +1,31 @@
+use glyph_term::backend::CursorKind;
 use glyph_term::buffer::Buffer;
 
+use crate::cursor::Cursor;
 use crate::editor::Editor;
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Anchor {
+    pub x: u16,
+    pub y: u16,
+}
+
+impl From<Cursor> for Anchor {
+    fn from(value: Cursor) -> Anchor {
+        Anchor {
+            x: value.x() as u16,
+            y: value.y() as u16,
+        }
+    }
+}
 
 pub trait RenderLayer {
     fn draw(&self, buffer: &mut Buffer, ctx: &mut DrawContext);
+
+    #[allow(unused_variables)]
+    fn cursor(&self, editor: &Editor) -> (Option<Anchor>, CursorKind) {
+        (None, CursorKind::Hidden)
+    }
 }
 
 #[derive(Debug)]
@@ -28,6 +50,15 @@ impl Renderer {
 
     pub fn push_layer(&mut self, layer: Box<dyn RenderLayer>) {
         self.layers.push(layer)
+    }
+
+    pub fn cursor(&self, editor: &Editor) -> (Option<Anchor>, CursorKind) {
+        for layer in &self.layers {
+            if let (Some(pos), kind) = layer.cursor(editor) {
+                return (Some(pos), kind);
+            }
+        }
+        (None, CursorKind::Hidden)
     }
 
     pub fn draw_frame(&mut self, buffer: &mut Buffer, ctx: &mut DrawContext) {

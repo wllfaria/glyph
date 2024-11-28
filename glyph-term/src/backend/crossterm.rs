@@ -3,7 +3,7 @@ use std::io::Write;
 use crossterm::event::{DisableFocusChange, EnableFocusChange};
 use crossterm::{cursor, execute, queue, style, terminal};
 
-use super::{Backend, Drawable};
+use super::{Backend, CursorKind, Drawable};
 use crate::graphics::Rect;
 
 #[derive(Debug)]
@@ -49,7 +49,6 @@ where
                 style::Print(drawable.cell.symbol)
             )?;
         }
-        self.show_cursor()?;
         Ok(())
     }
 
@@ -61,8 +60,16 @@ where
         execute!(self.buffer, cursor::Show)
     }
 
-    fn set_cursor(&mut self, x: u16, y: u16) -> Result<(), std::io::Error> {
-        execute!(self.buffer, cursor::MoveTo(x, y))
+    fn set_cursor(&mut self, x: u16, y: u16, kind: CursorKind) -> Result<(), std::io::Error> {
+        match kind {
+            CursorKind::Block => execute!(
+                self.buffer,
+                cursor::SetCursorStyle::SteadyBlock,
+                cursor::MoveTo(x, y),
+                cursor::Show
+            ),
+            CursorKind::Hidden => self.hide_cursor(),
+        }
     }
 
     fn flush(&mut self) -> Result<(), std::io::Error> {

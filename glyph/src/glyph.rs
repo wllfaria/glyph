@@ -7,7 +7,7 @@ use glyph_term::terminal::Terminal;
 
 use crate::editor::{Editor, OpenAction};
 use crate::layers::editor_layer::EditorLayer;
-use crate::renderer::{DrawContext, Renderer};
+use crate::renderer::{Anchor, DrawContext, Renderer};
 
 #[derive(Debug)]
 pub struct Glyph<B: Backend> {
@@ -56,20 +56,20 @@ where
             hook(info);
         }));
 
-        self.draw_frame();
-        self.event_loop(input_stream).await;
+        self.draw_frame()?;
+        self.event_loop(input_stream).await?;
 
         self.terminal.backend.restore()?;
         Ok(())
     }
 
-    async fn event_loop<S>(&mut self, input_stream: &mut S)
+    async fn event_loop<S>(&mut self, input_stream: &mut S) -> Result<(), std::io::Error>
     where
         S: Stream<Item = io::Result<crossterm::event::Event>> + Unpin,
     {
         loop {
             if self.editor.should_close() {
-                break;
+                break Ok(());
             }
 
             tokio::select! {
@@ -77,18 +77,26 @@ where
 
                 Some(event) = input_stream.next() => {
                     if let Ok(crossterm::event::Event::Key(crossterm::event::KeyEvent { code: crossterm::event::KeyCode::Char('q'), .. })) = event {
-                        break;
+                        break Ok(());
                     }
                     // TODO: handle the event
-                    self.draw_frame();
+                    self.draw_frame()?;
                 }
             }
         }
     }
 
-    fn draw_frame(&mut self) {
+    fn draw_frame(&mut self) -> Result<(), std::io::Error> {
         let mut context = DrawContext { editor: &self.editor };
         self.renderer.draw_frame(self.terminal.current_buffer(), &mut context);
-        _ = self.terminal.flush();
+        self.terminal.flush()?;
+        let (pos, kind) = self.renderer.cursor(&self.editor);
+        if let Some(Anchor { x, y }) = pos {
+            self.terminal.backend.set_cursor(x, y, kind)?;
+        } else {
+            self.terminal.backend.hide_cursor()?;
+        }
+
+        Ok(())
     }
 }

@@ -20,6 +20,12 @@ pub struct Drawable<'a> {
     pub cell: &'a Cell,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CursorKind {
+    Block,
+    Hidden,
+}
+
 pub trait Backend {
     fn setup(&mut self) -> Result<(), io::Error>;
     fn restore(&mut self) -> Result<(), io::Error>;
@@ -29,7 +35,7 @@ pub trait Backend {
         T: Into<Drawable<'a>>;
     fn hide_cursor(&mut self) -> Result<(), io::Error>;
     fn show_cursor(&mut self) -> Result<(), io::Error>;
-    fn set_cursor(&mut self, x: u16, y: u16) -> Result<(), io::Error>;
+    fn set_cursor(&mut self, x: u16, y: u16, kind: CursorKind) -> Result<(), io::Error>;
     fn area(&self) -> Result<Rect, io::Error>;
     fn flush(&mut self) -> Result<(), io::Error>;
 }

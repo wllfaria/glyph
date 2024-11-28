@@ -12,7 +12,7 @@ pub enum Layout {
 #[derive(Debug)]
 pub struct Tree {
     root: WindowId,
-    pub focus: WindowId,
+    focus: WindowId,
     area: Rect,
     nodes: HopSlotMap<WindowId, Node>,
 }
@@ -72,6 +72,10 @@ impl Tree {
         }
     }
 
+    pub fn focus(&self) -> WindowId {
+        self.focus
+    }
+
     pub fn windows(&self) -> impl Iterator<Item = (&Window, bool)> {
         self.nodes.iter().filter_map(|(key, node)| match node {
             Node {
@@ -107,7 +111,7 @@ impl Tree {
         }
     }
 
-    pub fn get(&mut self, id: WindowId) -> &Window {
+    pub fn get(&self, id: WindowId) -> &Window {
         self.try_get(id).unwrap()
     }
 

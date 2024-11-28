@@ -1,7 +1,6 @@
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
-use ropey::iter::Lines;
 use ropey::Rope;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]

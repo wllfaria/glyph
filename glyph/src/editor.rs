@@ -15,6 +15,15 @@ pub enum Mode {
     Insert,
 }
 
+impl std::fmt::Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Mode::Normal => f.write_str("normal"),
+            Mode::Insert => f.write_str("insert"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Editor {
     mode: Mode,
@@ -22,6 +31,7 @@ pub struct Editor {
     documents: BTreeMap<DocumentId, Document>,
     focused_tab: usize,
     tabs: Vec<Tab>,
+    area: Rect,
 }
 
 #[derive(Debug)]
@@ -40,11 +50,20 @@ impl Editor {
             documents: BTreeMap::default(),
             tabs: vec![Tab::new(area)],
             focused_tab: 0,
+            area,
         }
+    }
+
+    pub fn area(&self) -> Rect {
+        self.area
     }
 
     pub fn document(&self, id: &DocumentId) -> Option<&Document> {
         self.documents.get(id)
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
     }
 
     pub fn get_focused_tab(&self) -> &Tab {
@@ -95,7 +114,7 @@ impl Editor {
                 // get the current focused window or make a new one if theres none
                 let mut window = tab
                     .tree
-                    .try_get(tab.tree.focus)
+                    .try_get(tab.tree.focus())
                     .filter(|w| id == w.document)
                     .cloned()
                     .unwrap_or_else(|| Window::new(id));

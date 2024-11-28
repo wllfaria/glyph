@@ -52,9 +52,21 @@ impl Buffer {
         }
     }
 
-    pub fn set_cell(&mut self, x: usize, y: usize, cell: Cell) {
-        let idx = y * self.area.width as usize + x;
-        self.cells[idx] = cell
+    fn idx(&self, x: u16, y: u16) -> u16 {
+        y * self.area.width + x
+    }
+
+    pub fn set_cell(&mut self, x: u16, y: u16, cell: Cell) {
+        let idx = self.idx(x, y);
+        self.cells[idx as usize] = cell
+    }
+
+    #[tracing::instrument(skip(string))]
+    pub fn set_string<S: AsRef<str>>(&mut self, x: u16, y: u16, string: S) {
+        let idx = self.idx(x, y);
+        for (ch_idx, ch) in string.as_ref().chars().enumerate() {
+            self.cells[idx as usize + ch_idx] = Cell::new(ch);
+        }
     }
 
     pub fn diff(&self, other: &Buffer) -> ChangeSet {

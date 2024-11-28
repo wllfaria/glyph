@@ -6,3 +6,7 @@ edition = "2021"
 [dependencies]
 crossterm = { version = "0.28.1", features = ["event-stream"] }
 slotmap = "1.0.7"
+
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
