@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-glyph-tui.workspace = true
+glyph-term.workspace = true
 
 tokio.workspace = true
 
 crossterm = { version = "0.28.1", features = ["event-stream"] }
 futures = { version = "0.3.31" }
+ropey = "1.6.1"
+slotmap = "1.0.7"

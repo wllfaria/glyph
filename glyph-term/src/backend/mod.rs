@@ -4,11 +4,11 @@ use std::io;
 
 pub use crossterm::CrosstermBackend;
 
-use crate::graphics::Color;
+use crate::graphics::{Color, Rect};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
-    pub symbol: String,
+    pub symbol: char,
     pub fg: Color,
     pub bg: Color,
 }
@@ -23,14 +23,35 @@ pub struct Drawable<'a> {
 pub trait Backend {
     fn setup(&mut self) -> Result<(), io::Error>;
     fn restore(&mut self) -> Result<(), io::Error>;
-    fn draw<'a, I, T>(&mut self, content: I)
+    fn draw<'a, I, T>(&mut self, content: I) -> Result<(), io::Error>
     where
         I: Iterator<Item = T>,
         T: Into<Drawable<'a>>;
     fn hide_cursor(&mut self) -> Result<(), io::Error>;
     fn show_cursor(&mut self) -> Result<(), io::Error>;
     fn set_cursor(&mut self, x: u16, y: u16) -> Result<(), io::Error>;
+    fn area(&self) -> Result<Rect, io::Error>;
     fn flush(&mut self) -> Result<(), io::Error>;
+}
+
+impl Cell {
+    pub fn new(symbol: char) -> Cell {
+        Cell {
+            symbol,
+            fg: Color::Reset,
+            bg: Color::Reset,
+        }
+    }
+}
+
+impl Default for Cell {
+    fn default() -> Cell {
+        Cell {
+            symbol: Default::default(),
+            fg: Color::Reset,
+            bg: Color::Reset,
+        }
+    }
 }
 
 impl<'a> Drawable<'a> {

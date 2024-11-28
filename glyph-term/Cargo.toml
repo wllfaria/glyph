@@ -1,7 +1,8 @@
 [package]
-name = "glyph-tui"
+name = "glyph-term"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 crossterm = { version = "0.28.1", features = ["event-stream"] }
+slotmap = "1.0.7"

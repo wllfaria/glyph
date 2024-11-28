@@ -3,11 +3,11 @@ default_members = "glyph"
 resolver = "2"
 members = [
     "glyph",
-    "glyph-tui",
+    "glyph-term",
 ]
 
 [workspace.dependencies]
-glyph-tui = { path = "glyph-tui" }
+glyph-term = { path = "glyph-term" }
 
 thiserror = "2.0.3"
 tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread"] }
