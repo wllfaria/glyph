@@ -1,0 +1,11 @@
+[package]
+name = "glyph-config"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror.workspace = true
+mlua = { version = "0.10.1", features = ["luajit", "vendored", "serialize"] }
+serde = { version = "1.0.215", features = ["derive"] }
+
+directories = "5.0.1"

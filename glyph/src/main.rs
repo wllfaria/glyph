@@ -19,6 +19,8 @@ use tracing_appender::non_blocking::WorkerGuard;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let guard = setup_logger();
 
+    let config = glyph_config::Config::load();
+
     let backend = CrosstermBackend::new(stdout());
 
     let mut glyph = Glyph::new(backend);

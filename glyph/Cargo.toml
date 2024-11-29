@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 glyph-term.workspace = true
+glyph-config.workspace = true
 
 tokio.workspace = true
 tracing.workspace = true

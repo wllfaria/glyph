@@ -4,10 +4,12 @@ resolver = "2"
 members = [
     "glyph",
     "glyph-term",
+    "glyph-config",
 ]
 
 [workspace.dependencies]
 glyph-term = { path = "glyph-term" }
+glyph-config = { path = "glyph-config" }
 
 thiserror = "2.0.3"
 tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread"] }
