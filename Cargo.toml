@@ -3,16 +3,18 @@ default_members = "glyph"
 resolver = "2"
 members = [
     "glyph",
+    "glyph-core",
     "glyph-term",
     "glyph-config",
 ]
 
 [workspace.dependencies]
+glyph-core = { path = "glyph-core" }
 glyph-term = { path = "glyph-term" }
 glyph-config = { path = "glyph-config" }
 
 thiserror = "2.0.3"
-tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread", "time"] }
 tracing = { version = "0.1.41" }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.18" }

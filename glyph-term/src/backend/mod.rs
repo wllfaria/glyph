@@ -3,8 +3,9 @@ mod crossterm;
 use std::io;
 
 pub use crossterm::CrosstermBackend;
+use glyph_core::rect::Rect;
 
-use crate::graphics::{Color, Rect};
+use crate::graphics::Color;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cell {

@@ -2,9 +2,9 @@ use std::io::Write;
 
 use crossterm::event::{DisableFocusChange, EnableFocusChange};
 use crossterm::{cursor, execute, queue, style, terminal};
+use glyph_core::rect::Rect;
 
 use super::{Backend, CursorKind, Drawable};
-use crate::graphics::Rect;
 
 #[derive(Debug)]
 pub struct CrosstermBackend<W: Write> {

@@ -2,13 +2,18 @@ pub mod dirs;
 mod error;
 pub mod lua;
 
+pub type GlyphConfig<'a> = &'a Config;
+
 use std::fmt::Debug;
-use std::path::Path;
 
 use dirs::DIRS;
 use error::Result;
-use mlua::{Lua, LuaSerdeExt, Table, Value};
+use mlua::{Lua, LuaSerdeExt, Value};
 use serde::Deserialize;
+
+fn yes() -> bool {
+    true
+}
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -49,20 +54,25 @@ pub enum SignColumnConfig {
     None,
 }
 
-fn yes() -> bool {
-    true
+impl SignColumnConfig {
+    pub fn size(&self) -> u16 {
+        match self {
+            SignColumnConfig::None => 0,
+            _ => 1,
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize)]
 pub struct GutterConfig {
     #[serde(default = "yes")]
-    enabled: bool,
+    pub enabled: bool,
     #[serde(default)]
-    anchor: GutterAnchor,
+    pub anchor: GutterAnchor,
     #[serde(default)]
-    line_numbers: LineNumbersConfig,
+    pub line_numbers: LineNumbersConfig,
     #[serde(default)]
-    sign_column: SignColumnConfig,
+    pub sign_column: SignColumnConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -87,6 +97,14 @@ impl Config {
 
         let config = lua.from_value(glyph_mod.get::<Value>("config")?)?;
         Ok(config)
+    }
+
+    pub fn cursor(&self) -> &CursorConfig {
+        &self.cursor
+    }
+
+    pub fn gutter(&self) -> &GutterConfig {
+        &self.gutter
     }
 }
 

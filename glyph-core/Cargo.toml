@@ -1,0 +1,10 @@
+[package]
+name = "glyph-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+glyph-config.workspace = true
+
+ropey = "1.6.1"
+slotmap = "1.0.7"

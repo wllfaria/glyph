@@ -1,5 +1,4 @@
-use glyph_term::graphics::Rect;
-
+use crate::rect::Rect;
 use crate::tree::Tree;
 
 #[derive(Debug)]

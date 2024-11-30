@@ -10,6 +10,8 @@ pub struct Dirs {
     base_dirs: BaseDirs,
     config_dir: PathBuf,
     config: PathBuf,
+    data_dir: PathBuf,
+    data: PathBuf,
 }
 
 impl Dirs {
@@ -30,10 +32,32 @@ impl Dirs {
 
         let config = config_dir.join("glyph");
 
+        #[cfg(target_os = "macos")]
+        let data_dir = 'block: {
+            if let Ok(home) = std::env::var("HOME") {
+                let local_share = PathBuf::from(home).join(".local").join("share");
+                if std::fs::exists(&local_share).unwrap_or_default() {
+                    break 'block local_share;
+                }
+            }
+            base_dirs.data_dir().to_path_buf()
+        };
+
+        #[cfg(not(target_os = "macos"))]
+        let data_dir = base_dirs.data_dir();
+
+        let data = data_dir.join("glyph");
+
+        if !std::fs::exists(&data).unwrap_or_default() {
+            std::fs::create_dir(&data).expect("failed to initialize data directory");
+        }
+
         Dirs {
             config,
             config_dir,
             base_dirs,
+            data,
+            data_dir,
         }
     }
 
@@ -43,6 +67,10 @@ impl Dirs {
 
     pub fn config(&self) -> &Path {
         &self.config
+    }
+
+    pub fn data(&self) -> &Path {
+        &self.data
     }
 }
 

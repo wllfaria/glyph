@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use glyph_term::graphics::Rect;
-
 use crate::document::{Document, DocumentId};
+use crate::rect::Rect;
 use crate::tab::Tab;
 use crate::tree::Layout;
 use crate::window::Window;

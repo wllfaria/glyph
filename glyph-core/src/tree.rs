@@ -1,6 +1,6 @@
-use glyph_term::graphics::Rect;
 use slotmap::HopSlotMap;
 
+use crate::rect::Rect;
 use crate::window::{Window, WindowId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]

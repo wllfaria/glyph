@@ -1,26 +1,30 @@
 use std::io;
 use std::path::PathBuf;
+use std::pin::Pin;
+use std::time::Duration;
 
-use futures::{Stream, StreamExt};
+use futures::{stream, Stream, StreamExt};
+use glyph_config::GlyphConfig;
+use glyph_core::editor::{Editor, OpenAction};
+use glyph_core::rect::Point;
 use glyph_term::backend::Backend;
+use glyph_term::layers::editor_layer::EditorLayer;
+use glyph_term::renderer::{DrawContext, Renderer};
 use glyph_term::terminal::Terminal;
 
-use crate::editor::{Editor, OpenAction};
-use crate::layers::editor_layer::EditorLayer;
-use crate::renderer::{Anchor, DrawContext, Renderer};
-
 #[derive(Debug)]
-pub struct Glyph<B: Backend> {
+pub struct Glyph<'a, B: Backend> {
     terminal: Terminal<B>,
     editor: Editor,
     renderer: Renderer,
+    config: GlyphConfig<'a>,
 }
 
-impl<B> Glyph<B>
+impl<'a, B> Glyph<'a, B>
 where
     B: Backend,
 {
-    pub fn new(backend: B) -> Glyph<B> {
+    pub fn new(backend: B, config: GlyphConfig) -> Glyph<B> {
         let file = std::env::args().nth(1);
 
         let mut editor = Editor::new(backend.area().expect("couldn't get terminal size"));
@@ -40,6 +44,7 @@ where
             editor,
             terminal,
             renderer,
+            config,
         }
     }
 
@@ -68,6 +73,7 @@ where
         S: Stream<Item = io::Result<crossterm::event::Event>> + Unpin,
     {
         loop {
+            let start = std::time::Instant::now();
             if self.editor.should_close() {
                 break Ok(());
             }
@@ -83,20 +89,37 @@ where
                     self.draw_frame()?;
                 }
             }
+
+            let frame_time = start.elapsed();
+            tracing::debug!("{frame_time:?}");
         }
     }
 
     fn draw_frame(&mut self) -> Result<(), std::io::Error> {
         let mut context = DrawContext { editor: &self.editor };
-        self.renderer.draw_frame(self.terminal.current_buffer(), &mut context);
+        let buffer = self.terminal.current_buffer();
+        self.renderer.draw_frame(buffer, &mut context, self.config);
         self.terminal.flush()?;
-        let (pos, kind) = self.renderer.cursor(&self.editor);
-        if let Some(Anchor { x, y }) = pos {
+
+        let (pos, kind) = self.renderer.cursor(&self.editor, self.config);
+        if let Some(Point { x, y }) = pos {
             self.terminal.backend.set_cursor(x, y, kind)?;
         } else {
             self.terminal.backend.hide_cursor()?;
         }
 
         Ok(())
+    }
+
+    fn event_stream(&self) -> Pin<Box<dyn Stream<Item = crossterm::event::Event>>> {
+        Box::pin(stream::unfold((), |_| async {
+            if crossterm::event::poll(Duration::from_millis(1)).unwrap() {
+                if let Ok(ev) = crossterm::event::read() {
+                    return Some((ev, ()));
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(1)).await;
+            None
+        }))
     }
 }

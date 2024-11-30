@@ -1,5 +1,6 @@
+use glyph_core::rect::Rect;
+
 use crate::backend::{Cell, Drawable};
-use crate::graphics::Rect;
 
 #[derive(Debug)]
 pub struct Buffer {
@@ -52,6 +53,7 @@ impl Buffer {
         }
     }
 
+    #[inline]
     fn idx(&self, x: u16, y: u16) -> u16 {
         y * self.area.width + x
     }
@@ -61,10 +63,11 @@ impl Buffer {
         self.cells[idx as usize] = cell
     }
 
-    #[tracing::instrument(skip(string))]
     pub fn set_string<S: AsRef<str>>(&mut self, x: u16, y: u16, string: S) {
         let idx = self.idx(x, y);
-        for (ch_idx, ch) in string.as_ref().chars().enumerate() {
+        let str_ref = string.as_ref();
+
+        for (ch_idx, ch) in str_ref.chars().enumerate() {
             self.cells[idx as usize + ch_idx] = Cell::new(ch);
         }
     }

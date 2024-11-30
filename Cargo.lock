@@ -279,9 +279,8 @@ dependencies = [
  "crossterm",
  "futures",
  "glyph-config",
+ "glyph-core",
  "glyph-term",
- "ropey",
- "slotmap",
  "tokio",
  "tracing",
  "tracing-appender",
@@ -299,10 +298,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "glyph-core"
+version = "0.1.0"
+dependencies = [
+ "glyph-config",
+ "ropey",
+ "slotmap",
+]
+
+[[package]]
 name = "glyph-term"
 version = "0.1.0"
 dependencies = [
  "crossterm",
+ "glyph-config",
+ "glyph-core",
  "slotmap",
  "tracing",
  "tracing-appender",

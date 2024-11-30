@@ -1,7 +1,6 @@
-use glyph_term::graphics::Rect;
-
 use crate::cursor::Cursor;
 use crate::document::DocumentId;
+use crate::rect::Rect;
 
 slotmap::new_key_type! {
     pub struct WindowId;
@@ -11,7 +10,8 @@ slotmap::new_key_type! {
 pub struct Window {
     pub id: WindowId,
     pub document: DocumentId,
-    pub cursor: Cursor,
+    cursor: Cursor,
+    scroll: (usize, usize),
     pub area: Rect,
 }
 
@@ -21,7 +21,16 @@ impl Window {
             id: WindowId::default(),
             document,
             cursor: Cursor::default(),
+            scroll: (0, 0),
             area: Rect::default(),
         }
+    }
+
+    pub fn cursor(&self) -> &Cursor {
+        &self.cursor
+    }
+
+    pub fn scroll(&self) -> (usize, usize) {
+        self.scroll
     }
 }

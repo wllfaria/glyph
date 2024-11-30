@@ -1,29 +1,15 @@
-use glyph_term::backend::CursorKind;
-use glyph_term::buffer::Buffer;
+use glyph_config::GlyphConfig;
+use glyph_core::editor::Editor;
+use glyph_core::rect::Point;
 
-use crate::cursor::Cursor;
-use crate::editor::Editor;
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Anchor {
-    pub x: u16,
-    pub y: u16,
-}
-
-impl From<Cursor> for Anchor {
-    fn from(value: Cursor) -> Anchor {
-        Anchor {
-            x: value.x() as u16,
-            y: value.y() as u16,
-        }
-    }
-}
+use crate::backend::CursorKind;
+use crate::buffer::Buffer;
 
 pub trait RenderLayer {
-    fn draw(&self, buffer: &mut Buffer, ctx: &mut DrawContext);
+    fn draw(&self, buffer: &mut Buffer, ctx: &mut DrawContext, config: GlyphConfig);
 
     #[allow(unused_variables)]
-    fn cursor(&self, editor: &Editor) -> (Option<Anchor>, CursorKind) {
+    fn cursor(&self, editor: &Editor, config: GlyphConfig) -> (Option<Point>, CursorKind) {
         (None, CursorKind::Hidden)
     }
 }
@@ -33,6 +19,7 @@ pub struct DrawContext<'ctx> {
     pub editor: &'ctx Editor,
 }
 
+#[derive(Default)]
 pub struct Renderer {
     layers: Vec<Box<dyn RenderLayer>>,
 }
@@ -52,18 +39,18 @@ impl Renderer {
         self.layers.push(layer)
     }
 
-    pub fn cursor(&self, editor: &Editor) -> (Option<Anchor>, CursorKind) {
+    pub fn cursor(&self, editor: &Editor, config: GlyphConfig) -> (Option<Point>, CursorKind) {
         for layer in &self.layers {
-            if let (Some(pos), kind) = layer.cursor(editor) {
+            if let (Some(pos), kind) = layer.cursor(editor, config) {
                 return (Some(pos), kind);
             }
         }
         (None, CursorKind::Hidden)
     }
 
-    pub fn draw_frame(&mut self, buffer: &mut Buffer, ctx: &mut DrawContext) {
+    pub fn draw_frame(&mut self, buffer: &mut Buffer, ctx: &mut DrawContext, config: GlyphConfig) {
         for layer in &mut self.layers {
-            layer.draw(buffer, ctx);
+            layer.draw(buffer, ctx, config);
         }
     }
 }
