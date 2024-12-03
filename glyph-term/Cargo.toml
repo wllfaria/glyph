@@ -13,3 +13,10 @@ tracing-subscriber.workspace = true
 
 crossterm = { version = "0.28.1", features = ["event-stream"] }
 slotmap = "1.0.7"
+
+[dev-dependencies]
+divan = "0.1.16"
+
+[[bench]]
+name = "digits_in_number"
+harness = false

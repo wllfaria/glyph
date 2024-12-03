@@ -1,5 +1,5 @@
 use std::num::NonZeroUsize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ropey::Rope;
 
@@ -38,6 +38,25 @@ pub struct Document {
     pub id: DocumentId,
     path: Option<PathBuf>,
     text: Rope,
+    language: LanguageId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum LanguageId {
+    Rust,
+    Markdown,
+    Plain,
+}
+
+impl LanguageId {
+    pub fn from_path(path: Option<&PathBuf>) -> LanguageId {
+        match path.and_then(|p| p.extension().and_then(|e| e.to_str())) {
+            Some("rs") => LanguageId::Rust,
+            Some("md") => LanguageId::Markdown,
+            Some(_) => LanguageId::Plain,
+            None => LanguageId::Plain,
+        }
+    }
 }
 
 impl Document {
@@ -45,15 +64,22 @@ impl Document {
     where
         S: AsRef<str>,
     {
+        let language = LanguageId::from_path(path.as_ref());
+
         Document {
             id: DocumentId::default(),
             path,
+            language,
             text: text.map(|t| Rope::from_str(t.as_ref())).unwrap_or_default(),
         }
     }
 
     pub fn text(&self) -> &Rope {
         &self.text
+    }
+
+    pub fn language(&self) -> LanguageId {
+        self.language
     }
 }
 

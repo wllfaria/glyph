@@ -1,6 +1,7 @@
 use glyph_config::GlyphConfig;
 use glyph_core::editor::Editor;
 use glyph_core::rect::Point;
+use glyph_core::syntax::Highlighter;
 
 use crate::backend::CursorKind;
 use crate::buffer::Buffer;
@@ -17,6 +18,7 @@ pub trait RenderLayer {
 #[derive(Debug)]
 pub struct DrawContext<'ctx> {
     pub editor: &'ctx Editor,
+    pub highlighter: &'ctx Highlighter,
 }
 
 #[derive(Default)]

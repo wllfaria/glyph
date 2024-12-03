@@ -14,7 +14,7 @@ glyph-term = { path = "glyph-term" }
 glyph-config = { path = "glyph-config" }
 
 thiserror = "2.0.3"
-tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread", "time"] }
+tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread", "time", "sync"] }
 tracing = { version = "0.1.41" }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.18" }

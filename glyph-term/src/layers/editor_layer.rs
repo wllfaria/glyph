@@ -20,8 +20,8 @@ impl EditorLayer {
     #[allow(clippy::too_many_arguments)]
     pub fn draw_window(
         &self,
-        editor: &Editor,
         mut area: Rect,
+        ctx: &mut DrawContext,
         document: &Document,
         window: &Window,
         buffer: &mut Buffer,
@@ -36,14 +36,28 @@ impl EditorLayer {
             };
             self.draw_gutter(gutter_area, document, window, buffer, config);
         }
-        self.draw_document(area, document, window, buffer);
+        self.draw_document(area, ctx, document, window, buffer);
     }
 
-    pub fn draw_document(&self, area: Rect, document: &Document, window: &Window, buffer: &mut Buffer) {
-        let text = document.text().slice(..);
+    pub fn draw_document(
+        &self,
+        area: Rect,
+        ctx: &mut DrawContext,
+        document: &Document,
+        window: &Window,
+        buffer: &mut Buffer,
+    ) {
+        let text = document.text();
+
+        let start_byte = text.line_to_byte(window.cursor().y() + window.scroll().1);
+        let end_byte = text.line_to_byte(window.cursor().y() + window.scroll().1 + area.height as usize + 1);
+        let text = document.text().slice(start_byte..end_byte);
         let start = text.line_to_char(window.cursor().y());
 
         for (y, line) in text.lines_at(start).take(area.height as usize).enumerate() {
+            //let syntax = ctx.highlighter.document_syntax(document.id);
+            //let captures = syntax.map(|s| &s.captures);
+
             for (x, ch) in line.chars().enumerate() {
                 if x >= area.width.into() {
                     break;
@@ -96,7 +110,7 @@ impl RenderLayer for EditorLayer {
 
         for (window, is_focused) in ctx.editor.get_focused_tab().tree.windows() {
             let document = ctx.editor.document(&window.document).unwrap();
-            self.draw_window(ctx.editor, area, document, window, buffer, is_focused, config);
+            self.draw_window(area, ctx, document, window, buffer, is_focused, config);
         }
     }
 
@@ -124,17 +138,7 @@ fn calculate_gutter_size(document: &Document, config: GlyphConfig) -> u16 {
     lines_length + 1
 }
 
-// we could .to_string().len(), but that allocates
-pub fn digits_in_number(mut number: usize) -> usize {
-    if number == 0 {
-        return 1;
-    }
-
-    let mut count = 0;
-    while number > 0 {
-        number /= 10;
-        count += 1;
-    }
-
-    count
+#[inline]
+pub fn digits_in_number(number: usize) -> usize {
+    (f32::log10(number as f32) + 1.0) as usize
 }
