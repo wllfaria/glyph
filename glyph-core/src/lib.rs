@@ -1,6 +1,8 @@
+pub mod color;
 pub mod cursor;
 pub mod document;
 pub mod editor;
+pub mod highlights;
 pub mod rect;
 pub mod syntax;
 pub mod tab;

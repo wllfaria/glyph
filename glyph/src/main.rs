@@ -6,14 +6,19 @@ use crossterm::event::EventStream;
 use glyph::Glyph;
 use glyph_config::dirs::DIRS;
 use glyph_term::backend::CrosstermBackend;
+use tokio::sync::mpsc::unbounded_channel;
 use tracing::level_filters::LevelFilter;
 use tracing_appender::non_blocking::WorkerGuard;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = glyph_config::Config::load()?;
-
+    glyph_config::dirs::setup_dirs();
     let _guard = setup_logger();
+
+    let (runtime_sender, mut runtime_receiver) = unbounded_channel();
+    let runtime = glyph_runtime::setup_lua_runtime(DIRS.get().unwrap().config(), runtime_sender.clone())?;
+
+    let config = glyph_config::Config::load(&runtime, runtime_sender.clone(), &mut runtime_receiver)?;
 
     let backend = CrosstermBackend::new(stdout());
 

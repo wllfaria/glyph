@@ -62,24 +62,26 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
 impl LineNumberDrawer for RelativeLineDrawer {
     fn draw_line_numbers(
         &self,
-        area: Rect,
-        document: &Document,
-        window: &Window,
-        buffer: &mut Buffer,
-        config: GlyphConfig,
+        _area: Rect,
+        _document: &Document,
+        _window: &Window,
+        _buffer: &mut Buffer,
+        _config: GlyphConfig,
     ) {
+        todo!()
     }
 }
 
 impl LineNumberDrawer for RelativeNumberedLineDrawer {
     fn draw_line_numbers(
         &self,
-        area: Rect,
-        document: &Document,
-        window: &Window,
-        buffer: &mut Buffer,
-        config: GlyphConfig,
+        _area: Rect,
+        _document: &Document,
+        _window: &Window,
+        _buffer: &mut Buffer,
+        _config: GlyphConfig,
     ) {
+        todo!()
     }
 }
 

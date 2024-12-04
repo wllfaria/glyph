@@ -1,3 +1,4 @@
+use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::Rect;
 
 use crate::backend::{Cell, Drawable};
@@ -58,8 +59,9 @@ impl Buffer {
         y * self.area.width + x
     }
 
-    pub fn set_cell(&mut self, x: u16, y: u16, cell: Cell) {
+    pub fn set_cell(&mut self, x: u16, y: u16, mut cell: Cell, style: HighlightGroup) {
         let idx = self.idx(x, y);
+        cell.style = style;
         self.cells[idx as usize] = cell
     }
 

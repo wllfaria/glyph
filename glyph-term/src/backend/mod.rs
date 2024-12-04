@@ -3,15 +3,14 @@ mod crossterm;
 use std::io;
 
 pub use crossterm::CrosstermBackend;
+use glyph_config::GlyphConfig;
+use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::Rect;
 
-use crate::graphics::Color;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
     pub symbol: char,
-    pub fg: Color,
-    pub bg: Color,
+    pub style: HighlightGroup,
 }
 
 #[derive(Debug)]
@@ -30,7 +29,7 @@ pub enum CursorKind {
 pub trait Backend {
     fn setup(&mut self) -> Result<(), io::Error>;
     fn restore(&mut self) -> Result<(), io::Error>;
-    fn draw<'a, I, T>(&mut self, content: I) -> Result<(), io::Error>
+    fn draw<'a, I, T>(&mut self, content: I, config: GlyphConfig) -> Result<(), io::Error>
     where
         I: Iterator<Item = T>,
         T: Into<Drawable<'a>>;
@@ -45,18 +44,7 @@ impl Cell {
     pub fn new(symbol: char) -> Cell {
         Cell {
             symbol,
-            fg: Color::Reset,
-            bg: Color::Reset,
-        }
-    }
-}
-
-impl Default for Cell {
-    fn default() -> Cell {
-        Cell {
-            symbol: Default::default(),
-            fg: Color::Reset,
-            bg: Color::Reset,
+            style: HighlightGroup::default(),
         }
     }
 }

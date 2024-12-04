@@ -352,7 +352,9 @@ dependencies = [
  "futures",
  "glyph-config",
  "glyph-core",
+ "glyph-runtime",
  "glyph-term",
+ "mlua",
  "tokio",
  "tracing",
  "tracing-appender",
@@ -364,22 +366,37 @@ name = "glyph-config"
 version = "0.1.0"
 dependencies = [
  "directories",
+ "glyph-core",
+ "glyph-runtime",
  "mlua",
  "serde",
  "thiserror 2.0.3",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
 name = "glyph-core"
 version = "0.1.0"
 dependencies = [
- "glyph-config",
  "ropey",
  "slotmap",
  "streaming-iterator",
+ "thiserror 2.0.3",
  "tracing",
  "tree-sitter",
  "tree-sitter-rust",
+]
+
+[[package]]
+name = "glyph-runtime"
+version = "0.1.0"
+dependencies = [
+ "glyph-core",
+ "mlua",
+ "serde",
+ "thiserror 2.0.3",
+ "tokio",
 ]
 
 [[package]]
@@ -510,9 +527,9 @@ dependencies = [
 
 [[package]]
 name = "mlua"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ae9546e4a268c309804e8bbb7526e31cbfdedca7cd60ac1b987d0b212e0d876"
+checksum = "9ea43c3ffac2d0798bd7128815212dd78c98316b299b7a902dabef13dc7b6b8d"
 dependencies = [
  "bstr",
  "either",
@@ -527,9 +544,9 @@ dependencies = [
 
 [[package]]
 name = "mlua-sys"
-version = "0.6.5"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efa6bf1a64f06848749b7e7727417f4ec2121599e2a10ef0a8a3888b0e9a5a0d"
+checksum = "63a11d485edf0f3f04a508615d36c7d50d299cf61a7ee6d3e2530651e0a31771"
 dependencies = [
  "cc",
  "cfg-if",
@@ -737,9 +754,9 @@ checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
 
 [[package]]
 name = "rustc-hash"
-version = "2.0.0"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "583034fd73374156e66797ed8e5b0d5690409c9226b22d87cb7f19821c05d152"
+checksum = "c7fb8039b3032c191086b10f11f319a6e99e1e82889c5cc6046f515c9db1d497"
 
 [[package]]
 name = "rustix"

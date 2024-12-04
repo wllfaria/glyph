@@ -8,9 +8,9 @@ use crate::document::{Document, DocumentId, LanguageId};
 
 #[derive(Debug)]
 pub struct SyntaxCapture {
-    start: Point,
-    end: Point,
-    name: String,
+    pub start: Point,
+    pub end: Point,
+    pub name: String,
 }
 
 #[derive(Debug)]

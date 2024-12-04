@@ -105,7 +105,7 @@ where
         };
         let buffer = self.terminal.current_buffer();
         self.renderer.draw_frame(buffer, &mut context, self.config);
-        self.terminal.flush()?;
+        self.terminal.flush(self.config)?;
 
         let (pos, kind) = self.renderer.cursor(&self.editor, self.config);
         if let Some(Point { x, y }) = pos {

@@ -1,16 +1,12 @@
 [package]
-name = "glyph-config"
+name = "glyph-runtime"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-glyph-runtime.workspace = true
 glyph-core.workspace = true
 
 thiserror.workspace = true
-tracing.workspace = true
 mlua.workspace = true
 serde.workspace = true
 tokio.workspace = true
-
-directories = "5.0.1"

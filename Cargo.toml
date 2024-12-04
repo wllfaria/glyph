@@ -6,15 +6,19 @@ members = [
     "glyph-core",
     "glyph-term",
     "glyph-config",
+    "glyph-runtime",
 ]
 
 [workspace.dependencies]
 glyph-core = { path = "glyph-core" }
 glyph-term = { path = "glyph-term" }
 glyph-config = { path = "glyph-config" }
+glyph-runtime = { path = "glyph-runtime" }
 
 thiserror = "2.0.3"
 tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread", "time", "sync"] }
 tracing = { version = "0.1.41" }
 tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.18" }
+mlua = { version = "0.10.1", features = ["luajit", "vendored", "serialize"] }
+serde = { version = "1.0.215", features = ["derive"] }

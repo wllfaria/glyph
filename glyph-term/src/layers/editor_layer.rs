@@ -1,6 +1,7 @@
 use glyph_config::{GlyphConfig, GutterAnchor};
 use glyph_core::document::Document;
 use glyph_core::editor::Editor;
+use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::{Point, Rect};
 use glyph_core::window::Window;
 
@@ -25,7 +26,6 @@ impl EditorLayer {
         document: &Document,
         window: &Window,
         buffer: &mut Buffer,
-        is_focused: bool,
         config: GlyphConfig,
     ) {
         if config.gutter().enabled {
@@ -36,7 +36,7 @@ impl EditorLayer {
             };
             self.draw_gutter(gutter_area, document, window, buffer, config);
         }
-        self.draw_document(area, ctx, document, window, buffer);
+        self.draw_document(area, ctx, document, window, buffer, config);
     }
 
     pub fn draw_document(
@@ -46,6 +46,7 @@ impl EditorLayer {
         document: &Document,
         window: &Window,
         buffer: &mut Buffer,
+        config: GlyphConfig,
     ) {
         let text = document.text();
 
@@ -55,19 +56,28 @@ impl EditorLayer {
         let start = text.line_to_char(window.cursor().y());
 
         for (y, line) in text.lines_at(start).take(area.height as usize).enumerate() {
-            //let syntax = ctx.highlighter.document_syntax(document.id);
-            //let captures = syntax.map(|s| &s.captures);
+            let mut style = HighlightGroup::default();
 
             for (x, ch) in line.chars().enumerate() {
+                if let Some(syntax) = ctx.highlighter.document_syntax(document.id) {
+                    if let Some(captures) = syntax.captures.get(&y) {
+                        if let Some(capture) = captures.iter().find(|c| x >= c.start.column && x < c.end.column) {
+                            if let Some(group) = config.highlight_groups.get(&capture.name) {
+                                style = *group
+                            }
+                        }
+                    }
+                }
+
                 if x >= area.width.into() {
                     break;
                 };
 
-                buffer.set_cell(area.x + x as u16, y as u16, Cell::new(ch))
+                buffer.set_cell(area.x + x as u16, y as u16, Cell::new(ch), style)
             }
 
             for x in line.chars().count()..area.width as usize {
-                buffer.set_cell(area.x + x as u16, y as u16, Cell::new(' '));
+                buffer.set_cell(area.x + x as u16, y as u16, Cell::new(' '), style);
             }
         }
     }
@@ -108,9 +118,9 @@ impl RenderLayer for EditorLayer {
 
         self.draw_statusline(buffer, ctx, statusline_area);
 
-        for (window, is_focused) in ctx.editor.get_focused_tab().tree.windows() {
+        for (window, _) in ctx.editor.get_focused_tab().tree.windows() {
             let document = ctx.editor.document(&window.document).unwrap();
-            self.draw_window(area, ctx, document, window, buffer, is_focused, config);
+            self.draw_window(area, ctx, document, window, buffer, config);
         }
     }
 

@@ -1,31 +1,32 @@
 pub mod dirs;
-mod error;
-pub mod lua;
 
 pub type GlyphConfig<'a> = &'a Config;
 
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use dirs::DIRS;
-use error::Result;
-use mlua::{Lua, LuaSerdeExt, Value};
+use glyph_core::highlights::HighlightGroup;
+use glyph_runtime::RuntimeMessage;
+use mlua::{Lua, LuaSerdeExt, Table, Value};
 use serde::Deserialize;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 fn yes() -> bool {
     true
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub enum CursorStyle {
     #[default]
     Block,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Clone)]
 pub struct CursorConfig {
     #[serde(default)]
-    style: CursorStyle,
+    pub style: CursorStyle,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -75,28 +76,45 @@ pub struct GutterConfig {
     pub sign_column: SignColumnConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct Config {
     cursor: CursorConfig,
     gutter: GutterConfig,
-    #[serde(skip)]
-    lua: Lua,
+    pub highlight_groups: HashMap<String, HighlightGroup>,
 }
 
 impl Config {
-    pub fn load() -> Result<Config> {
-        dirs::setup_dirs();
+    pub fn load(
+        runtime: &Lua,
+        _runtime_sender: UnboundedSender<RuntimeMessage>,
+        runtime_receiver: &mut UnboundedReceiver<RuntimeMessage>,
+    ) -> glyph_runtime::error::Result<Config> {
         let config = DIRS.get().unwrap().config();
         let init = config.join("init.lua");
 
-        let lua = lua::setup_lua_runtime()?;
-
         let content = std::fs::read_to_string(&init).unwrap();
-        lua.load(content).set_name(init.to_string_lossy()).eval::<Value>()?;
-        let glyph_mod = lua::get_or_create_module(&lua, "glyph")?;
+        if let Err(err) = runtime.load(content).set_name(init.to_string_lossy()).eval::<Value>() {
+            todo!("error in lua ----- {err:?}");
+        }
 
-        let config = lua.from_value(glyph_mod.get::<Value>("config")?)?;
-        Ok(config)
+        let mut setup_messages = vec![];
+        while let Ok(message) = runtime_receiver.try_recv() {
+            setup_messages.push(message);
+        }
+
+        let highlight_groups = handle_setup_messages(setup_messages);
+
+        let glyph_mod = glyph_runtime::get_or_create_module(runtime, "glyph")?;
+        let config = glyph_mod.get::<Table>("config")?;
+
+        let cursor = runtime.from_value::<CursorConfig>(config.get::<Value>("cursor")?)?;
+        let gutter = runtime.from_value::<GutterConfig>(config.get::<Value>("gutter")?)?;
+
+        Ok(Config {
+            cursor,
+            gutter,
+            highlight_groups,
+        })
     }
 
     pub fn cursor(&self) -> &CursorConfig {
@@ -108,14 +126,15 @@ impl Config {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> HashMap<String, HighlightGroup> {
+    let mut highlight_groups = HashMap::default();
 
-    #[test]
-    fn a() {
-        Config::load().unwrap();
-
-        panic!();
+    for message in messages {
+        match message {
+            RuntimeMessage::UpdateHighlightGroup(name, group) => _ = highlight_groups.insert(name, group),
+            RuntimeMessage::Error(error) => println!("{error:?}"),
+        };
     }
+
+    highlight_groups
 }

@@ -2,13 +2,27 @@ use std::io::Write;
 
 use crossterm::event::{DisableFocusChange, EnableFocusChange};
 use crossterm::{cursor, execute, queue, style, terminal};
+use glyph_config::{CursorConfig, CursorStyle, GlyphConfig};
 use glyph_core::rect::Rect;
 
 use super::{Backend, CursorKind, Drawable};
+use crate::graphics::IntoColor;
 
 #[derive(Debug)]
 pub struct CrosstermBackend<W: Write> {
     buffer: W,
+}
+
+trait IntoCursorStyle {
+    fn into_cursor_style(self) -> cursor::SetCursorStyle;
+}
+
+impl IntoCursorStyle for CursorConfig {
+    fn into_cursor_style(self) -> cursor::SetCursorStyle {
+        match self.style {
+            CursorStyle::Block => cursor::SetCursorStyle::SteadyBlock,
+        }
+    }
 }
 
 impl<W> CrosstermBackend<W>
@@ -35,17 +49,22 @@ where
         terminal::disable_raw_mode()
     }
 
-    fn draw<'a, I, T>(&mut self, content: I) -> Result<(), std::io::Error>
+    fn draw<'a, I, T>(&mut self, content: I, config: GlyphConfig) -> Result<(), std::io::Error>
     where
         I: Iterator<Item = T>,
         T: Into<Drawable<'a>>,
     {
         self.hide_cursor()?;
+
         for item in content.into_iter() {
             let drawable: Drawable<'a> = item.into();
+
             queue!(
                 self.buffer,
                 cursor::MoveTo(drawable.x, drawable.y),
+                config.cursor().clone().into_cursor_style(),
+                style::SetForegroundColor(drawable.cell.style.fg.into_color()),
+                style::SetBackgroundColor(drawable.cell.style.bg.into_color()),
                 style::Print(drawable.cell.symbol)
             )?;
         }

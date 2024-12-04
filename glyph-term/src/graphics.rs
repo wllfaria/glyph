@@ -1,31 +1,14 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Color {
-    Reset,
-    Black,
-    Red,
-    Green,
-    Yellow,
-    Blue,
-    Magenta,
-    Cyan,
-    Gray,
-    LightRed,
-    LightGreen,
-    LightYellow,
-    LightBlue,
-    LightMagenta,
-    LightCyan,
-    LightGray,
-    White,
-    Rgb(u8, u8, u8),
-    Indexed(u8),
+use glyph_core::color::Color;
+
+pub trait IntoColor {
+    fn into_color(self) -> crossterm::style::Color;
 }
 
-impl From<Color> for crossterm::style::Color {
-    fn from(color: Color) -> Self {
+impl IntoColor for Color {
+    fn into_color(self) -> crossterm::style::Color {
         use crossterm::style::Color as CColor;
 
-        match color {
+        match self {
             Color::Reset => CColor::Reset,
             Color::Black => CColor::Black,
             Color::Red => CColor::DarkRed,

@@ -1,5 +1,5 @@
 use std::num::NonZeroUsize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use ropey::Rope;
 
@@ -36,7 +36,6 @@ impl AsRef<str> for LineEnding {
 #[derive(Debug)]
 pub struct Document {
     pub id: DocumentId,
-    path: Option<PathBuf>,
     text: Rope,
     language: LanguageId,
 }
@@ -68,7 +67,6 @@ impl Document {
 
         Document {
             id: DocumentId::default(),
-            path,
             language,
             text: text.map(|t| Rope::from_str(t.as_ref())).unwrap_or_default(),
         }

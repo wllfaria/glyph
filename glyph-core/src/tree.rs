@@ -119,7 +119,7 @@ impl Tree {
         self.try_get_mut(id).unwrap()
     }
 
-    pub fn split(&mut self, mut window: Window, layout: Layout) -> WindowId {
+    pub fn split(&mut self, mut window: Window, _layout: Layout) -> WindowId {
         if self.nodes.is_empty() {
             window.area = self.area;
 

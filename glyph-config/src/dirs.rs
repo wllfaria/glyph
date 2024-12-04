@@ -8,9 +8,7 @@ pub static DIRS: OnceLock<Dirs> = OnceLock::new();
 #[derive(Debug)]
 pub struct Dirs {
     base_dirs: BaseDirs,
-    config_dir: PathBuf,
     config: PathBuf,
-    data_dir: PathBuf,
     data: PathBuf,
 }
 
@@ -54,10 +52,8 @@ impl Dirs {
 
         Dirs {
             config,
-            config_dir,
             base_dirs,
             data,
-            data_dir,
         }
     }
 
