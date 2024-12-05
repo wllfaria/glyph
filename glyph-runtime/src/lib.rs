@@ -20,10 +20,10 @@ pub fn setup_lua_runtime(config_dir: &Path, runtime_sender: UnboundedSender<Runt
     let globals = lua.globals();
     let glyph = get_or_create_module(&lua, "glyph")?;
 
-    let api = lua.create_table()?;
-    setup_colors_api(&lua, &api, runtime_sender.clone())?;
+    let core = lua.create_table()?;
+    setup_colors_api(&lua, &core, runtime_sender.clone())?;
 
-    glyph.set("api", api)?;
+    glyph.set("_core", core)?;
 
     let package = globals.get::<Table>("package")?;
     let package_path = package.get::<String>("path")?;

@@ -92,9 +92,10 @@ impl Config {
         let config = DIRS.get().unwrap().config();
         let init = config.join("init.lua");
 
-        let content = std::fs::read_to_string(&init).unwrap();
-        if let Err(err) = runtime.load(content).set_name(init.to_string_lossy()).eval::<Value>() {
-            todo!("error in lua ----- {err:?}");
+        if let Ok(content) = std::fs::read_to_string(&init) {
+            if let Err(err) = runtime.load(content).set_name(init.to_string_lossy()).eval::<Value>() {
+                todo!("error in lua ----- {err:?}");
+            }
         }
 
         let mut setup_messages = vec![];
