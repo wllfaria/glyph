@@ -1,3 +1,5 @@
+use crate::document::Document;
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cursor {
     x: usize,
@@ -11,6 +13,12 @@ impl Cursor {
 
     pub fn y(&self) -> usize {
         self.y
+    }
+
+    pub fn move_down(&mut self, document: &Document) {
+        if let Some(_next_line) = document.text().get_line(self.y + 1) {
+            self.y += 1;
+        }
     }
 }
 

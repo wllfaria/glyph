@@ -1,13 +1,15 @@
+use crossterm::event::{Event, KeyEvent};
 use glyph_config::{GlyphConfig, GutterAnchor};
 use glyph_core::document::Document;
-use glyph_core::editor::Editor;
+use glyph_core::editor::{Editor, EventResult};
 use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::{Point, Rect};
+use glyph_core::syntax::Highlighter;
 use glyph_core::window::Window;
 
 use crate::backend::{Cell, CursorKind};
 use crate::buffer::Buffer;
-use crate::renderer::{DrawContext, RenderLayer};
+use crate::renderer::{DrawContext, EventContext, RenderLayer};
 use crate::ui::line_number::{get_line_drawer, LineNumberDrawer};
 
 #[derive(Debug, Default)]
@@ -22,10 +24,10 @@ impl EditorLayer {
     pub fn draw_window(
         &self,
         mut area: Rect,
-        ctx: &mut DrawContext,
         document: &Document,
         window: &Window,
         buffer: &mut Buffer,
+        highlighter: &Highlighter,
         config: GlyphConfig,
     ) {
         if config.gutter().enabled {
@@ -36,16 +38,17 @@ impl EditorLayer {
             };
             self.draw_gutter(gutter_area, document, window, buffer, config);
         }
-        self.draw_document(area, ctx, document, window, buffer, config);
+        self.draw_document(area, document, window, buffer, highlighter, config);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_document(
         &self,
         area: Rect,
-        ctx: &mut DrawContext,
         document: &Document,
         window: &Window,
         buffer: &mut Buffer,
+        highlighter: &Highlighter,
         config: GlyphConfig,
     ) {
         let text = document.text();
@@ -59,7 +62,7 @@ impl EditorLayer {
             let mut style = HighlightGroup::default();
 
             for (x, ch) in line.chars().enumerate() {
-                if let Some(syntax) = ctx.highlighter.document_syntax(document.id) {
+                if let Some(syntax) = highlighter.document_syntax(document.id) {
                     if let Some(captures) = syntax.captures.get(&y) {
                         if let Some(capture) = captures.iter().find(|c| x >= c.start.column && x < c.end.column) {
                             if let Some(group) = config.highlight_groups.get(&capture.name) {
@@ -95,9 +98,9 @@ impl EditorLayer {
     }
 
     pub fn draw_statusline(&self, buffer: &mut Buffer, ctx: &mut DrawContext, area: Rect) {
-        let tab = ctx.editor.get_focused_tab();
+        let tab = ctx.editor.focused_tab();
         let focused_window = tab.tree.focus();
-        let window = tab.tree.get(focused_window);
+        let window = tab.tree.window(focused_window);
 
         let editor_mode = ctx.editor.mode().to_string().to_uppercase();
         let cursor = window.cursor().to_string();
@@ -107,6 +110,15 @@ impl EditorLayer {
         let statusline = format!(" [ {editor_mode} ]{gap}{cursor} ");
 
         buffer.set_string(area.x, area.y, &statusline);
+    }
+
+    pub fn handle_key_event(
+        &self,
+        _key_event: &KeyEvent,
+        _ctx: &mut EventContext,
+        _config: GlyphConfig,
+    ) -> Result<Option<EventResult>, std::io::Error> {
+        Ok(None)
     }
 }
 
@@ -118,17 +130,17 @@ impl RenderLayer for EditorLayer {
 
         self.draw_statusline(buffer, ctx, statusline_area);
 
-        for (window, _) in ctx.editor.get_focused_tab().tree.windows() {
-            let document = ctx.editor.document(&window.document).unwrap();
-            self.draw_window(area, ctx, document, window, buffer, config);
+        for (window, _) in ctx.editor.tree.windows() {
+            let document = ctx.editor.document(&window.document);
+            self.draw_window(area, document, window, buffer, ctx.highlighter, config);
         }
     }
 
     fn cursor(&self, editor: &Editor, config: GlyphConfig) -> (Option<Point>, CursorKind) {
-        let tab = editor.get_focused_tab();
+        let tab = editor.focused_tab();
         let focused_window = tab.tree.focus();
-        let window = tab.tree.get(focused_window);
-        let document = editor.document(&window.document).unwrap();
+        let window = tab.tree.window(focused_window);
+        let document = editor.document(&window.document);
         let gutter_size = calculate_gutter_size(document, config);
 
         let point = Point {
@@ -136,6 +148,18 @@ impl RenderLayer for EditorLayer {
             y: window.cursor().y() as u16,
         };
         (Some(point), CursorKind::Block)
+    }
+
+    fn handle_event(
+        &self,
+        event: &Event,
+        ctx: &mut EventContext,
+        config: GlyphConfig,
+    ) -> Result<Option<EventResult>, std::io::Error> {
+        match event {
+            Event::Key(key_event) => self.handle_key_event(key_event, ctx, config),
+            _ => todo!(),
+        }
     }
 }
 

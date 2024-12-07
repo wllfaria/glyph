@@ -91,7 +91,7 @@ impl Tree {
         self.nodes.is_empty()
     }
 
-    pub fn try_get(&self, id: WindowId) -> Option<&Window> {
+    pub fn get_window(&self, id: WindowId) -> Option<&Window> {
         match self.nodes.get(id) {
             Some(Node {
                 value: NodeValue::Window(window),
@@ -101,7 +101,7 @@ impl Tree {
         }
     }
 
-    pub fn try_get_mut(&mut self, id: WindowId) -> Option<&mut Window> {
+    pub fn get_window_mut(&mut self, id: WindowId) -> Option<&mut Window> {
         match self.nodes.get_mut(id) {
             Some(Node {
                 value: NodeValue::Window(window),
@@ -111,12 +111,12 @@ impl Tree {
         }
     }
 
-    pub fn get(&self, id: WindowId) -> &Window {
-        self.try_get(id).unwrap()
+    pub fn window(&self, id: WindowId) -> &Window {
+        self.get_window(id).unwrap()
     }
 
-    pub fn get_mut(&mut self, id: WindowId) -> &mut Window {
-        self.try_get_mut(id).unwrap()
+    pub fn window_mut(&mut self, id: WindowId) -> &mut Window {
+        self.get_window_mut(id).unwrap()
     }
 
     pub fn split(&mut self, mut window: Window, _layout: Layout) -> WindowId {
@@ -126,7 +126,7 @@ impl Tree {
             let node = Node::window(window);
             let node = self.nodes.insert(node);
 
-            self.get_mut(node).id = node;
+            self.window_mut(node).id = node;
             // root is its own parent
             self.nodes[node].parent = node;
             self.focus = node;

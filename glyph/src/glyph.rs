@@ -4,12 +4,12 @@ use std::path::PathBuf;
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use futures::{Stream, StreamExt};
 use glyph_config::GlyphConfig;
-use glyph_core::editor::{Editor, OpenAction};
+use glyph_core::editor::{Editor, EventResult, OpenAction};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
 use glyph_term::backend::Backend;
 use glyph_term::layers::editor_layer::EditorLayer;
-use glyph_term::renderer::{DrawContext, Renderer};
+use glyph_term::renderer::{DrawContext, EventContext, Renderer};
 use glyph_term::terminal::Terminal;
 
 #[derive(Debug)]
@@ -42,7 +42,7 @@ where
         };
 
         let mut highlighter = Highlighter::new();
-        let document = editor.document(&document).unwrap();
+        let document = editor.document(&document);
         highlighter.add_document(document);
 
         Glyph {
@@ -88,9 +88,9 @@ where
 
                 Some(event) = input_stream.next() => {
                     if let Ok(Event::Key(KeyEvent { code: KeyCode::Char('q'), .. })) = event {
-                        break Ok(());
-                    }
-                    // TODO: handle the event
+                        break Ok(())
+                    };
+                    self.handle_event(event?)?;
                     self.draw_frame()?;
                 }
 
@@ -98,10 +98,17 @@ where
         }
     }
 
+    fn handle_event(&mut self, event: Event) -> Result<Option<EventResult>, io::Error> {
+        let mut context = EventContext {
+            editor: &mut self.editor,
+        };
+        self.renderer.handle_event(&event, &mut context, self.config)
+    }
+
     fn draw_frame(&mut self) -> Result<(), std::io::Error> {
         let mut context = DrawContext {
-            editor: &self.editor,
-            highlighter: &self.highlighter,
+            editor: &mut self.editor,
+            highlighter: &mut self.highlighter,
         };
         let buffer = self.terminal.current_buffer();
         self.renderer.draw_frame(buffer, &mut context, self.config);

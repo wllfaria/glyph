@@ -1,5 +1,6 @@
+use crossterm::event::Event;
 use glyph_config::GlyphConfig;
-use glyph_core::editor::Editor;
+use glyph_core::editor::{Editor, EventResult};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
 
@@ -10,15 +11,30 @@ pub trait RenderLayer {
     fn draw(&self, buffer: &mut Buffer, ctx: &mut DrawContext, config: GlyphConfig);
 
     #[allow(unused_variables)]
+    fn handle_event(
+        &self,
+        event: &Event,
+        ctx: &mut EventContext,
+        config: GlyphConfig,
+    ) -> Result<Option<EventResult>, std::io::Error> {
+        Ok(None)
+    }
+
+    #[allow(unused_variables)]
     fn cursor(&self, editor: &Editor, config: GlyphConfig) -> (Option<Point>, CursorKind) {
         (None, CursorKind::Hidden)
     }
 }
 
 #[derive(Debug)]
+pub struct EventContext<'ctx> {
+    pub editor: &'ctx mut Editor,
+}
+
+#[derive(Debug)]
 pub struct DrawContext<'ctx> {
-    pub editor: &'ctx Editor,
-    pub highlighter: &'ctx Highlighter,
+    pub editor: &'ctx mut Editor,
+    pub highlighter: &'ctx mut Highlighter,
 }
 
 #[derive(Default)]
@@ -48,6 +64,23 @@ impl Renderer {
             }
         }
         (None, CursorKind::Hidden)
+    }
+
+    pub fn handle_event(
+        &self,
+        event: &Event,
+        ctx: &mut EventContext,
+        config: GlyphConfig,
+    ) -> Result<Option<EventResult>, std::io::Error> {
+        for layer in &self.layers {
+            match layer.handle_event(event, ctx, config)? {
+                Some(EventResult::Consumed(_)) => {}
+                Some(EventResult::Ignored(_)) => {}
+                None => {}
+            }
+        }
+
+        Ok(None)
     }
 
     pub fn draw_frame(&mut self, buffer: &mut Buffer, ctx: &mut DrawContext, config: GlyphConfig) {

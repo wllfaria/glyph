@@ -4,8 +4,14 @@ use std::path::PathBuf;
 use crate::document::{Document, DocumentId};
 use crate::rect::Rect;
 use crate::tab::Tab;
-use crate::tree::Layout;
+use crate::tree::{Layout, Tree};
 use crate::window::Window;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+pub enum EventResult {
+    Consumed(Option<usize>),
+    Ignored(Option<usize>),
+}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Default)]
 pub enum Mode {
@@ -28,8 +34,9 @@ pub struct Editor {
     mode: Mode,
     next_document_id: DocumentId,
     documents: BTreeMap<DocumentId, Document>,
-    focused_tab: usize,
-    tabs: Vec<Tab>,
+    pub focused_tab: usize,
+    pub tabs: Vec<Tab>,
+    pub tree: Tree,
     area: Rect,
 }
 
@@ -49,6 +56,7 @@ impl Editor {
             documents: BTreeMap::default(),
             tabs: vec![Tab::new(area)],
             focused_tab: 0,
+            tree: Tree::new(area),
             area,
         }
     }
@@ -57,25 +65,29 @@ impl Editor {
         self.area
     }
 
-    pub fn document(&self, id: &DocumentId) -> Option<&Document> {
+    pub fn get_document(&self, id: &DocumentId) -> Option<&Document> {
         self.documents.get(id)
+    }
+
+    pub fn document(&self, id: &DocumentId) -> &Document {
+        self.get_document(id).unwrap()
     }
 
     pub fn mode(&self) -> Mode {
         self.mode
     }
 
-    pub fn get_focused_tab(&self) -> &Tab {
+    pub fn focused_tab(&self) -> &Tab {
         &self.tabs[self.focused_tab]
     }
 
-    fn get_focused_tab_mut(&mut self) -> &mut Tab {
+    pub fn focused_tab_mut(&mut self) -> &mut Tab {
         &mut self.tabs[self.focused_tab]
     }
 
     #[must_use]
     pub fn should_close(&self) -> bool {
-        self.get_focused_tab().tree.is_empty()
+        self.focused_tab().tree.is_empty()
     }
 
     pub fn new_file(&mut self, action: OpenAction) -> DocumentId {
@@ -108,12 +120,12 @@ impl Editor {
         match action {
             OpenAction::Replace => todo!(),
             OpenAction::SplitVertical => {
-                let tab = self.get_focused_tab_mut();
+                let tab = self.focused_tab_mut();
 
                 // get the current focused window or make a new one if theres none
                 let mut window = tab
                     .tree
-                    .try_get(tab.tree.focus())
+                    .get_window(tab.tree.focus())
                     .filter(|w| id == w.document)
                     .cloned()
                     .unwrap_or_else(|| Window::new(id));

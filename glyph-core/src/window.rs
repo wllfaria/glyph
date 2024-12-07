@@ -30,6 +30,10 @@ impl Window {
         &self.cursor
     }
 
+    pub fn cursor_mut(&mut self) -> &mut Cursor {
+        &mut self.cursor
+    }
+
     pub fn scroll(&self) -> (usize, usize) {
         self.scroll
     }
