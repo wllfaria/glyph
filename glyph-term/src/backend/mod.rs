@@ -4,8 +4,22 @@ use std::io;
 
 pub use crossterm::CrosstermBackend;
 use glyph_config::GlyphConfig;
+use glyph_core::color::Color;
 use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::Rect;
+
+/// how to merge styles on a cell
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub enum StyleMerge {
+    /// Keep original styles if colors are not Reset, or attributes are not false
+    Keep,
+    /// Replace every style with the given one, even previously set ones
+    #[default]
+    Replace,
+    /// Merge styles that are defined on the given style, even if that replace existing ones this
+    /// strategy won't replace a defined style with a Reset color, which differs from Replace
+    Merge,
+}
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
@@ -45,6 +59,41 @@ impl Cell {
         Cell {
             symbol,
             style: HighlightGroup::default(),
+        }
+    }
+
+    pub fn with_style(self, style: HighlightGroup) -> Cell {
+        Cell {
+            symbol: self.symbol,
+            style,
+        }
+    }
+
+    pub fn merge_style(&mut self, style: HighlightGroup, behavior: StyleMerge) {
+        match behavior {
+            StyleMerge::Keep => {
+                if self.style.fg == Color::Reset {
+                    self.style.fg = style.fg;
+                }
+                if self.style.bg == Color::Reset {
+                    self.style.bg = style.bg;
+                }
+                if !self.style.bold {
+                    self.style.bold = style.bold;
+                }
+            }
+            StyleMerge::Replace => self.style = style,
+            StyleMerge::Merge => {
+                if style.fg != Color::Reset {
+                    self.style.fg = style.fg;
+                }
+                if style.bg != Color::Reset {
+                    self.style.bg = style.bg;
+                }
+                if style.bold {
+                    self.style.bold = style.bold;
+                }
+            }
         }
     }
 }

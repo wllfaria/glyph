@@ -1,21 +1,25 @@
+use std::collections::BTreeMap;
 use std::io;
 use std::path::PathBuf;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use futures::{Stream, StreamExt};
 use glyph_config::GlyphConfig;
+use glyph_core::cursor::Cursor;
 use glyph_core::editor::{Editor, EventResult, OpenAction};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
+use glyph_core::window::WindowId;
 use glyph_term::backend::Backend;
 use glyph_term::layers::editor_layer::EditorLayer;
-use glyph_term::renderer::{DrawContext, EventContext, Renderer};
+use glyph_term::renderer::{Context, EventContext, Renderer};
 use glyph_term::terminal::Terminal;
 
 #[derive(Debug)]
 pub struct Glyph<'a, B: Backend> {
     terminal: Terminal<B>,
     editor: Editor,
+    cursors: BTreeMap<WindowId, Cursor>,
     highlighter: Highlighter,
     renderer: Renderer,
     config: GlyphConfig<'a>,
@@ -34,7 +38,7 @@ where
         let editor_layer = EditorLayer::new();
         renderer.push_layer(Box::new(editor_layer));
 
-        let document = if let Some(file) = file {
+        let (window, document) = if let Some(file) = file {
             let content = std::fs::read_to_string(&file).unwrap();
             editor.new_file_with_document(PathBuf::from(file), content, OpenAction::SplitVertical)
         } else {
@@ -45,12 +49,17 @@ where
         let document = editor.document(&document);
         highlighter.add_document(document);
 
+        let mut cursors = BTreeMap::default();
+        let cursor = Cursor::default();
+        cursors.insert(window, cursor);
+
         Glyph {
             editor,
             terminal,
             renderer,
             highlighter,
             config,
+            cursors,
         }
     }
 
@@ -106,15 +115,17 @@ where
     }
 
     fn draw_frame(&mut self) -> Result<(), std::io::Error> {
-        let mut context = DrawContext {
+        let mut context = Context {
             editor: &mut self.editor,
             highlighter: &mut self.highlighter,
+            cursors: &mut self.cursors,
         };
         let buffer = self.terminal.current_buffer();
         self.renderer.draw_frame(buffer, &mut context, self.config);
         self.terminal.flush(self.config)?;
+        self.terminal.swap_buffers();
 
-        let (pos, kind) = self.renderer.cursor(&self.editor, self.config);
+        let (pos, kind) = self.renderer.cursor(&mut context, self.config);
         if let Some(Point { x, y }) = pos {
             self.terminal.backend.set_cursor(x, y, kind)?;
         } else {

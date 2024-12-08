@@ -7,6 +7,10 @@ pub struct Cursor {
 }
 
 impl Cursor {
+    pub fn new(x: usize, y: usize) -> Cursor {
+        Cursor { x, y }
+    }
+
     pub fn x(&self) -> usize {
         self.x
     }

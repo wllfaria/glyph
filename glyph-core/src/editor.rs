@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use crate::document::{Document, DocumentId};
 use crate::rect::Rect;
 use crate::tab::Tab;
-use crate::tree::{Layout, Tree};
-use crate::window::Window;
+use crate::tree::Layout;
+use crate::window::{Window, WindowId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum EventResult {
@@ -36,7 +36,6 @@ pub struct Editor {
     documents: BTreeMap<DocumentId, Document>,
     pub focused_tab: usize,
     pub tabs: Vec<Tab>,
-    pub tree: Tree,
     area: Rect,
 }
 
@@ -56,7 +55,6 @@ impl Editor {
             documents: BTreeMap::default(),
             tabs: vec![Tab::new(area)],
             focused_tab: 0,
-            tree: Tree::new(area),
             area,
         }
     }
@@ -90,32 +88,35 @@ impl Editor {
         self.focused_tab().tree.is_empty()
     }
 
-    pub fn new_file(&mut self, action: OpenAction) -> DocumentId {
+    pub fn new_file(&mut self, action: OpenAction) -> (WindowId, DocumentId) {
         let mut document = Document::default();
         let id = self.next_document_id;
         document.id = id;
         self.next_document_id = self.next_document_id.next();
         self.documents.insert(id, document);
-        self.switch_document(id, action);
+        let window_id = self.switch_document(id, action);
 
-        id
+        (window_id, id)
     }
 
-    pub fn new_file_with_document(&mut self, path: PathBuf, text: String, action: OpenAction) -> DocumentId {
+    pub fn new_file_with_document(
+        &mut self,
+        path: PathBuf,
+        text: String,
+        action: OpenAction,
+    ) -> (WindowId, DocumentId) {
         let mut document = Document::new(Some(path), Some(text));
         let id = self.next_document_id;
         document.id = id;
         self.next_document_id = self.next_document_id.next();
         self.documents.insert(id, document);
-        self.switch_document(id, action);
+        let window_id = self.switch_document(id, action);
 
-        id
+        (window_id, id)
     }
 
-    pub fn switch_document(&mut self, id: DocumentId, action: OpenAction) {
-        if !self.documents.contains_key(&id) {
-            return;
-        }
+    pub fn switch_document(&mut self, id: DocumentId, action: OpenAction) -> WindowId {
+        assert!(self.documents.contains_key(&id));
 
         match action {
             OpenAction::Replace => todo!(),
@@ -132,7 +133,7 @@ impl Editor {
 
                 window.document = id;
 
-                tab.tree.split(window, Layout::Vertical);
+                tab.tree.split(window, Layout::Vertical)
             }
             OpenAction::SplitHorizontal => todo!(),
         }

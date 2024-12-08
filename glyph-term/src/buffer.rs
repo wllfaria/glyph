@@ -1,7 +1,7 @@
 use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::Rect;
 
-use crate::backend::{Cell, Drawable};
+use crate::backend::{Cell, Drawable, StyleMerge};
 
 #[derive(Debug)]
 pub struct Buffer {
@@ -14,8 +14,36 @@ pub struct ChangeSet<'cs> {
     changes: Vec<Drawable<'cs>>,
 }
 
+impl ChangeSet<'_> {
+    pub fn is_empty(&self) -> bool {
+        self.changes.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.changes.len()
+    }
+}
+
 pub struct ChangeSetIter<'cs> {
     iter: std::slice::Iter<'cs, Drawable<'cs>>,
+}
+
+pub struct StyleDef {
+    pub behavior: StyleMerge,
+    pub style: HighlightGroup,
+}
+
+pub trait IntoStyleDef {
+    fn into_style_def(self) -> StyleDef;
+}
+
+impl IntoStyleDef for HighlightGroup {
+    fn into_style_def(self) -> StyleDef {
+        StyleDef {
+            behavior: StyleMerge::default(),
+            style: self,
+        }
+    }
 }
 
 impl<'cs> IntoIterator for ChangeSet<'cs> {
@@ -59,17 +87,21 @@ impl Buffer {
         y * self.area.width + x
     }
 
+    #[inline]
     pub fn set_cell(&mut self, x: u16, y: u16, mut cell: Cell, style: HighlightGroup) {
         let idx = self.idx(x, y);
         cell.style = style;
         self.cells[idx as usize] = cell
     }
 
-    pub fn set_string<S: AsRef<str>>(&mut self, x: u16, y: u16, string: S) {
+    pub fn set_string<S: AsRef<str>>(&mut self, x: u16, y: u16, string: S, style: impl IntoStyleDef) {
         let idx = self.idx(x, y);
         let str_ref = string.as_ref();
+        let style_def = style.into_style_def();
 
         for (ch_idx, ch) in str_ref.chars().enumerate() {
+            let cell = &mut self.cells[idx as usize + ch_idx];
+            cell.merge_style(style_def.style, style_def.behavior);
             self.cells[idx as usize + ch_idx] = Cell::new(ch);
         }
     }

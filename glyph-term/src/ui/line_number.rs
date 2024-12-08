@@ -49,12 +49,13 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
         let line_size = usize::max(digits_in_number(total_lines) + 1, 3);
         let x = area.x + config.gutter().sign_column.size();
         let mut line_str = String::with_capacity(line_size);
+        let style = config.highlight_groups.get("line_number").unwrap();
 
         for (row, line) in (start..end).enumerate() {
             line_str.clear();
             use std::fmt::Write;
             write!(&mut line_str, "{:>width$}", line + 1, width = line_size).unwrap();
-            buffer.set_string(x, area.y + row as u16, &line_str);
+            buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
     }
 }
