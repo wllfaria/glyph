@@ -26,4 +26,20 @@ impl Window {
     pub fn scroll(&self) -> (usize, usize) {
         self.scroll
     }
+
+    pub fn scroll_left(&mut self) {
+        self.scroll.0 = self.scroll.0.saturating_sub(1);
+    }
+
+    pub fn scroll_down(&mut self) {
+        self.scroll.1 += 1;
+    }
+
+    pub fn scroll_up(&mut self) {
+        self.scroll.1 = self.scroll.1.saturating_sub(1);
+    }
+
+    pub fn scroll_right(&mut self) {
+        self.scroll.0 += 1;
+    }
 }

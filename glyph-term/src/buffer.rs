@@ -88,10 +88,12 @@ impl Buffer {
     }
 
     #[inline]
-    pub fn set_cell(&mut self, x: u16, y: u16, mut cell: Cell, style: HighlightGroup) {
+    pub fn set_cell(&mut self, x: u16, y: u16, ch: char, style: impl IntoStyleDef) {
         let idx = self.idx(x, y);
-        cell.style = style;
-        self.cells[idx as usize] = cell
+        let cell = &mut self.cells[idx as usize];
+        let style_def = style.into_style_def();
+        cell.merge_style(style_def.style, style_def.behavior);
+        cell.symbol = ch;
     }
 
     pub fn set_string<S: AsRef<str>>(&mut self, x: u16, y: u16, string: S, style: impl IntoStyleDef) {
@@ -102,7 +104,7 @@ impl Buffer {
         for (ch_idx, ch) in str_ref.chars().enumerate() {
             let cell = &mut self.cells[idx as usize + ch_idx];
             cell.merge_style(style_def.style, style_def.behavior);
-            self.cells[idx as usize + ch_idx] = Cell::new(ch);
+            cell.symbol = ch;
         }
     }
 

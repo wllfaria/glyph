@@ -32,7 +32,11 @@ pub struct LuaHighlightGroup {
     bold: bool,
 }
 
-pub fn setup_colors_api(lua: &Lua, core: &Table, runtime_sender: UnboundedSender<RuntimeMessage>) -> Result<()> {
+pub fn setup_colors_api(
+    lua: &Lua,
+    core: &Table,
+    runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
+) -> Result<()> {
     core.set(
         "set_hl_group",
         lua.create_function(move |lua: &Lua, args: (String, Table)| set_hl_group(lua, args, runtime_sender.clone()))?,

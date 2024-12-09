@@ -1,5 +1,4 @@
---- @class glyph.themes
---- @field tokiodark glyph.themes.tokyodark
+--- @class glyph.defaults.themes
 local M = {
   tokyodark = require("defaults.themes.tokyodark"),
 }

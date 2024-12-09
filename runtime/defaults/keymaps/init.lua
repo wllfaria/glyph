@@ -1,6 +1,6 @@
 --- every builtin keymap sets for glyph
---- @class Keymaps
---- @field neovim glyph.keymap.neovim
+--- @class glyph.defaults.keymap
+--- @field neovim glyph.defaults.keymap.neovim
 local M = {
   neovim = require("defaults.keymaps.neovim"),
 }

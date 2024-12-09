@@ -2,21 +2,22 @@ use std::collections::BTreeMap;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use glyph_config::{GlyphConfig, GutterAnchor};
+use glyph_core::command::Context as CmdContext;
 use glyph_core::cursor::Cursor;
 use glyph_core::document::Document;
-use glyph_core::editor::EventResult;
+use glyph_core::editor::{EventResult, Mode};
 use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::{Point, Rect};
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::{Window, WindowId};
 
-use crate::backend::{Cell, CursorKind};
+use crate::backend::CursorKind;
 use crate::buffer::Buffer;
-use crate::renderer::{Context, EventContext, RenderLayer};
+use crate::renderer::{Context, RenderLayer};
 use crate::ui::line_number::{get_line_drawer, LineNumberDrawer};
 
 #[derive(Debug, Default)]
-pub struct EditorLayer {}
+pub struct EditorLayer;
 
 impl EditorLayer {
     pub fn new() -> EditorLayer {
@@ -31,7 +32,7 @@ impl EditorLayer {
         window: &Window,
         buffer: &mut Buffer,
         highlighter: &Highlighter,
-        cursors: &mut BTreeMap<WindowId, Cursor>,
+        cursors: &BTreeMap<WindowId, Cursor>,
         config: GlyphConfig,
     ) {
         if config.gutter().enabled {
@@ -40,9 +41,9 @@ impl EditorLayer {
                 GutterAnchor::Left => area.split_left(gutter_size),
                 GutterAnchor::Right => area.split_right(gutter_size),
             };
-            self.draw_gutter(gutter_area, document, window, buffer, config);
+            self.draw_gutter(gutter_area, document, window, cursors, buffer, config);
         }
-        self.draw_document(area, document, window, buffer, highlighter, cursors, config);
+        self.draw_document(area, document, window, buffer, highlighter, config);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -53,22 +54,23 @@ impl EditorLayer {
         window: &Window,
         buffer: &mut Buffer,
         highlighter: &Highlighter,
-        cursors: &mut BTreeMap<WindowId, Cursor>,
         config: GlyphConfig,
     ) {
         let text = document.text();
-        let cursor = cursors.get(&window.id).unwrap();
-        let start_byte = text.line_to_byte(cursor.y() + window.scroll().1);
-        let end_byte = text.line_to_byte(cursor.y() + window.scroll().1 + area.height as usize + 1);
+        let start_byte = text.line_to_byte(window.scroll().1);
+        let end_byte = text.len_lines();
+        let end_byte = end_byte.min(window.scroll().1 + area.height as usize);
+        let total_lines = end_byte - window.scroll().1;
+        let end_byte = text.line_to_byte(end_byte);
         let text = document.text().slice(start_byte..end_byte);
-        let start = text.line_to_char(cursor.y());
+        let start = text.line_to_char(0);
 
-        for (y, line) in text.lines_at(start).take(area.height as usize).enumerate() {
+        for (y, line) in text.lines_at(start).take(total_lines).enumerate() {
             let mut style = HighlightGroup::default();
 
             for (x, ch) in line.chars().enumerate() {
                 if let Some(syntax) = highlighter.document_syntax(document.id) {
-                    if let Some(captures) = syntax.captures.get(&y) {
+                    if let Some(captures) = syntax.captures.get(&(y + window.scroll().1)) {
                         if let Some(capture) = captures.iter().find(|c| x >= c.start.column && x < c.end.column) {
                             if let Some(group) = config.highlight_groups.get(&capture.name) {
                                 style = *group
@@ -81,11 +83,14 @@ impl EditorLayer {
                     break;
                 };
 
-                buffer.set_cell(area.x + x as u16, y as u16, Cell::new(ch), style)
+                match ch {
+                    '\n' | '\r' => buffer.set_cell(area.x + x as u16, y as u16, ' ', style),
+                    _ => buffer.set_cell(area.x + x as u16, y as u16, ch, style),
+                }
             }
 
             for x in line.chars().count()..area.width as usize {
-                buffer.set_cell(area.x + x as u16, y as u16, Cell::new(' '), style);
+                buffer.set_cell(area.x + x as u16, y as u16, ' ', style);
             }
         }
     }
@@ -95,11 +100,13 @@ impl EditorLayer {
         area: Rect,
         document: &Document,
         window: &Window,
+        cursors: &BTreeMap<WindowId, Cursor>,
         buffer: &mut Buffer,
         config: GlyphConfig,
     ) {
+        let cursor = cursors.get(&window.id).unwrap();
         let line_drawer = get_line_drawer(&config);
-        line_drawer.draw_line_numbers(area, document, window, buffer, config);
+        line_drawer.draw_line_numbers(area, document, window, cursor, buffer, config);
     }
 
     pub fn draw_statusline(&self, buffer: &mut Buffer, ctx: &mut Context, area: Rect) {
@@ -121,13 +128,24 @@ impl EditorLayer {
     pub fn handle_key_event(
         &self,
         key_event: &KeyEvent,
-        ctx: &mut EventContext,
+        ctx: &mut Context,
         config: GlyphConfig,
     ) -> Result<Option<EventResult>, std::io::Error> {
+        match key_event.code {
+            KeyCode::Char(_) => match ctx.editor.mode() {
+                Mode::Normal => {}
+                Mode::Insert => {}
+            },
+            _ => todo!(),
+        }
         if let KeyCode::Char(ch) = key_event.code {
             if let Some(result) = config.keymaps.find_word(ch.to_string()) {
                 if result.data.mode == ctx.editor.mode() {
-                    tracing::debug!("TODO: {result:?}");
+                    let mut context = CmdContext {
+                        editor: ctx.editor,
+                        cursors: ctx.cursors,
+                    };
+                    result.data.command.run(&mut context);
                 }
             }
         }
@@ -159,16 +177,17 @@ impl RenderLayer for EditorLayer {
         let gutter_size = calculate_gutter_size(document, config);
 
         let point = Point {
-            x: (cursor.x() as u16 + gutter_size),
-            y: cursor.y() as u16,
+            x: ((cursor.x() + gutter_size as usize) - window.scroll().0) as u16,
+            y: (cursor.y() - window.scroll().1) as u16,
         };
+
         (Some(point), CursorKind::Block)
     }
 
     fn handle_event(
         &self,
         event: &Event,
-        ctx: &mut EventContext,
+        ctx: &mut Context,
         config: GlyphConfig,
     ) -> Result<Option<EventResult>, std::io::Error> {
         match event {

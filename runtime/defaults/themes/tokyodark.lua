@@ -1,7 +1,8 @@
+--- @type glyph
 local glyph = require("glyph")
 
 --- tokyodark theme adaptation for glyph
---- @class glyph.themes.tokyodark
+--- @class glyph.defaults.themes.tokyodark
 local M = {}
 
 local palette = {

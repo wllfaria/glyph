@@ -121,7 +121,7 @@ impl Tree {
 
     pub fn split(&mut self, mut window: Window, _layout: Layout) -> WindowId {
         if self.nodes.is_empty() {
-            window.area = self.area;
+            window.area = self.area.with_height(self.area.height - 2);
 
             let node = Node::window(window);
             let node = self.nodes.insert(node);

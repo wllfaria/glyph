@@ -1,12 +1,11 @@
+--- @class glyph.themes
+--- @field load_theme fun(name: string): nil
 local M = {}
 
-local default_themes = {
-  default = "default",
-}
-
 function M.load_theme(name)
-  if name == default_themes.default then
-    require("themes.default")
+  local default_themes = require("defaults.themes")
+  if default_themes[name] then
+    default_themes[name].load()
   end
 end
 

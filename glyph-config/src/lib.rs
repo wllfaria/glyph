@@ -4,17 +4,17 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use dirs::DIRS;
-use glyph_core::command::MappableCommand;
+use glyph_core::command::{Context, MappableCommand};
 use glyph_core::editor::Mode;
 use glyph_core::highlights::HighlightGroup;
-use glyph_runtime::keymap::LuaKeymapOpts;
+use glyph_runtime::keymap::{LuaKeymapOpts, LuaMappableCommand};
 use glyph_runtime::RuntimeMessage;
 use glyph_trie::Trie;
 use mlua::{Lua, LuaSerdeExt, Table, Value};
 use serde::Deserialize;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-pub type GlyphConfig<'a> = &'a Config;
+pub type GlyphConfig<'a> = &'a Config<'a>;
 
 fn yes() -> bool {
     true
@@ -94,26 +94,52 @@ impl From<LuaKeymapOpts> for KeymapOptions {
 }
 
 #[derive(Debug)]
-pub struct KeymapConfig {
+pub enum MappableCommandConfig<'cmd> {
+    Borrowed(&'cmd MappableCommand),
+    Owned(MappableCommand),
+}
+
+impl MappableCommandConfig<'_> {
+    pub fn run(&self, ctx: &mut Context) {
+        match self {
+            MappableCommandConfig::Borrowed(MappableCommand::Static { fun, .. }) => fun(ctx),
+            MappableCommandConfig::Borrowed(MappableCommand::Dynamic { callback, .. }) => callback(),
+            MappableCommandConfig::Owned(MappableCommand::Static { fun, .. }) => fun(ctx),
+            MappableCommandConfig::Owned(MappableCommand::Dynamic { callback, .. }) => callback(),
+        }
+    }
+}
+
+impl<'a> From<LuaMappableCommand<'a>> for MappableCommandConfig<'a> {
+    fn from(cmd: LuaMappableCommand<'a>) -> MappableCommandConfig<'a> {
+        match cmd {
+            LuaMappableCommand::Borrowed(inner) => MappableCommandConfig::Borrowed(inner),
+            LuaMappableCommand::Owned(inner) => MappableCommandConfig::Owned(inner),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct KeymapConfig<'cfg> {
     pub mode: Mode,
-    pub command: MappableCommand,
+    pub command: MappableCommandConfig<'cfg>,
     pub options: KeymapOptions,
 }
 
 #[derive(Debug)]
-pub struct Config {
+pub struct Config<'cfg> {
     cursor: CursorConfig,
     gutter: GutterConfig,
     pub highlight_groups: HashMap<String, HighlightGroup>,
-    pub keymaps: Trie<KeymapConfig>,
+    pub keymaps: Trie<KeymapConfig<'cfg>>,
 }
 
-impl Config {
+impl<'cfg> Config<'cfg> {
     pub fn load(
         runtime: &Lua,
-        _runtime_sender: UnboundedSender<RuntimeMessage>,
-        runtime_receiver: &mut UnboundedReceiver<RuntimeMessage>,
-    ) -> glyph_runtime::error::Result<Config> {
+        _runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
+        runtime_receiver: &mut UnboundedReceiver<RuntimeMessage<'static>>,
+    ) -> glyph_runtime::error::Result<Config<'cfg>> {
         let config = DIRS.get().unwrap().config();
         let init = config.join("init.lua");
 
@@ -131,7 +157,7 @@ impl Config {
         let (highlight_groups, keymaps) = handle_setup_messages(setup_messages);
 
         let glyph_mod = glyph_runtime::get_or_create_module(runtime, "glyph")?;
-        let config = glyph_mod.get::<Table>("config")?;
+        let config = glyph_mod.get::<Table>("options")?;
 
         let cursor = runtime.from_value::<CursorConfig>(config.get::<Value>("cursor")?)?;
         let gutter = runtime.from_value::<GutterConfig>(config.get::<Value>("gutter")?)?;
@@ -164,7 +190,7 @@ fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> (HashMap<String, High
             RuntimeMessage::SetKeymap(lua_keymap) => {
                 let keymap = KeymapConfig {
                     mode: lua_keymap.mode,
-                    command: lua_keymap.command,
+                    command: lua_keymap.command.into(),
                     options: lua_keymap.options.into(),
                 };
                 keymaps.add_word(&lua_keymap.keys, keymap);

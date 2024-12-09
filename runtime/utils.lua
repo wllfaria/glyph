@@ -1,3 +1,7 @@
+--- @class glyph.utils
+--- @field table_validate fun(tbl: table, requirements: table<string, type[]>)
+--- @field table_deep_extend fun(behavior: "force" | "keep" | "error", ...: table): table
+--- @field table_contains fun(tbl: table, needle: any): boolean
 local M = {}
 
 --- Validate opts against requirements.
@@ -40,7 +44,7 @@ end
 --- @generic T1: table
 --- @generic T2: table
 --- @param behavior "keep" | "force" | "error"
---- @param ... T2 two or more tables
+--- @vararg T2 two or more tables
 --- @return T1|T2 (table) Merged table
 function M.table_deep_extend(behavior, ...)
   if behavior ~= "error" and behavior ~= "keep" and behavior ~= "force" then

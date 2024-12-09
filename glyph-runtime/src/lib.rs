@@ -12,13 +12,13 @@ use mlua::{Lua, Table, Value};
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug)]
-pub enum RuntimeMessage {
+pub enum RuntimeMessage<'msg> {
     UpdateHighlightGroup(String, HighlightGroup),
-    SetKeymap(LuaKeymap),
+    SetKeymap(LuaKeymap<'msg>),
     Error(String),
 }
 
-pub fn setup_lua_runtime(config_dir: &Path, runtime_sender: UnboundedSender<RuntimeMessage>) -> Result<Lua> {
+pub fn setup_lua_runtime(config_dir: &Path, runtime_sender: UnboundedSender<RuntimeMessage<'static>>) -> Result<Lua> {
     let lua = Lua::new();
     let globals = lua.globals();
     let glyph = get_or_create_module(&lua, "glyph")?;

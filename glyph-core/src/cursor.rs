@@ -19,9 +19,23 @@ impl Cursor {
         self.y
     }
 
+    pub fn move_left(&mut self) {
+        self.x = self.x.saturating_sub(1)
+    }
+
     pub fn move_down(&mut self, document: &Document) {
         if let Some(_next_line) = document.text().get_line(self.y + 1) {
             self.y += 1;
+        }
+    }
+
+    pub fn move_up(&mut self) {
+        self.y = self.y.saturating_sub(1)
+    }
+
+    pub fn move_right(&mut self, document: &Document) {
+        if let Some(line) = document.text().get_line(self.y) {
+            self.x = (line.len_chars() - 1).min(self.x + 1);
         }
     }
 }

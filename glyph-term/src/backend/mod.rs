@@ -52,6 +52,7 @@ pub trait Backend {
     fn set_cursor(&mut self, x: u16, y: u16, kind: CursorKind) -> Result<(), io::Error>;
     fn area(&self) -> Result<Rect, io::Error>;
     fn flush(&mut self) -> Result<(), io::Error>;
+    fn force_restore() -> Result<(), io::Error>;
 }
 
 impl Cell {

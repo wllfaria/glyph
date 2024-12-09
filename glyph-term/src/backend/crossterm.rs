@@ -1,6 +1,8 @@
 use std::io::Write;
 
-use crossterm::event::{DisableFocusChange, EnableFocusChange};
+use crossterm::event::{
+    DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableFocusChange, PopKeyboardEnhancementFlags,
+};
 use crossterm::{cursor, execute, queue, style, terminal};
 use glyph_config::{CursorConfig, CursorStyle, GlyphConfig};
 use glyph_core::rect::Rect;
@@ -98,5 +100,17 @@ where
     fn area(&self) -> Result<Rect, std::io::Error> {
         let (width, height) = terminal::size()?;
         Ok(Rect::new(0, 0, width, height))
+    }
+
+    fn force_restore() -> Result<(), std::io::Error> {
+        let mut stdout = std::io::stdout();
+
+        // reset cursor shape
+        write!(stdout, "\x1B[0 q")?;
+        let _ = execute!(stdout, DisableMouseCapture);
+        let _ = execute!(stdout, PopKeyboardEnhancementFlags);
+        let _ = execute!(stdout, DisableBracketedPaste);
+        execute!(stdout, DisableFocusChange, terminal::LeaveAlternateScreen)?;
+        terminal::disable_raw_mode()
     }
 }

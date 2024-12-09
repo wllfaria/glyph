@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::io;
+use std::io::{self, Stdout};
 use std::path::PathBuf;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
@@ -10,9 +10,9 @@ use glyph_core::editor::{Editor, EventResult, OpenAction};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::WindowId;
-use glyph_term::backend::Backend;
+use glyph_term::backend::{Backend, CrosstermBackend};
 use glyph_term::layers::editor_layer::EditorLayer;
-use glyph_term::renderer::{Context, EventContext, Renderer};
+use glyph_term::renderer::{Context, Renderer};
 use glyph_term::terminal::Terminal;
 
 #[derive(Debug)]
@@ -75,7 +75,7 @@ where
 
         let hook = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |info| {
-            // TODO: restore terminal before panicking
+            _ = CrosstermBackend::<Stdout>::force_restore();
             hook(info);
         }));
 
@@ -111,8 +111,10 @@ where
     }
 
     fn handle_event(&mut self, event: Event) -> Result<Option<EventResult>, io::Error> {
-        let mut context = EventContext {
+        let mut context = Context {
             editor: &mut self.editor,
+            highlighter: &mut self.highlighter,
+            cursors: &mut self.cursors,
         };
         self.renderer.handle_event(&event, &mut context, self.config)
     }

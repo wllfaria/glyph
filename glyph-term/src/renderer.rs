@@ -18,7 +18,7 @@ pub trait RenderLayer {
     fn handle_event(
         &self,
         event: &Event,
-        ctx: &mut EventContext,
+        ctx: &mut Context,
         config: GlyphConfig,
     ) -> Result<Option<EventResult>, std::io::Error> {
         Ok(None)
@@ -28,11 +28,6 @@ pub trait RenderLayer {
     fn cursor(&self, editor: &mut Context, config: GlyphConfig) -> (Option<Point>, CursorKind) {
         (None, CursorKind::Hidden)
     }
-}
-
-#[derive(Debug)]
-pub struct EventContext<'ctx> {
-    pub editor: &'ctx mut Editor,
 }
 
 #[derive(Debug)]
@@ -74,7 +69,7 @@ impl Renderer {
     pub fn handle_event(
         &self,
         event: &Event,
-        ctx: &mut EventContext,
+        ctx: &mut Context,
         config: GlyphConfig,
     ) -> Result<Option<EventResult>, std::io::Error> {
         for layer in &self.layers {

@@ -98,4 +98,12 @@ impl Rect {
         self.width -= size;
         rect
     }
+
+    pub fn with_height(&self, height: u16) -> Rect {
+        if self.height < height {
+            panic!("new rect doesn't fit inside the original rect");
+        }
+
+        Rect::new(self.x, self.y, self.width, height)
+    }
 }
