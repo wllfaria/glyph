@@ -20,6 +20,19 @@ pub enum Mode {
     Insert,
 }
 
+impl<T> From<T> for Mode
+where
+    T: AsRef<str>,
+{
+    fn from(value: T) -> Mode {
+        match value.as_ref() {
+            "normal" | "n" => Mode::Normal,
+            "insert" | "i" => Mode::Insert,
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl std::fmt::Display for Mode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

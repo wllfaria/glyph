@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 glyph-runtime.workspace = true
 glyph-core.workspace = true
+glyph-trie.workspace = true
 
 thiserror.workspace = true
 tracing.workspace = true

@@ -37,21 +37,6 @@ function M.table_validate(tbl, requirements)
   end
 end
 
---- Checks if a element exists in a table
----
---- @generic T1
---- @param tbl table<string, T1>
---- @param element T1
---- @return boolean
-function M.table_contains(tbl, element)
-  for _, value in ipairs(tbl) do
-    if value == element then
-      return true
-    end
-  end
-  return false
-end
-
 --- @generic T1: table
 --- @generic T2: table
 --- @param behavior "keep" | "force" | "error"
@@ -91,6 +76,32 @@ function M.table_deep_extend(behavior, ...)
   end
 
   return result
+end
+
+--- @generic T
+--- @param tbl T[] | table<any, T>
+--- @param needle T
+--- @return boolean
+function M.table_contains(tbl, needle)
+  if type(tbl) ~= "table" then
+    return false
+  end
+
+  if tbl[1] ~= nil then
+    for _, item in ipairs(tbl) do
+      if item == needle then
+        return true
+      end
+    end
+  end
+
+  for _, val in pairs(tbl) do
+    if val == needle then
+      return true
+    end
+  end
+
+  return false
 end
 
 return M

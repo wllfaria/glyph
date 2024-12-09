@@ -1,4 +1,5 @@
 pub mod color;
+pub mod command;
 pub mod cursor;
 pub mod document;
 pub mod editor;

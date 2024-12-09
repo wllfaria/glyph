@@ -368,6 +368,7 @@ dependencies = [
  "directories",
  "glyph-core",
  "glyph-runtime",
+ "glyph-trie",
  "mlua",
  "serde",
  "thiserror 2.0.3",
@@ -412,6 +413,10 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
 ]
+
+[[package]]
+name = "glyph-trie"
+version = "0.1.0"
 
 [[package]]
 name = "hermit-abi"

@@ -16,7 +16,10 @@ use glyph_term::renderer::{Context, EventContext, Renderer};
 use glyph_term::terminal::Terminal;
 
 #[derive(Debug)]
-pub struct Glyph<'a, B: Backend> {
+pub struct Glyph<'a, B>
+where
+    B: Backend,
+{
     terminal: Terminal<B>,
     editor: Editor,
     cursors: BTreeMap<WindowId, Cursor>,

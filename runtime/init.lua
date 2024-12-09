@@ -1,12 +1,11 @@
 local glyph = require("glyph")
 
-glyph.config = require("cfg")
-glyph.api = require("utils")
+glyph.u = require("utils")
 
 local colors = require("colors")
+local keymaps = require("keymaps")
 local pretty_printer = require("pretty_printer")
 local themes = require("themes")
+glyph.api = glyph.u.table_deep_extend("error", colors, pretty_printer, themes, keymaps)
 
-glyph.api = glyph.api.table_deep_extend("error", glyph.api, colors, pretty_printer, themes)
-
-glyph.api.load_theme("default")
+require("defaults")

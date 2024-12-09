@@ -7,6 +7,7 @@ members = [
     "glyph-term",
     "glyph-config",
     "glyph-runtime",
+    "glyph-trie",
 ]
 
 [workspace.dependencies]
@@ -14,6 +15,7 @@ glyph-core = { path = "glyph-core" }
 glyph-term = { path = "glyph-term" }
 glyph-config = { path = "glyph-config" }
 glyph-runtime = { path = "glyph-runtime" }
+glyph-trie = { path = "glyph-trie" }
 
 thiserror = "2.0.3"
 tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread", "time", "sync"] }

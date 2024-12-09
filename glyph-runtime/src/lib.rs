@@ -1,17 +1,20 @@
 mod colors;
 pub mod error;
+pub mod keymap;
 
 use std::path::{Path, PathBuf};
 
 use colors::setup_colors_api;
 use error::{Error, Result};
 use glyph_core::highlights::HighlightGroup;
+use keymap::{setup_keymap_api, LuaKeymap};
 use mlua::{Lua, Table, Value};
 use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug)]
 pub enum RuntimeMessage {
     UpdateHighlightGroup(String, HighlightGroup),
+    SetKeymap(LuaKeymap),
     Error(String),
 }
 
@@ -22,7 +25,7 @@ pub fn setup_lua_runtime(config_dir: &Path, runtime_sender: UnboundedSender<Runt
 
     let core = lua.create_table()?;
     setup_colors_api(&lua, &core, runtime_sender.clone())?;
-
+    setup_keymap_api(&lua, &core, runtime_sender.clone())?;
     glyph.set("_core", core)?;
 
     let package = globals.get::<Table>("package")?;

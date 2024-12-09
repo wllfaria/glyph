@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crossterm::event::{Event, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent};
 use glyph_config::{GlyphConfig, GutterAnchor};
 use glyph_core::cursor::Cursor;
 use glyph_core::document::Document;
@@ -120,10 +120,18 @@ impl EditorLayer {
 
     pub fn handle_key_event(
         &self,
-        _key_event: &KeyEvent,
-        _ctx: &mut EventContext,
-        _config: GlyphConfig,
+        key_event: &KeyEvent,
+        ctx: &mut EventContext,
+        config: GlyphConfig,
     ) -> Result<Option<EventResult>, std::io::Error> {
+        if let KeyCode::Char(ch) = key_event.code {
+            if let Some(result) = config.keymaps.find_word(ch.to_string()) {
+                if result.data.mode == ctx.editor.mode() {
+                    tracing::debug!("TODO: {result:?}");
+                }
+            }
+        }
+
         Ok(None)
     }
 }

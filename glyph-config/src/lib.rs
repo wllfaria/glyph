@@ -1,16 +1,20 @@
 pub mod dirs;
 
-pub type GlyphConfig<'a> = &'a Config;
-
 use std::collections::HashMap;
 use std::fmt::Debug;
 
 use dirs::DIRS;
+use glyph_core::command::MappableCommand;
+use glyph_core::editor::Mode;
 use glyph_core::highlights::HighlightGroup;
+use glyph_runtime::keymap::LuaKeymapOpts;
 use glyph_runtime::RuntimeMessage;
+use glyph_trie::Trie;
 use mlua::{Lua, LuaSerdeExt, Table, Value};
 use serde::Deserialize;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+
+pub type GlyphConfig<'a> = &'a Config;
 
 fn yes() -> bool {
     true
@@ -77,10 +81,31 @@ pub struct GutterConfig {
 }
 
 #[derive(Debug)]
+pub struct KeymapOptions {
+    pub description: String,
+}
+
+impl From<LuaKeymapOpts> for KeymapOptions {
+    fn from(opts: LuaKeymapOpts) -> KeymapOptions {
+        KeymapOptions {
+            description: opts.description,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct KeymapConfig {
+    pub mode: Mode,
+    pub command: MappableCommand,
+    pub options: KeymapOptions,
+}
+
+#[derive(Debug)]
 pub struct Config {
     cursor: CursorConfig,
     gutter: GutterConfig,
     pub highlight_groups: HashMap<String, HighlightGroup>,
+    pub keymaps: Trie<KeymapConfig>,
 }
 
 impl Config {
@@ -103,7 +128,7 @@ impl Config {
             setup_messages.push(message);
         }
 
-        let highlight_groups = handle_setup_messages(setup_messages);
+        let (highlight_groups, keymaps) = handle_setup_messages(setup_messages);
 
         let glyph_mod = glyph_runtime::get_or_create_module(runtime, "glyph")?;
         let config = glyph_mod.get::<Table>("config")?;
@@ -115,6 +140,7 @@ impl Config {
             cursor,
             gutter,
             highlight_groups,
+            keymaps,
         })
     }
 
@@ -127,15 +153,24 @@ impl Config {
     }
 }
 
-fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> HashMap<String, HighlightGroup> {
+fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> (HashMap<String, HighlightGroup>, Trie<KeymapConfig>) {
     let mut highlight_groups = HashMap::default();
+    let mut keymaps = Trie::default();
 
     for message in messages {
         match message {
-            RuntimeMessage::UpdateHighlightGroup(name, group) => _ = highlight_groups.insert(name, group),
             RuntimeMessage::Error(error) => println!("{error:?}"),
+            RuntimeMessage::UpdateHighlightGroup(name, group) => _ = highlight_groups.insert(name, group),
+            RuntimeMessage::SetKeymap(lua_keymap) => {
+                let keymap = KeymapConfig {
+                    mode: lua_keymap.mode,
+                    command: lua_keymap.command,
+                    options: lua_keymap.options.into(),
+                };
+                keymaps.add_word(&lua_keymap.keys, keymap);
+            }
         };
     }
 
-    highlight_groups
+    (highlight_groups, keymaps)
 }
