@@ -1,4 +1,4 @@
---- @class glyph.themes
+--- @class glyph.api.themes
 --- @field load_theme fun(name: string): nil
 local M = {}
 

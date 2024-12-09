@@ -1,4 +1,4 @@
---- @class glyph.pretty_printer
+--- @class glyph.api.pretty_printer
 --- @field pretty_print fun(tbl: any, opts: PrettyPrinterOpts): nil
 local M = {}
 

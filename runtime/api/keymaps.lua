@@ -1,7 +1,7 @@
 --- @type glyph
 local glyph = require("glyph")
 
---- @class glyph.keymaps
+--- @class glyph.api.keymaps
 --- @field set_keymap fun(mode: "n" | "i" | "c" | "v", keys: string, command: string | function, opts?: KeymapOpts): nil
 local M = {}
 

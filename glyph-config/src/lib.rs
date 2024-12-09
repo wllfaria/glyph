@@ -8,7 +8,7 @@ use glyph_core::command::{Context, MappableCommand};
 use glyph_core::editor::Mode;
 use glyph_core::highlights::HighlightGroup;
 use glyph_runtime::keymap::{LuaKeymapOpts, LuaMappableCommand};
-use glyph_runtime::RuntimeMessage;
+use glyph_runtime::{RuntimeMessage, RuntimeQuery};
 use glyph_trie::Trie;
 use mlua::{Lua, LuaSerdeExt, Table, Value};
 use serde::Deserialize;

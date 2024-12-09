@@ -6,7 +6,7 @@ local glyph = require("glyph")
 --- @field bg? string
 --- @field bold? boolean
 
---- @class glyph.colors
+--- @class glyph.api.colors
 --- @field set_hl_group fun(name: string, opts: glyph.colors.hl_group_opts)
 local M = {}
 
