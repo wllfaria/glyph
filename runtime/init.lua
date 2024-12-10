@@ -3,13 +3,15 @@
 --- @field api glyph.api
 --- @field options glyph.options
 --- @field _core glyph.core
---- @field _startup function
 
 --- @class glyph.core
 --- @field set_keymap_command fun(mode: "n" | "i" | "c" | "v", keys: string, command: string, opts?: KeymapOpts)
 --- @field set_keymap_function fun(mode: "n" | "i" | "c" | "v", keys: string, command: function, opts?: KeymapOpts)
 --- @field set_hl_group fun(name: string, opts: glyph.colors.hl_group)
 --- @field get_editor_mode fun(): string
+--- @field get_active_window fun(): number
+--- @field get_window_cursor fun(window: number): glyph.t.point
+--- @field window_is_valid fun(window: number): boolean
 
 --- @class glyph.options
 --- @field cursor glyph.options.cursor
@@ -38,9 +40,5 @@ local glyph = require("glyph")
 
 glyph.u = require("utils")
 glyph.api = require("api")
-
-glyph._startup = function()
-  require("defaults.statusline")
-end
 
 require("defaults")

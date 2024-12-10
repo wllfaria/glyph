@@ -13,9 +13,8 @@ use error::{Error, Result};
 use glyph_core::editor::{Editor, Mode};
 use glyph_core::highlights::HighlightGroup;
 use keymap::{setup_keymap_api, LuaKeymap};
-use mlua::{FromLua, Function, Lua, Table, Value};
+use mlua::{Lua, Table, Value};
 use parking_lot::RwLock;
-use statusline::StatuslineConfig;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot::Sender;
 
@@ -31,7 +30,11 @@ pub enum RuntimeMessage<'msg> {
     Error(String),
 }
 
-pub fn setup_lua_runtime(config_dir: &Path, runtime_sender: UnboundedSender<RuntimeMessage<'static>>) -> Result<Lua> {
+pub fn setup_lua_runtime(
+    config_dir: &Path,
+    runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
+    context: Arc<RwLock<GlyphContext>>,
+) -> Result<Lua> {
     let lua = Lua::new();
     let globals = lua.globals();
     let glyph = get_or_create_module(&lua, "glyph")?;
@@ -39,6 +42,7 @@ pub fn setup_lua_runtime(config_dir: &Path, runtime_sender: UnboundedSender<Runt
     let core = lua.create_table()?;
     setup_colors_api(&lua, &core, runtime_sender.clone())?;
     setup_keymap_api(&lua, &core, runtime_sender.clone())?;
+    setup_editor_api(&lua, &core, runtime_sender.clone(), context)?;
     glyph.set("_core", core)?;
 
     let package = globals.get::<Table>("package")?;
@@ -71,24 +75,6 @@ pub fn setup_lua_runtime(config_dir: &Path, runtime_sender: UnboundedSender<Runt
 #[derive(Debug)]
 pub struct GlyphContext {
     pub editor: Arc<RwLock<Editor>>,
-}
-
-pub fn setup_post_startup_apis(
-    lua: &Lua,
-    runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
-    context: GlyphContext,
-) -> Result<StatuslineConfig> {
-    let context = Arc::new(RwLock::new(context));
-    let glyph = get_or_create_module(lua, "glyph")?;
-    let core = glyph.get::<Table>("_core")?;
-
-    setup_editor_api(lua, &core, runtime_sender.clone(), context)?;
-
-    // setup all of the things that needed to wait until editor startup on lua runtime
-    glyph.get::<Function>("_startup")?.call::<()>(())?;
-    let options = glyph.get::<Table>("options")?;
-
-    Ok(StatuslineConfig::from_lua(options.get::<Value>("statusline")?, lua)?)
 }
 
 pub fn get_or_create_module(lua: &Lua, name: &str) -> Result<Table> {

@@ -5,20 +5,21 @@ use std::sync::Arc;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use futures::{Stream, StreamExt};
+use glyph_config::dirs::DIRS;
 use glyph_config::Config;
 use glyph_core::cursor::Cursor;
 use glyph_core::editor::{Editor, EventResult, OpenAction};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::WindowId;
-use glyph_runtime::{setup_post_startup_apis, GlyphContext, RuntimeMessage};
+use glyph_runtime::GlyphContext;
 use glyph_term::backend::{Backend, CrosstermBackend};
 use glyph_term::layers::editor_layer::EditorLayer;
 use glyph_term::renderer::{Context, Renderer};
 use glyph_term::terminal::Terminal;
 use mlua::Lua;
 use parking_lot::RwLock;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::unbounded_channel;
 
 #[derive(Debug)]
 pub struct Glyph<'a, B>
@@ -30,7 +31,7 @@ where
     cursors: BTreeMap<WindowId, Cursor>,
     highlighter: Highlighter,
     renderer: Renderer,
-    config: &'a mut Config<'a>,
+    config: Config<'a>,
     runtime: Lua,
 }
 
@@ -38,13 +39,7 @@ impl<'a, B> Glyph<'a, B>
 where
     B: Backend,
 {
-    pub fn new(
-        backend: B,
-        runtime: Lua,
-        runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
-        _runtime_receiver: UnboundedReceiver<RuntimeMessage<'static>>,
-        config: &'a mut Config<'a>,
-    ) -> glyph_runtime::error::Result<Glyph<'a, B>> {
+    pub fn new(backend: B) -> glyph_runtime::error::Result<Glyph<'a, B>> {
         let file = std::env::args().nth(1);
 
         let mut editor = Editor::new(backend.area().expect("couldn't get terminal size"));
@@ -70,11 +65,14 @@ where
 
         let editor = Arc::new(RwLock::new(editor));
 
-        let glyph_context = GlyphContext { editor: editor.clone() };
-
-        let statusline = setup_post_startup_apis(&runtime, runtime_sender, glyph_context)?;
-        println!("{statusline:?}");
-        config.statusline = statusline;
+        let glyph_context = Arc::new(RwLock::new(GlyphContext { editor: editor.clone() }));
+        let (runtime_sender, mut runtime_receiver) = unbounded_channel();
+        let runtime = glyph_runtime::setup_lua_runtime(
+            DIRS.get().unwrap().config(),
+            runtime_sender.clone(),
+            glyph_context.clone(),
+        )?;
+        let config = glyph_config::Config::load(&runtime, &mut runtime_receiver)?;
 
         Ok(Glyph {
             editor,
@@ -137,7 +135,7 @@ where
             highlighter: &mut self.highlighter,
             cursors: &mut self.cursors,
         };
-        self.renderer.handle_event(&event, &mut context, self.config)
+        self.renderer.handle_event(&event, &mut context, &self.config)
     }
 
     fn draw_frame(&mut self) -> Result<(), std::io::Error> {
@@ -147,11 +145,11 @@ where
             cursors: &mut self.cursors,
         };
         let buffer = self.terminal.current_buffer();
-        self.renderer.draw_frame(buffer, &mut context, self.config);
-        self.terminal.flush(self.config)?;
+        self.renderer.draw_frame(buffer, &mut context, &self.config);
+        self.terminal.flush(&self.config)?;
         self.terminal.swap_buffers();
 
-        let (pos, kind) = self.renderer.cursor(&mut context, self.config);
+        let (pos, kind) = self.renderer.cursor(&mut context, &self.config);
         if let Some(Point { x, y }) = pos {
             self.terminal.backend.set_cursor(x, y, kind)?;
         } else {

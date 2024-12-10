@@ -76,6 +76,6 @@ impl Default for Dirs {
     }
 }
 
-pub fn setup_dirs() {
-    DIRS.get_or_init(Default::default);
+pub fn setup_dirs() -> &'static Dirs {
+    DIRS.get_or_init(Default::default)
 }

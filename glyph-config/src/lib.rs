@@ -11,9 +11,9 @@ use glyph_runtime::keymap::{LuaKeymapOpts, LuaMappableCommand};
 use glyph_runtime::statusline::StatuslineConfig;
 use glyph_runtime::RuntimeMessage;
 use glyph_trie::Trie;
-use mlua::{Lua, LuaSerdeExt, Table, Value};
+use mlua::{FromLua, Lua, LuaSerdeExt, Table, Value};
 use serde::Deserialize;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::UnboundedReceiver;
 
 pub type GlyphConfig<'a> = &'a Config<'a>;
 
@@ -139,7 +139,6 @@ pub struct Config<'cfg> {
 impl<'cfg> Config<'cfg> {
     pub fn load(
         runtime: &Lua,
-        _runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
         runtime_receiver: &mut UnboundedReceiver<RuntimeMessage<'static>>,
     ) -> glyph_runtime::error::Result<Config<'cfg>> {
         let config = DIRS.get().unwrap().config();
@@ -163,14 +162,16 @@ impl<'cfg> Config<'cfg> {
 
         let cursor = runtime.from_value::<CursorConfig>(config.get::<Value>("cursor")?)?;
         let gutter = runtime.from_value::<GutterConfig>(config.get::<Value>("gutter")?)?;
+        let statusline = StatuslineConfig::from_lua(config.get::<Value>("statusline")?, runtime)?;
+
+        println!("{statusline:#?}");
 
         Ok(Config {
             cursor,
             gutter,
             highlight_groups,
             keymaps,
-            // will be loaded when the editors starts up
-            statusline: Default::default(),
+            statusline,
         })
     }
 
