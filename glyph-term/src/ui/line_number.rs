@@ -41,7 +41,7 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
         area: Rect,
         document: &Document,
         window: &Window,
-        _: &Cursor,
+        cursor: &Cursor,
         buffer: &mut Buffer,
         config: GlyphConfig,
     ) {
@@ -52,12 +52,17 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
         let line_size = usize::max(digits_in_number(total_lines) + 1, 3);
         let x = area.x + config.gutter().sign_column.size();
         let mut line_str = String::with_capacity(line_size);
+
         let style = config.highlight_groups.get("line_number").unwrap();
+        let current_line_style = config.highlight_groups.get("current_line").unwrap();
 
         for (row, line) in (start..end).enumerate() {
             line_str.clear();
             use std::fmt::Write;
             write!(&mut line_str, "{:>width$}", line + 1, width = line_size).unwrap();
+
+            let diff = cursor.y().abs_diff(line);
+            let style = if diff == 0 { current_line_style } else { style };
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
     }
@@ -80,13 +85,16 @@ impl LineNumberDrawer for RelativeLineDrawer {
         let line_size = usize::max(digits_in_number(total_lines) + 1, 3);
         let x = area.x + config.gutter().sign_column.size();
         let mut line_str = String::with_capacity(line_size);
+
         let style = config.highlight_groups.get("line_number").unwrap();
+        let current_line_style = config.highlight_groups.get("current_line").unwrap();
 
         for (row, line) in (start..end).enumerate() {
             line_str.clear();
             use std::fmt::Write;
 
             let diff = cursor.y().abs_diff(line);
+            let style = if diff == 0 { current_line_style } else { style };
 
             write!(&mut line_str, "{:>width$}", diff, width = line_size).unwrap();
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
@@ -111,13 +119,16 @@ impl LineNumberDrawer for RelativeNumberedLineDrawer {
         let line_size = usize::max(digits_in_number(total_lines) + 1, 3);
         let x = area.x + config.gutter().sign_column.size();
         let mut line_str = String::with_capacity(line_size);
+
         let style = config.highlight_groups.get("line_number").unwrap();
+        let current_line_style = config.highlight_groups.get("current_line").unwrap();
 
         for (row, line) in (start..end).enumerate() {
             line_str.clear();
             use std::fmt::Write;
 
             let diff = cursor.y().abs_diff(line);
+            let style = if diff == 0 { current_line_style } else { style };
             let diff = if diff == 0 { cursor.y() + 1 } else { diff };
 
             write!(&mut line_str, "{:>width$}", diff, width = line_size).unwrap();

@@ -6,11 +6,13 @@ edition = "2021"
 [dependencies]
 glyph-core.workspace = true
 glyph-config.workspace = true
+glyph-runtime.workspace = true
 
 tracing.workspace = true
 tracing-appender.workspace = true
 tracing-subscriber.workspace = true
 parking_lot.workspace = true
+mlua.workspace = true
 
 crossterm = { version = "0.28.1", features = ["event-stream"] }
 slotmap = "1.0.7"

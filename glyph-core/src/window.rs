@@ -1,8 +1,35 @@
+use std::num::NonZeroUsize;
+
 use crate::document::DocumentId;
 use crate::rect::Rect;
 
-slotmap::new_key_type! {
-    pub struct WindowId;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct WindowId(NonZeroUsize);
+
+impl WindowId {
+    pub fn new(window: usize) -> Option<WindowId> {
+        Some(WindowId(NonZeroUsize::new(window)?))
+    }
+}
+
+impl Default for WindowId {
+    fn default() -> Self {
+        // Safety: 1 is non-zero
+        WindowId(unsafe { NonZeroUsize::new_unchecked(1) })
+    }
+}
+
+impl WindowId {
+    pub fn next(&self) -> WindowId {
+        // Safety: will always be non-zero and less than usize::max + 1
+        WindowId(unsafe { NonZeroUsize::new_unchecked(self.0.get().saturating_add(1)) })
+    }
+}
+
+impl From<WindowId> for usize {
+    fn from(value: WindowId) -> Self {
+        value.0.into()
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -14,17 +14,26 @@ pub enum StyleMerge {
     /// Keep original styles if colors are not Reset, or attributes are not false
     Keep,
     /// Replace every style with the given one, even previously set ones
-    #[default]
     Replace,
     /// Merge styles that are defined on the given style, even if that replace existing ones this
     /// strategy won't replace a defined style with a Reset color, which differs from Replace
+    #[default]
     Merge,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
     pub symbol: char,
     pub style: HighlightGroup,
+}
+
+impl Default for Cell {
+    fn default() -> Cell {
+        Cell {
+            symbol: ' ',
+            style: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug)]

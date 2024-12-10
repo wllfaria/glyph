@@ -1,7 +1,19 @@
 use glyph_core::highlights::HighlightGroup;
-use glyph_core::rect::Rect;
+use glyph_core::rect::{Point, Rect};
 
 use crate::backend::{Cell, Drawable, StyleMerge};
+
+#[derive(Debug)]
+pub enum CellRange<T: Into<Point>> {
+    All(std::marker::PhantomData<T>),
+    Range(T, T),
+}
+
+impl<T: Into<Point>> CellRange<T> {
+    pub fn all() -> CellRange<T> {
+        CellRange::All(std::marker::PhantomData)
+    }
+}
 
 #[derive(Debug)]
 pub struct Buffer {
@@ -46,6 +58,21 @@ impl IntoStyleDef for HighlightGroup {
     }
 }
 
+impl IntoStyleDef for &HighlightGroup {
+    fn into_style_def(self) -> StyleDef {
+        StyleDef {
+            behavior: StyleMerge::default(),
+            style: *self,
+        }
+    }
+}
+
+impl IntoStyleDef for StyleDef {
+    fn into_style_def(self) -> StyleDef {
+        self
+    }
+}
+
 impl<'cs> IntoIterator for ChangeSet<'cs> {
     type IntoIter = std::vec::IntoIter<Self::Item>;
     type Item = Drawable<'cs>;
@@ -87,7 +114,6 @@ impl Buffer {
         y * self.area.width + x
     }
 
-    #[inline]
     pub fn set_cell(&mut self, x: u16, y: u16, ch: char, style: impl IntoStyleDef) {
         let idx = self.idx(x, y);
         let cell = &mut self.cells[idx as usize];
@@ -106,6 +132,34 @@ impl Buffer {
             cell.merge_style(style_def.style, style_def.behavior);
             cell.symbol = ch;
         }
+    }
+
+    pub fn set_range_style<T>(&mut self, range: impl Into<CellRange<T>>, style_def: impl IntoStyleDef)
+    where
+        T: Into<Point>,
+    {
+        let range: CellRange<T> = range.into();
+        let style_def = style_def.into_style_def();
+
+        match range {
+            CellRange::All(_) => self
+                .cells
+                .iter_mut()
+                .for_each(|cell| cell.merge_style(style_def.style, style_def.behavior)),
+            CellRange::Range(start, end) => {
+                let start: Point = start.into();
+                let end: Point = end.into();
+                let start = self.idx(start.x, start.y);
+                let end = self.idx(end.x, end.y);
+
+                for i in start..end {
+                    let cell = &mut self.cells[i as usize];
+                    cell.merge_style(style_def.style, style_def.behavior);
+                }
+            }
+        }
+
+        tracing::debug!("{:?}", &self.cells[0]);
     }
 
     pub fn diff(&self, other: &Buffer) -> ChangeSet {

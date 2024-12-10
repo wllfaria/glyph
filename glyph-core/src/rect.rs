@@ -24,6 +24,18 @@ impl From<&Cursor> for Point {
     }
 }
 
+impl From<(u16, u16)> for Point {
+    fn from((x, y): (u16, u16)) -> Self {
+        Point { x, y }
+    }
+}
+
+impl From<Rect> for Point {
+    fn from(rect: Rect) -> Self {
+        Point { x: rect.x, y: rect.y }
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Rect {
     pub x: u16,
@@ -105,5 +117,13 @@ impl Rect {
         }
 
         Rect::new(self.x, self.y, self.width, height)
+    }
+
+    pub fn bottom(&self) -> u16 {
+        self.y + self.height
+    }
+
+    pub fn right(&self) -> u16 {
+        self.x + self.width
     }
 }

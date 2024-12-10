@@ -112,21 +112,3 @@ impl TrieNode {
         }
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_trie() {
-        let mut trie = Trie::default();
-        trie.add_word("lol", "lol");
-
-        println!("{trie:?}");
-        let result = trie.find_word("lol");
-
-        println!("{result:?}");
-
-        panic!()
-    }
-}

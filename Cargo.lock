@@ -384,7 +384,6 @@ version = "0.1.0"
 dependencies = [
  "parking_lot",
  "ropey",
- "slotmap",
  "streaming-iterator",
  "thiserror 2.0.3",
  "tracing",
@@ -412,6 +411,8 @@ dependencies = [
  "divan",
  "glyph-config",
  "glyph-core",
+ "glyph-runtime",
+ "mlua",
  "parking_lot",
  "slotmap",
  "tracing",

@@ -164,8 +164,6 @@ impl<'cfg> Config<'cfg> {
         let gutter = runtime.from_value::<GutterConfig>(config.get::<Value>("gutter")?)?;
         let statusline = StatuslineConfig::from_lua(config.get::<Value>("statusline")?, runtime)?;
 
-        println!("{statusline:#?}");
-
         Ok(Config {
             cursor,
             gutter,

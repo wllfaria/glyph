@@ -13,7 +13,17 @@ impl Default for DocumentId {
     }
 }
 
+impl From<DocumentId> for usize {
+    fn from(value: DocumentId) -> Self {
+        value.0.into()
+    }
+}
+
 impl DocumentId {
+    pub fn new(document: usize) -> Option<DocumentId> {
+        Some(DocumentId(NonZeroUsize::new(document)?))
+    }
+
     pub fn next(&self) -> DocumentId {
         // Safety: will always be non-zero and less than usize::max + 1
         DocumentId(unsafe { NonZeroUsize::new_unchecked(self.0.get().saturating_add(1)) })

@@ -2,26 +2,33 @@
 local glyph = require("glyph")
 
 --- @class glyph.api.window
---- @field get_active_window fun(): number
---- @field get_window_cursor fun(window: number): boolean, glyph.t.point?
+--- @field window_get_active fun(): integer
+--- @field window_is_valid fun(window: integer): boolean
+--- @field window_get_cursor fun(window: integer): boolean, glyph.t.point
 local M = {}
 
---- @return number
-function M.get_active_window()
-  return glyph._core.get_active_window()
+--- @return integer
+function M.window_get_active()
+  return glyph._core.window_get_active()
+end
+
+--- @param window integer
+--- @return boolean
+function M.window_is_valid(window)
+  return glyph._core.window_is_valid(window)
 end
 
 --- @class glyph.t.point
---- @field x number
---- @field y number
+--- @field x integer
+--- @field y integer
 
---- @param window number
---- @return boolean, glyph.t.point?
-function M.get_window_cursor(window)
+--- @param window integer
+--- @return boolean, glyph.t.point
+function M.window_get_cursor(window)
   if glyph._core.window_is_valid(window) then
-    return true, glyph._core.get_window_cursor(window)
+    return pcall(glyph._core.window_get_cursor, window)
   end
-  return false, nil
+  return false, {}
 end
 
 return M

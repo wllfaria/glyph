@@ -1,3 +1,4 @@
+use glyph_core::highlights::HighlightGroup;
 use mlua::{FromLua, Function, Lua, LuaSerdeExt, Number, Table, Value};
 
 use crate::colors::LuaHighlightGroup;
@@ -10,7 +11,7 @@ pub struct StatuslineConfig {
 
 #[derive(Debug)]
 pub enum StatuslineStyle {
-    HighlightGroup(LuaHighlightGroup),
+    HighlightGroup(HighlightGroup),
     Named(String),
 }
 
@@ -82,7 +83,11 @@ impl FromLua for StatuslineContent {
 impl FromLua for StatuslineStyle {
     fn from_lua(value: Value, lua: &Lua) -> mlua::Result<Self> {
         match value {
-            Value::Table(_) => Ok(StatuslineStyle::HighlightGroup(lua.from_value(value)?)),
+            Value::Table(_) => {
+                let style = lua.from_value::<LuaHighlightGroup>(value)?;
+                let style = HighlightGroup::try_from(style).unwrap();
+                Ok(StatuslineStyle::HighlightGroup(style))
+            }
             Value::String(inner) => Ok(StatuslineStyle::Named(inner.to_string_lossy())),
             _ => Err(mlua::Error::runtime(
                 "statusline style can only be a string or highlight group",

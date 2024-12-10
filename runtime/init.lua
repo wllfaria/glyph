@@ -9,9 +9,12 @@
 --- @field set_keymap_function fun(mode: "n" | "i" | "c" | "v", keys: string, command: function, opts?: KeymapOpts)
 --- @field set_hl_group fun(name: string, opts: glyph.colors.hl_group)
 --- @field get_editor_mode fun(): string
---- @field get_active_window fun(): number
---- @field get_window_cursor fun(window: number): glyph.t.point
---- @field window_is_valid fun(window: number): boolean
+--- @field window_get_active fun(): integer
+--- @field window_get_cursor fun(window: integer): glyph.t.point
+--- @field window_is_valid fun(window: integer): boolean
+--- @field document_get_active fun(): integer
+--- @field document_get_line_count fun(document: integer): integer
+--- @field document_is_valid fun(document: integer): boolean
 
 --- @class glyph.options
 --- @field cursor glyph.options.cursor

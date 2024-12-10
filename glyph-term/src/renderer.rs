@@ -8,6 +8,7 @@ use glyph_core::editor::{Editor, EventResult};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::WindowId;
+use mlua::Lua;
 use parking_lot::RwLock;
 
 use crate::backend::CursorKind;
@@ -35,8 +36,9 @@ pub trait RenderLayer {
 #[derive(Debug)]
 pub struct Context<'ctx> {
     pub editor: Arc<RwLock<Editor>>,
+    pub cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
+    pub runtime: &'ctx Lua,
     pub highlighter: &'ctx mut Highlighter,
-    pub cursors: &'ctx mut BTreeMap<WindowId, Cursor>,
 }
 
 #[derive(Default)]

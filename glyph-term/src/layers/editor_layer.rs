@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use glyph_config::{GlyphConfig, GutterAnchor};
@@ -10,11 +11,29 @@ use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::{Point, Rect};
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::{Window, WindowId};
+use glyph_runtime::statusline::{StatuslineContent, StatuslineStyle};
+use parking_lot::RwLock;
 
-use crate::backend::CursorKind;
-use crate::buffer::Buffer;
+use crate::backend::{CursorKind, StyleMerge};
+use crate::buffer::{Buffer, CellRange, StyleDef};
 use crate::renderer::{Context, RenderLayer};
 use crate::ui::line_number::{get_line_drawer, LineNumberDrawer};
+
+pub struct StatusSection {
+    content: String,
+    width: usize,
+    style: HighlightGroup,
+}
+
+impl StatusSection {
+    fn new(content: String, style: HighlightGroup) -> Self {
+        Self {
+            width: content.chars().count(),
+            content,
+            style,
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct EditorLayer;
@@ -32,7 +51,7 @@ impl EditorLayer {
         window: &Window,
         buffer: &mut Buffer,
         highlighter: &Highlighter,
-        cursors: &BTreeMap<WindowId, Cursor>,
+        cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
         config: GlyphConfig,
     ) {
         if config.gutter().enabled {
@@ -100,30 +119,65 @@ impl EditorLayer {
         area: Rect,
         document: &Document,
         window: &Window,
-        cursors: &BTreeMap<WindowId, Cursor>,
+        cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
         buffer: &mut Buffer,
         config: GlyphConfig,
     ) {
+        let cursors = cursors.read();
         let cursor = cursors.get(&window.id).unwrap();
         let line_drawer = get_line_drawer(config);
         line_drawer.draw_line_numbers(area, document, window, cursor, buffer, config);
     }
 
-    pub fn draw_statusline(&self, buffer: &mut Buffer, ctx: &mut Context, area: Rect) {
-        let editor = ctx.editor.read();
-        let tab = editor.focused_tab();
-        let focused_window = tab.tree.focus();
-        let window = tab.tree.window(focused_window);
+    pub fn draw_statusline(&self, buffer: &mut Buffer, ctx: &mut Context, area: Rect, config: GlyphConfig) {
+        let statusline = &config.statusline;
 
-        let cursor = ctx.cursors.get(&window.id).unwrap();
-        let editor_mode = ctx.editor.read().mode().to_string().to_uppercase();
-        let cursor = cursor.to_string();
+        let clear = " ".repeat(area.width as usize);
+        buffer.set_string(area.x, area.y, clear, HighlightGroup::default());
 
-        let padding = area.width - (editor_mode.len() + cursor.len()) as u16;
-        let gap = " ".repeat(padding as usize - 6);
-        let statusline = format!(" [ {editor_mode} ]{gap}{cursor} ");
+        let left_sections: Vec<StatusSection> = statusline
+            .left
+            .iter()
+            .map(|section| {
+                let content = match &section.content {
+                    StatuslineContent::Immediate(inner) => inner.to_owned(),
+                    StatuslineContent::Dynamic(fun) => fun.call::<mlua::String>(()).unwrap().to_string_lossy(),
+                };
+                let style = match &section.style {
+                    StatuslineStyle::HighlightGroup(group) => group,
+                    StatuslineStyle::Named(group) => config.highlight_groups.get(group).unwrap(),
+                };
+                StatusSection::new(content, *style)
+            })
+            .collect();
 
-        buffer.set_string(area.x, area.y, &statusline, HighlightGroup::default());
+        let right_sections: Vec<StatusSection> = statusline
+            .right
+            .iter()
+            .map(|section| {
+                let content = match &section.content {
+                    StatuslineContent::Immediate(inner) => inner.to_owned(),
+                    StatuslineContent::Dynamic(fun) => fun.call::<mlua::String>(()).unwrap().to_string_lossy(),
+                };
+                let style = match &section.style {
+                    StatuslineStyle::HighlightGroup(group) => group,
+                    StatuslineStyle::Named(group) => config.highlight_groups.get(group).unwrap(),
+                };
+                StatusSection::new(content, *style)
+            })
+            .collect();
+
+        let mut current_x = area.x;
+        for section in left_sections {
+            buffer.set_string(current_x, area.y, &section.content, section.style);
+            current_x += section.width as u16;
+        }
+
+        let mut current_x = area.x + area.width;
+        for section in right_sections.into_iter().rev() {
+            current_x -= section.width as u16;
+            buffer.set_string(current_x, area.y, &section.content, section.style);
+        }
     }
 
     pub fn handle_key_event(
@@ -144,7 +198,7 @@ impl EditorLayer {
                 if result.data.mode == ctx.editor.read().mode() {
                     let mut context = CmdContext {
                         editor: ctx.editor.clone(),
-                        cursors: ctx.cursors,
+                        cursors: ctx.cursors.clone(),
                     };
                     result.data.command.run(&mut context);
                 }
@@ -161,12 +215,27 @@ impl RenderLayer for EditorLayer {
         let mut statusline_area = area.split_bottom(2);
         let _commandline_area = statusline_area.split_bottom(1);
 
-        self.draw_statusline(buffer, ctx, statusline_area);
+        let style = config.highlight_groups.get("background").copied().unwrap_or_default();
+        let style_def = StyleDef {
+            behavior: StyleMerge::Replace,
+            style,
+        };
+        buffer.set_range_style(CellRange::<Point>::all(), style_def);
+
+        self.draw_statusline(buffer, ctx, statusline_area, config);
 
         let editor = ctx.editor.read();
         for (window, _) in editor.focused_tab().tree.windows() {
             let document = editor.document(&window.document);
-            self.draw_window(area, document, window, buffer, ctx.highlighter, ctx.cursors, config);
+            self.draw_window(
+                area,
+                document,
+                window,
+                buffer,
+                ctx.highlighter,
+                ctx.cursors.clone(),
+                config,
+            );
         }
     }
 
@@ -175,7 +244,8 @@ impl RenderLayer for EditorLayer {
         let tab = editor.focused_tab();
         let focused_window = tab.tree.focus();
         let window = tab.tree.window(focused_window);
-        let cursor = ctx.cursors.get(&window.id).unwrap();
+        let cursors = ctx.cursors.read();
+        let cursor = cursors.get(&window.id).unwrap();
         let document = editor.document(&window.document);
         let gutter_size = calculate_gutter_size(document, config);
 

@@ -1,22 +1,29 @@
 pub mod colors;
+pub mod document;
 pub mod editor;
 pub mod error;
 pub mod keymap;
 pub mod statusline;
+pub mod window;
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use colors::setup_colors_api;
+use document::setup_document_api;
 use editor::setup_editor_api;
 use error::{Error, Result};
+use glyph_core::cursor::Cursor;
 use glyph_core::editor::{Editor, Mode};
 use glyph_core::highlights::HighlightGroup;
+use glyph_core::window::WindowId;
 use keymap::{setup_keymap_api, LuaKeymap};
 use mlua::{Lua, Table, Value};
 use parking_lot::RwLock;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot::Sender;
+use window::setup_window_api;
 
 #[derive(Debug)]
 pub enum RuntimeQuery {
@@ -42,7 +49,9 @@ pub fn setup_lua_runtime(
     let core = lua.create_table()?;
     setup_colors_api(&lua, &core, runtime_sender.clone())?;
     setup_keymap_api(&lua, &core, runtime_sender.clone())?;
-    setup_editor_api(&lua, &core, runtime_sender.clone(), context)?;
+    setup_editor_api(&lua, &core, runtime_sender.clone(), context.clone())?;
+    setup_window_api(&lua, &core, runtime_sender.clone(), context.clone())?;
+    setup_document_api(&lua, &core, runtime_sender.clone(), context.clone())?;
     glyph.set("_core", core)?;
 
     let package = globals.get::<Table>("package")?;
@@ -75,6 +84,7 @@ pub fn setup_lua_runtime(
 #[derive(Debug)]
 pub struct GlyphContext {
     pub editor: Arc<RwLock<Editor>>,
+    pub cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
 }
 
 pub fn get_or_create_module(lua: &Lua, name: &str) -> Result<Table> {

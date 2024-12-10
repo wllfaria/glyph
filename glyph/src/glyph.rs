@@ -28,7 +28,7 @@ where
 {
     terminal: Terminal<B>,
     editor: Arc<RwLock<Editor>>,
-    cursors: BTreeMap<WindowId, Cursor>,
+    cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
     highlighter: Highlighter,
     renderer: Renderer,
     config: Config<'a>,
@@ -64,8 +64,12 @@ where
         cursors.insert(window, cursor);
 
         let editor = Arc::new(RwLock::new(editor));
+        let cursors = Arc::new(RwLock::new(cursors));
 
-        let glyph_context = Arc::new(RwLock::new(GlyphContext { editor: editor.clone() }));
+        let glyph_context = Arc::new(RwLock::new(GlyphContext {
+            editor: editor.clone(),
+            cursors: cursors.clone(),
+        }));
         let (runtime_sender, mut runtime_receiver) = unbounded_channel();
         let runtime = glyph_runtime::setup_lua_runtime(
             DIRS.get().unwrap().config(),
@@ -133,7 +137,8 @@ where
         let mut context = Context {
             editor: self.editor.clone(),
             highlighter: &mut self.highlighter,
-            cursors: &mut self.cursors,
+            runtime: &self.runtime,
+            cursors: self.cursors.clone(),
         };
         self.renderer.handle_event(&event, &mut context, &self.config)
     }
@@ -142,7 +147,8 @@ where
         let mut context = Context {
             editor: self.editor.clone(),
             highlighter: &mut self.highlighter,
-            cursors: &mut self.cursors,
+            runtime: &self.runtime,
+            cursors: self.cursors.clone(),
         };
         let buffer = self.terminal.current_buffer();
         self.renderer.draw_frame(buffer, &mut context, &self.config);

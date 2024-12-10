@@ -3,6 +3,7 @@ use std::io::Write;
 use crossterm::event::{
     DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableFocusChange, PopKeyboardEnhancementFlags,
 };
+use crossterm::style::{Attribute, Attributes};
 use crossterm::{cursor, execute, queue, style, terminal};
 use glyph_config::{CursorConfig, CursorStyle, GlyphConfig};
 use glyph_core::rect::Rect;
@@ -61,10 +62,19 @@ where
         for item in content.into_iter() {
             let drawable: Drawable<'a> = item.into();
 
+            let mut attributes: Attributes = Attribute::Reset.into();
+            if drawable.cell.style.bold {
+                attributes.set(Attribute::Bold);
+            }
+            if drawable.cell.style.italic {
+                attributes.set(Attribute::Italic);
+            }
+
             queue!(
                 self.buffer,
                 cursor::MoveTo(drawable.x, drawable.y),
                 config.cursor().clone().into_cursor_style(),
+                style::SetAttributes(attributes),
                 style::SetForegroundColor(drawable.cell.style.fg.into_color()),
                 style::SetBackgroundColor(drawable.cell.style.bg.into_color()),
                 style::Print(drawable.cell.symbol)

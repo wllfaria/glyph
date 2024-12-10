@@ -5,4 +5,5 @@ pub struct HighlightGroup {
     pub fg: Color,
     pub bg: Color,
     pub bold: bool,
+    pub italic: bool,
 }

@@ -36,7 +36,10 @@ local palette = {
 
 --- load tokyodark theme
 function M.load()
+  -- user interface
   glyph.api.set_hl_group("line_number", { fg = palette.grey })
+  glyph.api.set_hl_group("current_line", { fg = palette.fg })
+  glyph.api.set_hl_group("background", { bg = palette.bg0 })
 
   -- syntax groups
   glyph.api.set_hl_group("string", { fg = palette.yellow })

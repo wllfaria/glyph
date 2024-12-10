@@ -1,4 +1,4 @@
-use slotmap::HopSlotMap;
+use std::collections::BTreeMap;
 
 use crate::rect::Rect;
 use crate::window::{Window, WindowId};
@@ -11,10 +11,11 @@ pub enum Layout {
 
 #[derive(Debug)]
 pub struct Tree {
+    area: Rect,
     root: WindowId,
     focus: WindowId,
-    area: Rect,
-    nodes: HopSlotMap<WindowId, Node>,
+    next_window: WindowId,
+    nodes: BTreeMap<WindowId, Node>,
 }
 
 #[derive(Debug)]
@@ -67,7 +68,8 @@ impl Tree {
         Tree {
             root: WindowId::default(),
             focus: WindowId::default(),
-            nodes: HopSlotMap::with_key(),
+            nodes: BTreeMap::default(),
+            next_window: WindowId::default(),
             area,
         }
     }
@@ -76,12 +78,16 @@ impl Tree {
         self.focus
     }
 
+    pub fn nodes(&self) -> &BTreeMap<WindowId, Node> {
+        &self.nodes
+    }
+
     pub fn windows(&self) -> impl Iterator<Item = (&Window, bool)> {
         self.nodes.iter().filter_map(|(key, node)| match node {
             Node {
                 value: NodeValue::Window(window),
                 ..
-            } => Some((window.as_ref(), self.focus == key)),
+            } => Some((window.as_ref(), &self.focus == key)),
             _ => None,
         })
     }
@@ -92,7 +98,7 @@ impl Tree {
     }
 
     pub fn get_window(&self, id: WindowId) -> Option<&Window> {
-        match self.nodes.get(id) {
+        match self.nodes.get(&id) {
             Some(Node {
                 value: NodeValue::Window(window),
                 ..
@@ -102,7 +108,7 @@ impl Tree {
     }
 
     pub fn get_window_mut(&mut self, id: WindowId) -> Option<&mut Window> {
-        match self.nodes.get_mut(id) {
+        match self.nodes.get_mut(&id) {
             Some(Node {
                 value: NodeValue::Window(window),
                 ..
@@ -124,14 +130,16 @@ impl Tree {
             window.area = self.area.with_height(self.area.height - 2);
 
             let node = Node::window(window);
-            let node = self.nodes.insert(node);
+            let id = self.next_window;
+            self.next_window = self.next_window.next();
+            self.nodes.insert(id, node);
 
-            self.window_mut(node).id = node;
+            self.window_mut(id).id = id;
             // root is its own parent
-            self.nodes[node].parent = node;
-            self.focus = node;
-            self.root = node;
-            return node;
+            self.nodes.get_mut(&id).unwrap().parent = id;
+            self.focus = id;
+            self.root = id;
+            return id;
         }
 
         todo!();

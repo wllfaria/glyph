@@ -9,9 +9,9 @@ use crate::editor::Editor;
 use crate::window::WindowId;
 
 #[derive(Debug)]
-pub struct Context<'ctx> {
+pub struct Context {
     pub editor: Arc<RwLock<Editor>>,
-    pub cursors: &'ctx mut BTreeMap<WindowId, Cursor>,
+    pub cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
 }
 
 pub enum MappableCommand {
@@ -68,7 +68,8 @@ fn move_left(ctx: &mut Context) {
         let tab = editor.focused_tab();
         let window = tab.tree.focus();
         let window = tab.tree.window(window);
-        let cursor = ctx.cursors.get_mut(&window.id).unwrap();
+        let mut cursors = ctx.cursors.write();
+        let cursor = cursors.get_mut(&window.id).unwrap();
         cursor.move_left();
     }
 
@@ -76,7 +77,8 @@ fn move_left(ctx: &mut Context) {
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
     let window = tab.tree.window_mut(window);
-    let cursor = ctx.cursors.get_mut(&window.id).unwrap();
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window.id).unwrap();
 
     if cursor.x().checked_sub(window.scroll().0).is_none() {
         window.scroll_left();
@@ -90,7 +92,8 @@ fn move_down(ctx: &mut Context) {
         let window = tab.tree.focus();
         let window = tab.tree.window(window);
         let document = editor.document(&window.document);
-        let cursor = ctx.cursors.get_mut(&window.id).unwrap();
+        let mut cursors = ctx.cursors.write();
+        let cursor = cursors.get_mut(&window.id).unwrap();
         cursor.move_down(document);
     }
 
@@ -98,7 +101,8 @@ fn move_down(ctx: &mut Context) {
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
     let window = tab.tree.window_mut(window);
-    let cursor = ctx.cursors.get_mut(&window.id).unwrap();
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window.id).unwrap();
 
     if cursor.y() - window.scroll().1 >= window.area.height.into() {
         window.scroll_down();
@@ -111,7 +115,8 @@ fn move_up(ctx: &mut Context) {
         let tab = editor.focused_tab();
         let window = tab.tree.focus();
         let window = tab.tree.window(window);
-        let cursor = ctx.cursors.get_mut(&window.id).unwrap();
+        let mut cursors = ctx.cursors.write();
+        let cursor = cursors.get_mut(&window.id).unwrap();
         cursor.move_up();
     }
 
@@ -119,7 +124,8 @@ fn move_up(ctx: &mut Context) {
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
     let window = tab.tree.window_mut(window);
-    let cursor = ctx.cursors.get_mut(&window.id).unwrap();
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window.id).unwrap();
 
     if cursor.y().checked_sub(window.scroll().1).is_none() {
         window.scroll_up();
@@ -133,7 +139,8 @@ pub fn move_right(ctx: &mut Context) {
         let window = tab.tree.focus();
         let window = tab.tree.window(window);
         let document = editor.document(&window.document);
-        let cursor = ctx.cursors.get_mut(&window.id).unwrap();
+        let mut cursors = ctx.cursors.write();
+        let cursor = cursors.get_mut(&window.id).unwrap();
         cursor.move_right(document);
     }
 
@@ -141,7 +148,8 @@ pub fn move_right(ctx: &mut Context) {
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
     let window = tab.tree.window_mut(window);
-    let cursor = ctx.cursors.get_mut(&window.id).unwrap();
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window.id).unwrap();
 
     if cursor.x() - window.scroll().0 >= window.area.width.into() {
         window.scroll_right();

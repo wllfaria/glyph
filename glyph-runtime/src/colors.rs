@@ -17,8 +17,9 @@ impl TryFrom<LuaHighlightGroup> for HighlightGroup {
         let fg = group.fg.try_into()?;
         let bg = group.bg.try_into()?;
         let bold = group.bold;
+        let italic = group.italic;
 
-        Ok(HighlightGroup { fg, bg, bold })
+        Ok(HighlightGroup { fg, bg, bold, italic })
     }
 }
 
@@ -30,6 +31,8 @@ pub struct LuaHighlightGroup {
     bg: String,
     #[serde(default)]
     bold: bool,
+    #[serde(default)]
+    italic: bool,
 }
 
 pub fn setup_colors_api(
