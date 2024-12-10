@@ -8,7 +8,8 @@ use glyph_core::command::{Context, MappableCommand};
 use glyph_core::editor::Mode;
 use glyph_core::highlights::HighlightGroup;
 use glyph_runtime::keymap::{LuaKeymapOpts, LuaMappableCommand};
-use glyph_runtime::{RuntimeMessage, RuntimeQuery};
+use glyph_runtime::statusline::StatuslineConfig;
+use glyph_runtime::RuntimeMessage;
 use glyph_trie::Trie;
 use mlua::{Lua, LuaSerdeExt, Table, Value};
 use serde::Deserialize;
@@ -130,6 +131,7 @@ pub struct KeymapConfig<'cfg> {
 pub struct Config<'cfg> {
     cursor: CursorConfig,
     gutter: GutterConfig,
+    pub statusline: StatuslineConfig,
     pub highlight_groups: HashMap<String, HighlightGroup>,
     pub keymaps: Trie<KeymapConfig<'cfg>>,
 }
@@ -156,8 +158,8 @@ impl<'cfg> Config<'cfg> {
 
         let (highlight_groups, keymaps) = handle_setup_messages(setup_messages);
 
-        let glyph_mod = glyph_runtime::get_or_create_module(runtime, "glyph")?;
-        let config = glyph_mod.get::<Table>("options")?;
+        let glyph = glyph_runtime::get_or_create_module(runtime, "glyph")?;
+        let config = glyph.get::<Table>("options")?;
 
         let cursor = runtime.from_value::<CursorConfig>(config.get::<Value>("cursor")?)?;
         let gutter = runtime.from_value::<GutterConfig>(config.get::<Value>("gutter")?)?;
@@ -167,6 +169,8 @@ impl<'cfg> Config<'cfg> {
             gutter,
             highlight_groups,
             keymaps,
+            // will be loaded when the editors starts up
+            statusline: Default::default(),
         })
     }
 

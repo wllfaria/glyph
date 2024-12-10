@@ -146,7 +146,7 @@ impl LineNumberDrawer for LineDrawer {
     }
 }
 
-pub fn get_line_drawer(config: &GlyphConfig) -> LineDrawer {
+pub fn get_line_drawer(config: GlyphConfig) -> LineDrawer {
     match config.gutter().line_numbers {
         LineNumbersConfig::Absolute => LineDrawer::Absolute(AbsoluteLineDrawer),
         LineNumbersConfig::Relative => LineDrawer::Relative(RelativeLineDrawer),

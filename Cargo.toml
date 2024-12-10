@@ -24,3 +24,4 @@ tracing-appender = { version = "0.2.3" }
 tracing-subscriber = { version = "0.3.18" }
 mlua = { version = "0.10.1", features = ["luajit", "vendored", "serialize"] }
 serde = { version = "1.0.215", features = ["derive"] }
+parking_lot = { version = "0.12.3" }

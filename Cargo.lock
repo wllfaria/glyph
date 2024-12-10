@@ -355,6 +355,7 @@ dependencies = [
  "glyph-runtime",
  "glyph-term",
  "mlua",
+ "parking_lot",
  "tokio",
  "tracing",
  "tracing-appender",
@@ -370,6 +371,7 @@ dependencies = [
  "glyph-runtime",
  "glyph-trie",
  "mlua",
+ "parking_lot",
  "serde",
  "thiserror 2.0.3",
  "tokio",
@@ -380,6 +382,7 @@ dependencies = [
 name = "glyph-core"
 version = "0.1.0"
 dependencies = [
+ "parking_lot",
  "ropey",
  "slotmap",
  "streaming-iterator",
@@ -395,6 +398,7 @@ version = "0.1.0"
 dependencies = [
  "glyph-core",
  "mlua",
+ "parking_lot",
  "serde",
  "thiserror 2.0.3",
  "tokio",
@@ -408,6 +412,7 @@ dependencies = [
  "divan",
  "glyph-config",
  "glyph-core",
+ "parking_lot",
  "slotmap",
  "tracing",
  "tracing-appender",

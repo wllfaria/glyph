@@ -1,19 +1,24 @@
 use std::collections::BTreeMap;
 use std::io::{self, Stdout};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use futures::{Stream, StreamExt};
-use glyph_config::GlyphConfig;
+use glyph_config::Config;
 use glyph_core::cursor::Cursor;
 use glyph_core::editor::{Editor, EventResult, OpenAction};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::WindowId;
+use glyph_runtime::{setup_post_startup_apis, GlyphContext, RuntimeMessage};
 use glyph_term::backend::{Backend, CrosstermBackend};
 use glyph_term::layers::editor_layer::EditorLayer;
 use glyph_term::renderer::{Context, Renderer};
 use glyph_term::terminal::Terminal;
+use mlua::Lua;
+use parking_lot::RwLock;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 #[derive(Debug)]
 pub struct Glyph<'a, B>
@@ -21,18 +26,25 @@ where
     B: Backend,
 {
     terminal: Terminal<B>,
-    editor: Editor,
+    editor: Arc<RwLock<Editor>>,
     cursors: BTreeMap<WindowId, Cursor>,
     highlighter: Highlighter,
     renderer: Renderer,
-    config: GlyphConfig<'a>,
+    config: &'a mut Config<'a>,
+    runtime: Lua,
 }
 
 impl<'a, B> Glyph<'a, B>
 where
     B: Backend,
 {
-    pub fn new(backend: B, config: GlyphConfig) -> Glyph<B> {
+    pub fn new(
+        backend: B,
+        runtime: Lua,
+        runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
+        _runtime_receiver: UnboundedReceiver<RuntimeMessage<'static>>,
+        config: &'a mut Config<'a>,
+    ) -> glyph_runtime::error::Result<Glyph<'a, B>> {
         let file = std::env::args().nth(1);
 
         let mut editor = Editor::new(backend.area().expect("couldn't get terminal size"));
@@ -56,14 +68,23 @@ where
         let cursor = Cursor::default();
         cursors.insert(window, cursor);
 
-        Glyph {
+        let editor = Arc::new(RwLock::new(editor));
+
+        let glyph_context = GlyphContext { editor: editor.clone() };
+
+        let statusline = setup_post_startup_apis(&runtime, runtime_sender, glyph_context)?;
+        println!("{statusline:?}");
+        config.statusline = statusline;
+
+        Ok(Glyph {
             editor,
             terminal,
             renderer,
             highlighter,
             config,
             cursors,
-        }
+            runtime,
+        })
     }
 
     // TODO: make an actual error type
@@ -91,7 +112,7 @@ where
         S: Stream<Item = io::Result<Event>> + Unpin,
     {
         loop {
-            if self.editor.should_close() {
+            if self.editor.read().should_close() {
                 break Ok(());
             }
 
@@ -112,7 +133,7 @@ where
 
     fn handle_event(&mut self, event: Event) -> Result<Option<EventResult>, io::Error> {
         let mut context = Context {
-            editor: &mut self.editor,
+            editor: self.editor.clone(),
             highlighter: &mut self.highlighter,
             cursors: &mut self.cursors,
         };
@@ -121,7 +142,7 @@ where
 
     fn draw_frame(&mut self) -> Result<(), std::io::Error> {
         let mut context = Context {
-            editor: &mut self.editor,
+            editor: self.editor.clone(),
             highlighter: &mut self.highlighter,
             cursors: &mut self.cursors,
         };

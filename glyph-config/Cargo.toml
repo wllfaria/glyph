@@ -13,5 +13,6 @@ tracing.workspace = true
 mlua.workspace = true
 serde.workspace = true
 tokio.workspace = true
+parking_lot.workspace = true
 
 directories = "5.0.1"

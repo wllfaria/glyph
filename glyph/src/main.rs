@@ -18,11 +18,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (runtime_sender, mut runtime_receiver) = unbounded_channel();
     let runtime = glyph_runtime::setup_lua_runtime(DIRS.get().unwrap().config(), runtime_sender.clone())?;
 
-    let config = glyph_config::Config::load(&runtime, runtime_sender.clone(), &mut runtime_receiver)?;
+    let mut config = glyph_config::Config::load(&runtime, runtime_sender.clone(), &mut runtime_receiver)?;
 
     let backend = CrosstermBackend::new(stdout());
 
-    let mut glyph = Glyph::new(backend, &config);
+    let mut glyph = Glyph::new(backend, runtime, runtime_sender, runtime_receiver, &mut config)?;
     glyph.run(&mut EventStream::new()).await?;
 
     Ok(())

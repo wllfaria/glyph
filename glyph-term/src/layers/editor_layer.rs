@@ -105,17 +105,18 @@ impl EditorLayer {
         config: GlyphConfig,
     ) {
         let cursor = cursors.get(&window.id).unwrap();
-        let line_drawer = get_line_drawer(&config);
+        let line_drawer = get_line_drawer(config);
         line_drawer.draw_line_numbers(area, document, window, cursor, buffer, config);
     }
 
     pub fn draw_statusline(&self, buffer: &mut Buffer, ctx: &mut Context, area: Rect) {
-        let tab = ctx.editor.focused_tab();
+        let editor = ctx.editor.read();
+        let tab = editor.focused_tab();
         let focused_window = tab.tree.focus();
         let window = tab.tree.window(focused_window);
 
         let cursor = ctx.cursors.get(&window.id).unwrap();
-        let editor_mode = ctx.editor.mode().to_string().to_uppercase();
+        let editor_mode = ctx.editor.read().mode().to_string().to_uppercase();
         let cursor = cursor.to_string();
 
         let padding = area.width - (editor_mode.len() + cursor.len()) as u16;
@@ -132,7 +133,7 @@ impl EditorLayer {
         config: GlyphConfig,
     ) -> Result<Option<EventResult>, std::io::Error> {
         match key_event.code {
-            KeyCode::Char(_) => match ctx.editor.mode() {
+            KeyCode::Char(_) => match ctx.editor.read().mode() {
                 Mode::Normal => {}
                 Mode::Insert => {}
             },
@@ -140,9 +141,9 @@ impl EditorLayer {
         }
         if let KeyCode::Char(ch) = key_event.code {
             if let Some(result) = config.keymaps.find_word(ch.to_string()) {
-                if result.data.mode == ctx.editor.mode() {
+                if result.data.mode == ctx.editor.read().mode() {
                     let mut context = CmdContext {
-                        editor: ctx.editor,
+                        editor: ctx.editor.clone(),
                         cursors: ctx.cursors,
                     };
                     result.data.command.run(&mut context);
@@ -156,24 +157,26 @@ impl EditorLayer {
 
 impl RenderLayer for EditorLayer {
     fn draw(&self, buffer: &mut Buffer, ctx: &mut Context, config: GlyphConfig) {
-        let mut area = ctx.editor.area();
+        let mut area = ctx.editor.read().area();
         let mut statusline_area = area.split_bottom(2);
         let _commandline_area = statusline_area.split_bottom(1);
 
         self.draw_statusline(buffer, ctx, statusline_area);
 
-        for (window, _) in ctx.editor.focused_tab().tree.windows() {
-            let document = ctx.editor.document(&window.document);
+        let editor = ctx.editor.read();
+        for (window, _) in editor.focused_tab().tree.windows() {
+            let document = editor.document(&window.document);
             self.draw_window(area, document, window, buffer, ctx.highlighter, ctx.cursors, config);
         }
     }
 
     fn cursor(&self, ctx: &mut Context, config: GlyphConfig) -> (Option<Point>, CursorKind) {
-        let tab = ctx.editor.focused_tab();
+        let editor = ctx.editor.read();
+        let tab = editor.focused_tab();
         let focused_window = tab.tree.focus();
         let window = tab.tree.window(focused_window);
         let cursor = ctx.cursors.get(&window.id).unwrap();
-        let document = ctx.editor.document(&window.document);
+        let document = editor.document(&window.document);
         let gutter_size = calculate_gutter_size(document, config);
 
         let point = Point {

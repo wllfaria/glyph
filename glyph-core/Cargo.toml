@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 tracing.workspace = true
 thiserror.workspace = true
+parking_lot.workspace = true
 
 ropey = "1.6.1"
 slotmap = "1.0.7"
