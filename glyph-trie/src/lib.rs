@@ -8,7 +8,7 @@ struct TrieNode {
 #[derive(Debug)]
 pub struct QueryResult<'trie, T> {
     pub continues: bool,
-    pub data: &'trie T,
+    pub data: Option<&'trie T>,
 }
 
 #[derive(Debug)]
@@ -54,8 +54,9 @@ impl<T> Trie<T> {
         }
 
         match self.root.find_word(word) {
-            Some((idx, continues)) => {
-                let data = self.values.get(idx).unwrap();
+            Some((None, continues)) => Some(QueryResult { continues, data: None }),
+            Some((Some(idx), continues)) => {
+                let data = self.values.get(idx);
                 Some(QueryResult { continues, data })
             }
             None => None,
@@ -92,7 +93,7 @@ impl TrieNode {
             .add_word(rest, idx);
     }
 
-    pub fn find_word<S>(&self, word: S) -> Option<(usize, bool)>
+    pub fn find_word<S>(&self, word: S) -> Option<(Option<usize>, bool)>
     where
         S: AsRef<str>,
     {
@@ -105,10 +106,15 @@ impl TrieNode {
         let rest = &word.as_ref()[1..];
 
         let existing = self.children.iter().find(|node| node.value == value)?;
+        let continues = !existing.children.is_empty();
 
-        match end {
-            true => Some((existing.data.unwrap(), !existing.children.is_empty())),
-            false => existing.find_word(rest),
+        match (end, continues) {
+            // reached the end of needle string, but the node is not a leaf
+            (true, true) => Some((existing.data, !existing.children.is_empty())),
+            // reached the end of needle string and also reached a leaf node
+            (true, false) => Some((existing.data, !existing.children.is_empty())),
+            // needle string still has keys, so keep going
+            (false, _) => existing.find_word(rest),
         }
     }
 }

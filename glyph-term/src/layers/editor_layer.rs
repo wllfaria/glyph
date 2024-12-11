@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use glyph_config::{GlyphConfig, GutterAnchor};
+use glyph_config::{GlyphConfig, GutterAnchor, KeymapConfig};
 use glyph_core::command::Context as CmdContext;
 use glyph_core::cursor::Cursor;
 use glyph_core::document::Document;
@@ -12,12 +12,46 @@ use glyph_core::rect::{Point, Rect};
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::{Window, WindowId};
 use glyph_runtime::statusline::{StatuslineContent, StatuslineStyle};
+use glyph_trie::QueryResult;
 use parking_lot::RwLock;
 
 use crate::backend::{CursorKind, StyleMerge};
 use crate::buffer::{Buffer, CellRange, StyleDef};
 use crate::renderer::{Context, RenderLayer};
 use crate::ui::line_number::{get_line_drawer, LineNumberDrawer};
+
+#[derive(Debug, Default)]
+enum KeymapAction {
+    #[default]
+    Clear,
+    Continue,
+    Execute,
+}
+
+#[derive(Debug, Default)]
+struct KeymapResult<'key> {
+    keymap: Option<&'key KeymapConfig<'key>>,
+    action: KeymapAction,
+}
+
+impl<'key> KeymapResult<'key> {
+    pub fn from_query_result(keymap: QueryResult<'key, KeymapConfig<'key>>) -> KeymapResult<'key> {
+        match (keymap.continues, keymap.data) {
+            (true, _) => KeymapResult {
+                keymap: keymap.data,
+                action: KeymapAction::Continue,
+            },
+            (false, None) => KeymapResult {
+                keymap: None,
+                action: KeymapAction::Clear,
+            },
+            (false, Some(keymap)) => KeymapResult {
+                keymap: Some(keymap),
+                action: KeymapAction::Execute,
+            },
+        }
+    }
+}
 
 pub struct StatusSection {
     content: String,
@@ -187,21 +221,40 @@ impl EditorLayer {
         config: GlyphConfig,
     ) -> Result<Option<EventResult>, std::io::Error> {
         match key_event.code {
-            KeyCode::Char(_) => match ctx.editor.read().mode() {
-                Mode::Normal => {}
-                Mode::Insert => {}
-            },
+            KeyCode::Char(ch) => self.handle_char_event(ch, ctx, config)?,
             _ => todo!(),
-        }
-        if let KeyCode::Char(ch) = key_event.code {
-            if let Some(result) = config.keymaps.find_word(ch.to_string()) {
-                if result.data.mode == ctx.editor.read().mode() {
-                    let mut context = CmdContext {
-                        editor: ctx.editor.clone(),
-                        cursors: ctx.cursors.clone(),
-                    };
-                    result.data.command.run(&mut context);
-                }
+        };
+
+        Ok(None)
+    }
+
+    fn handle_char_event(
+        &self,
+        ch: char,
+        ctx: &mut Context,
+        config: GlyphConfig,
+    ) -> Result<Option<EventResult>, std::io::Error> {
+        let mut editor = ctx.editor.write();
+        let keymap = format!("{}{ch}", editor.buffered_keymap);
+
+        let result = config
+            .keymaps
+            .find_word(&keymap)
+            .map(KeymapResult::from_query_result)
+            .unwrap_or_default();
+
+        match result.action {
+            KeymapAction::Continue => editor.buffered_keymap.push(ch),
+            KeymapAction::Clear => editor.buffered_keymap.clear(),
+            KeymapAction::Execute => {
+                let keymap = result.keymap.unwrap();
+                editor.buffered_keymap.clear();
+                drop(editor);
+                let mut context = CmdContext {
+                    editor: ctx.editor.clone(),
+                    cursors: ctx.cursors.clone(),
+                };
+                keymap.command.run(&mut context);
             }
         }
 
@@ -272,7 +325,7 @@ impl RenderLayer for EditorLayer {
 
 fn calculate_gutter_size(document: &Document, config: GlyphConfig) -> u16 {
     let total_lines = document.text().len_lines();
-    // +1 is to always accomodate bigger lines
+    // +1 is to always accomodate the next stop of lines
     let lines_length = digits_in_number(total_lines) as u16 + 1;
     let lines_length = u16::max(lines_length, 3) + config.gutter().sign_column.size();
     // +1 is the padding before document

@@ -46,6 +46,7 @@ impl MappableCommand {
         move_down,
         move_up,
         move_right,
+        delete_line,
     }
 }
 
@@ -132,7 +133,7 @@ fn move_up(ctx: &mut Context) {
     }
 }
 
-pub fn move_right(ctx: &mut Context) {
+fn move_right(ctx: &mut Context) {
     {
         let editor = ctx.editor.read();
         let tab = editor.focused_tab();
@@ -154,4 +155,8 @@ pub fn move_right(ctx: &mut Context) {
     if cursor.x() - window.scroll().0 >= window.area.width.into() {
         window.scroll_right();
     }
+}
+
+fn delete_line(ctx: &mut Context) {
+    tracing::debug!("dummy delete line implementation");
 }

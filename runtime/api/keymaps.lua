@@ -10,6 +10,7 @@ local static_commands = {
   "move_down",
   "move_up",
   "move_right",
+  "delete_line",
 }
 
 --- @class KeymapOpts

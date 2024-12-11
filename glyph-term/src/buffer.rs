@@ -158,8 +158,6 @@ impl Buffer {
                 }
             }
         }
-
-        tracing::debug!("{:?}", &self.cells[0]);
     }
 
     pub fn diff(&self, other: &Buffer) -> ChangeSet {

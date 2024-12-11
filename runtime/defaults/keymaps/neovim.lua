@@ -11,6 +11,8 @@ function M.load()
   glyph.api.set_keymap("n", "j", "move_down", { description = "Move the cursor down" })
   glyph.api.set_keymap("n", "k", "move_up", { description = "Move the cursor up" })
   glyph.api.set_keymap("n", "l", "move_right", { description = "Move the cursor right" })
+
+  glyph.api.set_keymap("n", "dd", "delete_line", { descripton = "Deletes the line under cursor" })
 end
 
 return M

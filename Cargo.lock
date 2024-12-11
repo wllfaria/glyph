@@ -412,6 +412,7 @@ dependencies = [
  "glyph-config",
  "glyph-core",
  "glyph-runtime",
+ "glyph-trie",
  "mlua",
  "parking_lot",
  "slotmap",
@@ -423,6 +424,9 @@ dependencies = [
 [[package]]
 name = "glyph-trie"
 version = "0.1.0"
+dependencies = [
+ "tracing",
+]
 
 [[package]]
 name = "hermit-abi"

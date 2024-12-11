@@ -47,7 +47,7 @@ pub struct Editor {
     mode: Mode,
     next_document_id: DocumentId,
     documents: BTreeMap<DocumentId, Document>,
-    buffered_keymap: String,
+    pub buffered_keymap: String,
     pub focused_tab: usize,
     pub tabs: Vec<Tab>,
     area: Rect,
