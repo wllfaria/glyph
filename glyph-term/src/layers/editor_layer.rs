@@ -264,10 +264,10 @@ impl EditorLayer {
     ) -> Result<Option<EventResult>, std::io::Error> {
         let mode = ctx.editor.read().mode();
         let mut editor = ctx.editor.write();
-        let stringified_key = stringify_key(key_event);
 
         match mode {
             Mode::Normal => {
+                let stringified_key = stringify_key(key_event);
                 let keymap = format!("{}{stringified_key}", editor.buffered_keymap);
                 let result = config
                     .keymaps
@@ -293,7 +293,11 @@ impl EditorLayer {
                     }
                 }
             }
-            Mode::Command => editor.command.push_str(&stringified_key),
+            Mode::Command => match key_event.code {
+                KeyCode::Char(ch) => editor.command.push(ch),
+                KeyCode::Backspace => _ = editor.command.pop(),
+                _ => {}
+            },
             Mode::Insert => {}
         }
 

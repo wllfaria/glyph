@@ -19,6 +19,7 @@ local static_commands = {
   "move_to_sol",
   "move_to_eol",
   "page_down",
+  "page_up",
 }
 
 --- @class KeymapOpts
