@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crossterm::event::{Event, KeyCode, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use glyph_config::{GlyphConfig, GutterAnchor, KeymapConfig};
 use glyph_core::command::Context as CmdContext;
 use glyph_core::cursor::Cursor;
@@ -263,31 +263,12 @@ impl EditorLayer {
         config: GlyphConfig,
     ) -> Result<Option<EventResult>, std::io::Error> {
         let mode = ctx.editor.read().mode();
-        match key_event.code {
-            KeyCode::Char(ch) => self.handle_char_event(ch, ctx, config)?,
-            KeyCode::Enter => match mode {
-                Mode::Normal => todo!(),
-                Mode::Insert => todo!(),
-                Mode::Command => todo!(),
-            },
-            _ => todo!(),
-        };
-
-        Ok(None)
-    }
-
-    fn handle_char_event(
-        &self,
-        ch: char,
-        ctx: &mut Context,
-        config: GlyphConfig,
-    ) -> Result<Option<EventResult>, std::io::Error> {
-        let mode = ctx.editor.read().mode();
         let mut editor = ctx.editor.write();
+        let stringified_key = stringify_key(key_event);
 
         match mode {
             Mode::Normal => {
-                let keymap = format!("{}{ch}", editor.buffered_keymap);
+                let keymap = format!("{}{stringified_key}", editor.buffered_keymap);
                 let result = config
                     .keymaps
                     .get(&mode)
@@ -297,7 +278,7 @@ impl EditorLayer {
                     .unwrap_or_default();
 
                 match result.action {
-                    KeymapAction::Continue => editor.buffered_keymap.push(ch),
+                    KeymapAction::Continue => editor.buffered_keymap.push_str(&stringified_key),
                     KeymapAction::Clear => editor.buffered_keymap.clear(),
                     KeymapAction::Execute => {
                         let keymap = result.keymap.unwrap();
@@ -312,7 +293,7 @@ impl EditorLayer {
                     }
                 }
             }
-            Mode::Command => editor.command.push(ch),
+            Mode::Command => editor.command.push_str(&stringified_key),
             Mode::Insert => {}
         }
 
@@ -406,4 +387,16 @@ fn calculate_gutter_size(document: &Document, config: GlyphConfig) -> u16 {
 #[inline]
 pub fn digits_in_number(number: usize) -> usize {
     (f32::log10(number as f32) + 1.0) as usize
+}
+
+fn stringify_key(key_event: &KeyEvent) -> String {
+    match (key_event.code, key_event.modifiers) {
+        (KeyCode::Char(ch), KeyModifiers::CONTROL) => format!("<c-{ch}>"),
+        (KeyCode::Char(ch), _) => ch.to_string(),
+        (KeyCode::Enter, _) => String::from("<cr>"),
+        (KeyCode::Backspace, _) => String::from("<bs>"),
+        (KeyCode::Esc, _) => String::from("<esc>"),
+        (KeyCode::F(num), _) => format!("<f-{num}>"),
+        _ => String::default(),
+    }
 }

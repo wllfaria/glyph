@@ -44,10 +44,29 @@ impl AsRef<str> for LineEnding {
 }
 
 #[derive(Debug)]
+pub struct DocumentMeta {
+    path: Option<PathBuf>,
+}
+
+impl DocumentMeta {
+    pub fn new(path: Option<PathBuf>) -> DocumentMeta {
+        DocumentMeta { path }
+    }
+
+    pub fn path(&self) -> String {
+        self.path
+            .as_ref()
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Debug)]
 pub struct Document {
     pub id: DocumentId,
     text: Rope,
     language: LanguageId,
+    metadata: DocumentMeta,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -81,6 +100,7 @@ impl Document {
             id: DocumentId::default(),
             language,
             text: text.map(|t| Rope::from_str(t.as_ref())).unwrap_or_default(),
+            metadata: DocumentMeta::new(path),
         }
     }
 
@@ -94,6 +114,10 @@ impl Document {
 
     pub fn language(&self) -> LanguageId {
         self.language
+    }
+
+    pub fn metadata(&self) -> &DocumentMeta {
+        &self.metadata
     }
 }
 

@@ -15,6 +15,7 @@
 --- @field document_get_active fun(): integer
 --- @field document_get_line_count fun(document: integer): integer
 --- @field document_is_valid fun(document: integer): boolean
+--- @field document_get_filepath fun(document: integer): string
 
 --- @class glyph.options
 --- @field scroll_offset number

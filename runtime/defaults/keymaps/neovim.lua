@@ -14,6 +14,14 @@ function M.load()
   glyph.api.keymap_set("n", "dd", "delete_line", { descripton = "Deletes the line under cursor" })
   glyph.api.keymap_set("n", "G", "move_to_eof", { descripton = "Moves cursor to the end of file" })
   glyph.api.keymap_set("n", "gg", "move_to_sof", { descripton = "Moves cursor to start of file" })
+  glyph.api.keymap_set("n", "0", "move_to_sol", { descripton = "Moves cursor to start of line" })
+  glyph.api.keymap_set("n", "$", "move_to_eol", { descripton = "Moves cursor to end of line" })
+  -- glyph.api.keymap_set(
+  --   "n",
+  --   "<c-d>",
+  --   "page_down",
+  --   { descripton = "Moves cursor half a screen down" }
+  -- )
 
   glyph.api.keymap_set("n", "i", "insert_mode", { description = "Change into insert mode" })
   glyph.api.keymap_set("n", ":", "command_mode", { description = "Change into command mode" })

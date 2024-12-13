@@ -43,6 +43,12 @@ pub fn setup_document_api(
         })?,
     )?;
 
+    let inner_context = context.clone();
+    core.set(
+        "document_get_filepath",
+        lua.create_function(move |_: &Lua, document: Integer| document_get_filepath(document, inner_context.clone()))?,
+    )?;
+
     Ok(())
 }
 fn document_get_active(context: Arc<RwLock<GlyphContext>>) -> mlua::Result<usize> {
@@ -92,4 +98,29 @@ fn document_get_line_count(document: Integer, context: Arc<RwLock<GlyphContext>>
     };
 
     Ok(lines as i64)
+}
+
+fn document_get_filepath(document: Integer, context: Arc<RwLock<GlyphContext>>) -> mlua::Result<String> {
+    if document.is_negative() {
+        return Err(DocumentError::NegativeDocument.into_lua_err());
+    }
+
+    let document = document as usize;
+    let context = context.read();
+    let editor = context.editor.read();
+
+    let filename = if document == 0 {
+        let window = editor.focused_tab().tree.focus();
+        let window = editor.focused_tab().tree.window(window);
+        let document = window.document;
+        let document = editor.document(&document);
+        document.metadata().path()
+    } else {
+        let Some(document) = DocumentId::new(document).and_then(|document| editor.get_document(&document)) else {
+            return Err(DocumentError::InvalidDocument(document).into_lua_err());
+        };
+        document.metadata().path()
+    };
+
+    Ok(filename)
 }

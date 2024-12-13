@@ -30,10 +30,7 @@ end
 --- @return string
 local function format_cursor()
   local window = glyph.api.window_get_active()
-  local ok, cursor = glyph.api.window_get_cursor(window)
-  if not ok then
-    return " 0:0 "
-  end
+  local cursor = glyph.api.window_get_cursor(window)
   return " " .. cursor.y .. ":" .. cursor.x .. " "
 end
 
@@ -44,16 +41,9 @@ local function cursor_percentage()
   }
 
   local window = glyph.api.window_get_active()
-  local ok, cursor = glyph.api.window_get_cursor(window)
-  if not ok then
-    return labels.top
-  end
+  local cursor = glyph.api.window_get_cursor(window)
   local document = glyph.api.document_get_active()
-  local ok, lines = glyph.api.document_get_line_count(document)
-
-  if not ok then
-    return labels.top
-  end
+  local lines = glyph.api.document_get_line_count(document)
 
   local percentage = math.floor((cursor.y / lines * 100) + 0.5)
 
@@ -69,7 +59,10 @@ end
 M.statusline = {
   left = {
     { content = format_mode, style = { fg = "#11121D", bg = "#95c561" } },
-    { content = " TODO: filename_here.rs ", style = { fg = "#98C379", bg = "#1A1B2A" } },
+    {
+      content = " " .. glyph.api.document_get_filepath(0) .. " ",
+      style = { fg = "#98C379", bg = "#1A1B2A" },
+    },
   },
   right = {
     { content = cursor_percentage, style = { fg = "#11121D", bg = "#95c561" } },

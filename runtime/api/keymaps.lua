@@ -16,6 +16,9 @@ local static_commands = {
   "command_mode",
   "move_to_eof",
   "move_to_sof",
+  "move_to_sol",
+  "move_to_eol",
+  "page_down",
 }
 
 --- @class KeymapOpts

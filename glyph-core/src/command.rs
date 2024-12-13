@@ -55,6 +55,8 @@ impl MappableCommand {
         command_mode,
         move_to_eof,
         move_to_sof,
+        move_to_sol,
+        move_to_eol,
     }
 }
 
@@ -253,6 +255,30 @@ fn move_to_sof(ctx: &mut Context) {
     if cursor.y().saturating_sub(window.scroll().1) == 0 {
         window.scroll_y_to(window.scroll().1 - window.scroll().1 - cursor.y());
     }
+}
+
+fn move_to_sol(ctx: &mut Context) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab_mut();
+    let window_id = tab.tree.focus();
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window_id).unwrap();
+    cursor.move_to(0, cursor.y());
+}
+
+fn move_to_eol(ctx: &mut Context) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab_mut();
+    let window_id = tab.tree.focus();
+
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window_id).unwrap();
+
+    let document = tab.tree.window_mut(window_id).document;
+    let document = editor.document(&document);
+    let line_len = document.text().line(cursor.y()).len_chars();
+
+    cursor.move_to(line_len - 1, cursor.y());
 }
 
 fn insert_mode(ctx: &mut Context) {
