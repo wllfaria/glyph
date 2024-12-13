@@ -19,6 +19,11 @@ impl Cursor {
         self.y
     }
 
+    pub fn move_to(&mut self, x: usize, y: usize) {
+        self.x = x;
+        self.y = y;
+    }
+
     pub fn move_left(&mut self) {
         self.x = self.x.saturating_sub(1)
     }

@@ -131,9 +131,10 @@ pub struct KeymapConfig<'cfg> {
 pub struct Config<'cfg> {
     cursor: CursorConfig,
     gutter: GutterConfig,
+    scroll_offset: usize,
     pub statusline: StatuslineConfig,
     pub highlight_groups: HashMap<String, HighlightGroup>,
-    pub keymaps: Trie<KeymapConfig<'cfg>>,
+    pub keymaps: HashMap<Mode, Trie<KeymapConfig<'cfg>>>,
 }
 
 impl<'cfg> Config<'cfg> {
@@ -160,6 +161,7 @@ impl<'cfg> Config<'cfg> {
         let glyph = glyph_runtime::get_or_create_module(runtime, "glyph")?;
         let config = glyph.get::<Table>("options")?;
 
+        let scroll_offset = runtime.from_value::<usize>(config.get::<Value>("scroll_offset")?)?;
         let cursor = runtime.from_value::<CursorConfig>(config.get::<Value>("cursor")?)?;
         let gutter = runtime.from_value::<GutterConfig>(config.get::<Value>("gutter")?)?;
         let statusline = StatuslineConfig::from_lua(config.get::<Value>("statusline")?, runtime)?;
@@ -167,9 +169,10 @@ impl<'cfg> Config<'cfg> {
         Ok(Config {
             cursor,
             gutter,
-            highlight_groups,
             keymaps,
             statusline,
+            scroll_offset,
+            highlight_groups,
         })
     }
 
@@ -182,9 +185,13 @@ impl<'cfg> Config<'cfg> {
     }
 }
 
-fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> (HashMap<String, HighlightGroup>, Trie<KeymapConfig>) {
+fn handle_setup_messages(
+    messages: Vec<RuntimeMessage>,
+) -> (HashMap<String, HighlightGroup>, HashMap<Mode, Trie<KeymapConfig>>) {
     let mut highlight_groups = HashMap::default();
-    let mut keymaps = Trie::default();
+    let mut keymaps = HashMap::default();
+    keymaps.insert(Mode::Normal, Trie::default());
+    keymaps.insert(Mode::Insert, Trie::default());
 
     for message in messages {
         match message {
@@ -196,7 +203,8 @@ fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> (HashMap<String, High
                     command: lua_keymap.command.into(),
                     options: lua_keymap.options.into(),
                 };
-                keymaps.add_word(&lua_keymap.keys, keymap);
+                let mode_maps = keymaps.get_mut(&lua_keymap.mode).unwrap();
+                mode_maps.add_word(&lua_keymap.keys, keymap);
             }
         };
     }

@@ -45,6 +45,29 @@ pub struct StyleDef {
     pub style: HighlightGroup,
 }
 
+impl StyleDef {
+    pub fn replace(style: HighlightGroup) -> StyleDef {
+        StyleDef {
+            style,
+            behavior: StyleMerge::Replace,
+        }
+    }
+
+    pub fn keep(style: HighlightGroup) -> StyleDef {
+        StyleDef {
+            style,
+            behavior: StyleMerge::Keep,
+        }
+    }
+
+    pub fn merge(style: HighlightGroup) -> StyleDef {
+        StyleDef {
+            style,
+            behavior: StyleMerge::Merge,
+        }
+    }
+}
+
 pub trait IntoStyleDef {
     fn into_style_def(self) -> StyleDef;
 }

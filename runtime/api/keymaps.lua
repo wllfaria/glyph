@@ -2,7 +2,7 @@
 local glyph = require("glyph")
 
 --- @class glyph.api.keymaps
---- @field set_keymap fun(mode: "n" | "i" | "c" | "v", keys: string, command: string | function, opts?: KeymapOpts): nil
+--- @field keymap_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: string | function, opts?: KeymapOpts): nil
 local M = {}
 
 local static_commands = {
@@ -11,6 +11,11 @@ local static_commands = {
   "move_up",
   "move_right",
   "delete_line",
+  "insert_mode",
+  "normal_mode",
+  "command_mode",
+  "move_to_eof",
+  "move_to_sof",
 }
 
 --- @class KeymapOpts
@@ -20,7 +25,7 @@ local static_commands = {
 --- @param keys string
 --- @param command string | function
 --- @param opts? KeymapOpts
-function M.set_keymap(mode, keys, command, opts)
+function M.keymap_set(mode, keys, command, opts)
   if not mode or not glyph.u.table_contains({ "n", "i", "c", "v" }, mode) then
     error("invalid keymap mode " .. mode)
   end
@@ -42,9 +47,9 @@ function M.set_keymap(mode, keys, command, opts)
     if not glyph.u.table_contains(static_commands, command) then
       error(command(" is not an editor command"))
     end
-    glyph._core.set_keymap_command(mode, keys, command, opts)
+    glyph._core.keymap_command_set(mode, keys, command, opts)
   else
-    glyph._core.set_keymap_function(mode, keys, command, opts)
+    glyph._core.keymap_function_set(mode, keys, command, opts)
   end
 end
 

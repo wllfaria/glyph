@@ -7,12 +7,18 @@ local M = {}
 
 --- load neovim keymap set
 function M.load()
-  glyph.api.set_keymap("n", "h", "move_left", { description = "Move the cursor left" })
-  glyph.api.set_keymap("n", "j", "move_down", { description = "Move the cursor down" })
-  glyph.api.set_keymap("n", "k", "move_up", { description = "Move the cursor up" })
-  glyph.api.set_keymap("n", "l", "move_right", { description = "Move the cursor right" })
+  glyph.api.keymap_set("n", "h", "move_left", { description = "Move the cursor left" })
+  glyph.api.keymap_set("n", "j", "move_down", { description = "Move the cursor down" })
+  glyph.api.keymap_set("n", "k", "move_up", { description = "Move the cursor up" })
+  glyph.api.keymap_set("n", "l", "move_right", { description = "Move the cursor right" })
+  glyph.api.keymap_set("n", "dd", "delete_line", { descripton = "Deletes the line under cursor" })
+  glyph.api.keymap_set("n", "G", "move_to_eof", { descripton = "Moves cursor to the end of file" })
+  glyph.api.keymap_set("n", "gg", "move_to_sof", { descripton = "Moves cursor to start of file" })
 
-  glyph.api.set_keymap("n", "dd", "delete_line", { descripton = "Deletes the line under cursor" })
+  glyph.api.keymap_set("n", "i", "insert_mode", { description = "Change into insert mode" })
+  glyph.api.keymap_set("n", ":", "command_mode", { description = "Change into command mode" })
+
+  glyph.api.keymap_set("i", "jk", "normal_mode", { description = "Changes into normal mode" })
 end
 
 return M

@@ -18,6 +18,7 @@ pub enum Mode {
     #[default]
     Normal,
     Insert,
+    Command,
 }
 
 impl<T> From<T> for Mode
@@ -38,6 +39,7 @@ impl std::fmt::Display for Mode {
         match self {
             Mode::Normal => f.write_str("normal"),
             Mode::Insert => f.write_str("insert"),
+            Mode::Command => f.write_str("command"),
         }
     }
 }
@@ -47,6 +49,8 @@ pub struct Editor {
     mode: Mode,
     next_document_id: DocumentId,
     documents: BTreeMap<DocumentId, Document>,
+    pub messages: String,
+    pub command: String,
     pub buffered_keymap: String,
     pub focused_tab: usize,
     pub tabs: Vec<Tab>,
@@ -68,6 +72,8 @@ impl Editor {
             mode: Mode::Normal,
             documents: BTreeMap::default(),
             buffered_keymap: String::default(),
+            command: String::default(),
+            messages: String::default(),
             tabs: vec![Tab::new(area)],
             focused_tab: 0,
             area,
@@ -82,12 +88,24 @@ impl Editor {
         self.documents.get(id)
     }
 
+    pub fn get_document_mut(&mut self, id: &DocumentId) -> Option<&mut Document> {
+        self.documents.get_mut(id)
+    }
+
     pub fn document(&self, id: &DocumentId) -> &Document {
         self.get_document(id).unwrap()
     }
 
+    pub fn document_mut(&mut self, id: &DocumentId) -> &mut Document {
+        self.get_document_mut(id).unwrap()
+    }
+
     pub fn mode(&self) -> Mode {
         self.mode
+    }
+
+    pub fn set_mode(&mut self, mode: Mode) {
+        self.mode = mode
     }
 
     pub fn focused_tab(&self) -> &Tab {

@@ -55,6 +55,7 @@ pub enum LanguageId {
     Rust,
     Markdown,
     Plain,
+    Lua,
 }
 
 impl LanguageId {
@@ -62,6 +63,7 @@ impl LanguageId {
         match path.and_then(|p| p.extension().and_then(|e| e.to_str())) {
             Some("rs") => LanguageId::Rust,
             Some("md") => LanguageId::Markdown,
+            Some("lua") => LanguageId::Lua,
             Some(_) => LanguageId::Plain,
             None => LanguageId::Plain,
         }
@@ -84,6 +86,10 @@ impl Document {
 
     pub fn text(&self) -> &Rope {
         &self.text
+    }
+
+    pub fn text_mut(&mut self) -> &mut Rope {
+        &mut self.text
     }
 
     pub fn language(&self) -> LanguageId {

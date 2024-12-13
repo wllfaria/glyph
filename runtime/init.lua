@@ -5,10 +5,10 @@
 --- @field _core glyph.core
 
 --- @class glyph.core
---- @field set_keymap_command fun(mode: "n" | "i" | "c" | "v", keys: string, command: string, opts?: KeymapOpts)
---- @field set_keymap_function fun(mode: "n" | "i" | "c" | "v", keys: string, command: function, opts?: KeymapOpts)
+--- @field keymap_command_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: string, opts?: KeymapOpts)
+--- @field keymap_function_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: function, opts?: KeymapOpts)
 --- @field set_hl_group fun(name: string, opts: glyph.colors.hl_group)
---- @field get_editor_mode fun(): string
+--- @field editor_get_mode fun(): string
 --- @field window_get_active fun(): integer
 --- @field window_get_cursor fun(window: integer): glyph.t.point
 --- @field window_is_valid fun(window: integer): boolean
@@ -17,6 +17,7 @@
 --- @field document_is_valid fun(document: integer): boolean
 
 --- @class glyph.options
+--- @field scroll_offset number
 --- @field cursor glyph.options.cursor
 --- @field gutter glyph.options.gutter
 --- @field statusline glyph.options.statusline

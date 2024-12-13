@@ -69,4 +69,8 @@ impl Window {
     pub fn scroll_right(&mut self) {
         self.scroll.0 += 1;
     }
+
+    pub fn scroll_y_to(&mut self, to: usize) {
+        self.scroll.1 = to;
+    }
 }

@@ -40,6 +40,7 @@ function M.load()
   glyph.api.set_hl_group("line_number", { fg = palette.grey })
   glyph.api.set_hl_group("current_line", { fg = palette.fg })
   glyph.api.set_hl_group("background", { bg = palette.bg0 })
+  glyph.api.set_hl_group("foreground", { fg = palette.fg })
 
   -- syntax groups
   glyph.api.set_hl_group("string", { fg = palette.yellow })

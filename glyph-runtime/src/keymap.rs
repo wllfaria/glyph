@@ -34,26 +34,26 @@ pub fn setup_keymap_api(
 ) -> Result<()> {
     let sender = runtime_sender.clone();
     core.set(
-        "set_keymap_command",
+        "keymap_command_set",
         lua.create_function(move |lua: &Lua, args: (String, String, String, Table)| {
             let sender = sender.clone();
-            set_keymap_command(lua, args, sender)
+            keymap_command_set(lua, args, sender)
         })?,
     )?;
 
     let sender = runtime_sender.clone();
     core.set(
-        "set_keymap_function",
+        "keymap_function_set",
         lua.create_function(move |lua: &Lua, args: (String, String, Function, Table)| {
             let sender = sender.clone();
-            set_keymap_function(lua, args, sender)
+            keymap_function_set(lua, args, sender)
         })?,
     )?;
 
     Ok(())
 }
 
-pub fn set_keymap_command(
+pub fn keymap_command_set(
     lua: &Lua,
     (mode, keys, command, options): (String, String, String, Table),
     runtime_sender: UnboundedSender<RuntimeMessage<'_>>,
@@ -80,7 +80,7 @@ pub fn set_keymap_command(
     Ok(())
 }
 
-pub fn set_keymap_function(
+pub fn keymap_function_set(
     lua: &Lua,
     (mode, keys, command, options): (String, String, Function, Table),
     runtime_sender: UnboundedSender<RuntimeMessage<'static>>,

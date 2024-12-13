@@ -26,9 +26,9 @@ pub struct Syntax {
 
 #[derive(Default)]
 pub struct Highlighter {
-    queries: HashMap<LanguageId, Query>,
-    parsers: HashMap<LanguageId, Parser>,
-    trees: BTreeMap<DocumentId, Syntax>,
+    pub queries: HashMap<LanguageId, Query>,
+    pub parsers: HashMap<LanguageId, Parser>,
+    pub trees: BTreeMap<DocumentId, Syntax>,
 }
 
 impl std::fmt::Debug for Highlighter {
@@ -56,6 +56,7 @@ impl Highlighter {
 
     pub fn add_document(&mut self, document: &Document) {
         let parser = self.get_or_create_parser(document.language());
+
         let tree = parser.and_then(|p| p.parse(document.text().slice(..).to_string(), None));
 
         let mut syntax = Syntax {
@@ -69,9 +70,13 @@ impl Highlighter {
             let mut cursor = tree_sitter::QueryCursor::new();
             let root = tree.root_node();
             let language = self.get_ts_language(document.language()).unwrap();
-            let query = tree_sitter::Query::new(&language.into(), tree_sitter_rust::HIGHLIGHTS_QUERY).unwrap();
+
+            let query = self.queries.entry(document.language()).or_insert(
+                tree_sitter::Query::new(&language.into(), &get_ts_query(document.language()).unwrap()).unwrap(),
+            );
+
             let text = document.text().slice(..).to_string();
-            let mut matches = cursor.matches(&query, root, text.as_bytes());
+            let mut matches = cursor.matches(query, root, text.as_bytes());
 
             while let Some(m) = matches.next() {
                 for capture in m.captures {
@@ -87,6 +92,50 @@ impl Highlighter {
         }
 
         self.trees.insert(document.id, syntax);
+    }
+
+    pub fn update_document(&mut self, document: &Document) {
+        let syntax = self
+            .trees
+            .get_mut(&document.id)
+            .expect("document is not registered on highlighter");
+
+        let Some(ref tree) = syntax.tree else {
+            return;
+        };
+
+        let parser = self
+            .parsers
+            .get_mut(&document.language())
+            .expect("document has a syntax tree but there was no parser for it");
+
+        let Some(tree) = parser.parse(document.text().slice(..).to_string(), Some(tree)) else {
+            return;
+        };
+
+        let query = self
+            .queries
+            .get(&document.language())
+            .expect("document has a syntax tree but there was no query for it");
+
+        let mut cursor = tree_sitter::QueryCursor::new();
+        let root = tree.root_node();
+        let text = document.text().slice(..).to_string();
+        let mut matches = cursor.matches(query, root, text.as_bytes());
+
+        syntax.captures.clear();
+
+        while let Some(m) = matches.next() {
+            for capture in m.captures {
+                let node = capture.node;
+                let start = node.start_position();
+                let end = node.end_position();
+                let name = query.capture_names()[capture.index as usize].to_string();
+                let entry = syntax.captures.entry(start.row).or_default();
+                let capture = SyntaxCapture { start, end, name };
+                entry.push(capture);
+            }
+        }
     }
 
     fn get_or_create_parser(&mut self, language: LanguageId) -> Option<&mut Parser> {
@@ -107,7 +156,16 @@ impl Highlighter {
     fn get_ts_language(&self, language: LanguageId) -> Option<impl Into<Language>> {
         match language {
             LanguageId::Rust => Some(tree_sitter_rust::LANGUAGE),
-            _ => todo!(),
+            LanguageId::Lua => Some(tree_sitter_lua::LANGUAGE),
+            _ => None,
         }
+    }
+}
+
+fn get_ts_query(language: LanguageId) -> Option<String> {
+    match language {
+        LanguageId::Rust => Some(tree_sitter_rust::HIGHLIGHTS_QUERY.to_string()),
+        LanguageId::Lua => Some(tree_sitter_lua::HIGHLIGHTS_QUERY.to_string()),
+        _ => None,
     }
 }

@@ -2,10 +2,13 @@
 local glyph = require("glyph")
 
 --- @class glyph.defaults.options
+--- @field scroll_offset number
 --- @field cursor glyph.options.cursor
 --- @field gutter glyph.options.gutter
 --- @field statusline glyph.options.statusline
 local M = {}
+
+M.scroll_offset = 8
 
 M.cursor = {
   style = "block",
@@ -20,7 +23,7 @@ M.gutter = {
 
 --- @return string
 local function format_mode()
-  local mode = glyph.api.get_editor_mode()
+  local mode = glyph.api.editor_get_mode()
   return " " .. mode:upper() .. " "
 end
 
