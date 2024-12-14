@@ -1,4 +1,5 @@
 pub mod colors;
+pub mod command;
 pub mod document;
 pub mod editor;
 pub mod error;
@@ -11,15 +12,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use colors::setup_colors_api;
+use command::setup_command_api;
 use document::setup_document_api;
-use editor::setup_editor_api;
+use editor::{setup_editor_api, QuitOptions, WriteOptions};
 use error::{Error, Result};
 use glyph_core::cursor::Cursor;
 use glyph_core::editor::{Editor, Mode};
 use glyph_core::highlights::HighlightGroup;
 use glyph_core::window::WindowId;
 use keymap::{setup_keymap_api, LuaKeymap};
-use mlua::{Lua, Table, Value};
+use mlua::{Function, Lua, Table, Value};
 use parking_lot::RwLock;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot::Sender;
@@ -34,7 +36,10 @@ pub enum RuntimeQuery {
 pub enum RuntimeMessage<'msg> {
     UpdateHighlightGroup(String, HighlightGroup),
     SetKeymap(LuaKeymap<'msg>),
+    UserCommandCreate(String, Function),
     Error(String),
+    Quit(QuitOptions),
+    Write(WriteOptions),
 }
 
 pub fn setup_lua_runtime(
@@ -52,6 +57,7 @@ pub fn setup_lua_runtime(
     setup_editor_api(&lua, &core, runtime_sender.clone(), context.clone())?;
     setup_window_api(&lua, &core, runtime_sender.clone(), context.clone())?;
     setup_document_api(&lua, &core, runtime_sender.clone(), context.clone())?;
+    setup_command_api(&lua, &core, runtime_sender.clone(), context.clone())?;
     glyph.set("_core", core)?;
 
     let package = globals.get::<Table>("package")?;

@@ -23,7 +23,7 @@ use crate::ui::line_number::{get_line_drawer, LineNumberDrawer};
 #[derive(Debug, Default)]
 enum KeymapAction {
     #[default]
-    Clear,
+    None,
     Continue,
     Execute,
 }
@@ -43,7 +43,7 @@ impl<'result> KeymapResult<'result> {
             },
             (false, None) => KeymapResult {
                 keymap: None,
-                action: KeymapAction::Clear,
+                action: KeymapAction::None,
             },
             (false, Some(keymap)) => KeymapResult {
                 keymap: Some(keymap),
@@ -265,40 +265,65 @@ impl EditorLayer {
         let mode = ctx.editor.read().mode();
         let mut editor = ctx.editor.write();
 
-        match mode {
-            Mode::Normal => {
-                let stringified_key = stringify_key(key_event);
-                let keymap = format!("{}{stringified_key}", editor.buffered_keymap);
-                let result = config
-                    .keymaps
-                    .get(&mode)
-                    .unwrap()
-                    .find_word(&keymap)
-                    .map(KeymapResult::from_query_result)
-                    .unwrap_or_default();
+        let keymap = format!("{}{}", editor.buffered_keymap, stringify_key(key_event));
+        let result = config
+            .keymaps
+            .get(&mode)
+            .unwrap()
+            .find_word(&keymap)
+            .map(KeymapResult::from_query_result)
+            .unwrap_or_default();
 
-                match result.action {
-                    KeymapAction::Continue => editor.buffered_keymap.push_str(&stringified_key),
-                    KeymapAction::Clear => editor.buffered_keymap.clear(),
-                    KeymapAction::Execute => {
-                        let keymap = result.keymap.unwrap();
-                        editor.buffered_keymap.clear();
-                        drop(editor);
-                        let mut context = CmdContext {
-                            editor: ctx.editor.clone(),
-                            cursors: ctx.cursors.clone(),
-                            highlighter: ctx.highlighter,
-                        };
-                        keymap.command.run(&mut context);
-                    }
-                }
+        tracing::debug!("{result:?}");
+
+        match result.action {
+            // if there is no keymap we do nothing, as behavior varies by mode
+            KeymapAction::None => {}
+            KeymapAction::Continue => {
+                editor.buffered_keymap.push_str(&keymap);
+                return Ok(Some(EventResult::Consumed(None)));
             }
-            Mode::Command => match key_event.code {
-                KeyCode::Char(ch) => editor.command.push(ch),
-                KeyCode::Backspace => _ = editor.command.pop(),
+            KeymapAction::Execute => {
+                let keymap = result.keymap.expect("tried to execute non-existing keymap");
+                editor.buffered_keymap.clear();
+                editor.command.clear();
+                drop(editor);
+                let mut context = CmdContext {
+                    editor: ctx.editor.clone(),
+                    cursors: ctx.cursors.clone(),
+                    highlighter: ctx.highlighter,
+                };
+                keymap.command.run(&mut context);
+                return Ok(Some(EventResult::Consumed(None)));
+            }
+        }
+
+        match mode {
+            // in normal mode everything is a keymap, if not handled, there is nothing to do here
+            Mode::Normal => {}
+            Mode::Insert => match key_event.code {
+                KeyCode::Char(_) => todo!(),
+                KeyCode::Backspace => todo!(),
                 _ => {}
             },
-            Mode::Insert => {}
+            Mode::Command => match key_event.code {
+                KeyCode::Char(ch) => editor.command.push(ch),
+                KeyCode::Enter => {
+                    if let Some(command) = config.user_commands.get(&editor.command) {
+                        let window = editor.focused_tab().tree.focus();
+                        let document = editor.focused_tab().tree.window(window).document;
+                        command.call::<()>(usize::from(document) as i64).ok();
+                        tracing::debug!("got command {} -> {command:?}", editor.command);
+                    }
+                }
+                KeyCode::Backspace => {
+                    if editor.command.is_empty() {
+                        editor.set_mode(Mode::Normal);
+                    }
+                    editor.command.pop();
+                }
+                _ => {}
+            },
         }
 
         Ok(None)

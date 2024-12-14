@@ -8,6 +8,7 @@ local glyph = require("glyph")
 --- @class glyph.api: glyph.api.editor
 --- @class glyph.api: glyph.api.window
 --- @class glyph.api: glyph.api.document
+--- @class glyph.api: glyph.api.command
 
 --- @type glyph.api.colors
 local colors = require("api.colors")
@@ -30,6 +31,9 @@ local window = require("api.window")
 --- @type glyph.api.document
 local document = require("api.document")
 
+--- @type glyph.api.command
+local command = require("api.command")
+
 --- @type glyph.api
 local M = glyph.u.table_deep_extend(
   "error",
@@ -39,7 +43,8 @@ local M = glyph.u.table_deep_extend(
   themes,
   editor,
   window,
-  document
+  document,
+  command
 )
 
 return M

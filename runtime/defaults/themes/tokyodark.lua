@@ -3,6 +3,7 @@ local glyph = require("glyph")
 
 --- tokyodark theme adaptation for glyph
 --- @class glyph.defaults.themes.tokyodark
+--- @field setup fun(): nil
 local M = {}
 
 local palette = {
@@ -35,7 +36,7 @@ local palette = {
 }
 
 --- load tokyodark theme
-function M.load()
+function M.setup()
   -- user interface
   glyph.api.set_hl_group("line_number", { fg = palette.grey })
   glyph.api.set_hl_group("current_line", { fg = palette.fg })

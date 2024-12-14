@@ -4,11 +4,21 @@
 --- @field options glyph.options
 --- @field _core glyph.core
 
+--- @class glyph.t.quit_opts
+--- @field force? boolean
+--- @field all? boolean
+
+--- @class glyph.t.write_opts
+--- @field force? boolean
+--- @field all? boolean
+
 --- @class glyph.core
 --- @field keymap_command_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: string, opts?: KeymapOpts)
 --- @field keymap_function_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: function, opts?: KeymapOpts)
 --- @field set_hl_group fun(name: string, opts: glyph.colors.hl_group)
 --- @field editor_get_mode fun(): string
+--- @field editor_quit fun(opts?: glyph.t.quit_opts)
+--- @field editor_write fun(opts?: glyph.t.write_opts)
 --- @field window_get_active fun(): integer
 --- @field window_get_cursor fun(window: integer): glyph.t.point
 --- @field window_is_valid fun(window: integer): boolean
@@ -16,6 +26,7 @@
 --- @field document_get_line_count fun(document: integer): integer
 --- @field document_is_valid fun(document: integer): boolean
 --- @field document_get_filepath fun(document: integer): string
+--- @field user_command_create fun(name: string, callback: fun(document: integer))
 
 --- @class glyph.options
 --- @field scroll_offset number

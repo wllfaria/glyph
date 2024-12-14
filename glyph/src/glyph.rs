@@ -12,14 +12,14 @@ use glyph_core::editor::{Editor, EventResult, OpenAction};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::WindowId;
-use glyph_runtime::GlyphContext;
+use glyph_runtime::{GlyphContext, RuntimeMessage};
 use glyph_term::backend::{Backend, CrosstermBackend};
 use glyph_term::layers::editor_layer::EditorLayer;
 use glyph_term::renderer::{Context, Renderer};
 use glyph_term::terminal::Terminal;
 use mlua::Lua;
 use parking_lot::RwLock;
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 #[derive(Debug)]
 pub struct Glyph<'a, B>
@@ -33,6 +33,26 @@ where
     renderer: Renderer,
     config: Config<'a>,
     runtime: Lua,
+    runtime_receiver: ReceiverStream<RuntimeMessage<'static>>,
+}
+
+pub enum ControlFlow {
+    Break,
+    Continue,
+}
+
+#[derive(Debug)]
+struct ReceiverStream<T>(UnboundedReceiver<T>);
+
+impl<T> Stream for ReceiverStream<T> {
+    type Item = T;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.0.poll_recv(cx)
+    }
 }
 
 impl<'a, B> Glyph<'a, B>
@@ -77,6 +97,7 @@ where
             glyph_context.clone(),
         )?;
         let config = glyph_config::Config::load(&runtime, &mut runtime_receiver)?;
+        let mut runtime_receiver = ReceiverStream(runtime_receiver);
 
         Ok(Glyph {
             editor,
@@ -86,6 +107,7 @@ where
             config,
             cursors,
             runtime,
+            runtime_receiver,
         })
     }
 
@@ -118,17 +140,21 @@ where
                 break Ok(());
             }
 
-            tokio::select! {
+            let control_flow = tokio::select! {
                 biased;
 
                 Some(event) = input_stream.next() => {
-                    if let Ok(Event::Key(KeyEvent { code: KeyCode::Char('q'), .. })) = event {
-                        break Ok(())
-                    };
                     self.handle_event(event?)?;
                     self.draw_frame()?;
+                    None
                 }
+                Some(message) = self.runtime_receiver.next() => self.handle_runtime_message(message),
+            };
 
+            match control_flow {
+                Some(ControlFlow::Break) => break Ok(()),
+                Some(ControlFlow::Continue) => {}
+                None => {}
             }
         }
     }
@@ -141,6 +167,38 @@ where
             cursors: self.cursors.clone(),
         };
         self.renderer.handle_event(&event, &mut context, &self.config)
+    }
+
+    fn handle_runtime_message(&mut self, message: RuntimeMessage) -> Option<ControlFlow> {
+        match message {
+            RuntimeMessage::UpdateHighlightGroup(_, _) => todo!(),
+            RuntimeMessage::SetKeymap(_) => todo!(),
+            RuntimeMessage::UserCommandCreate(_, _) => todo!(),
+            RuntimeMessage::Error(_) => todo!(),
+            RuntimeMessage::Quit(options) => {
+                match (options.force, options.all) {
+                    // force quit every document
+                    (true, true) => return Some(ControlFlow::Break),
+                    // force quit current document, keeping others
+                    (true, false) => {
+                        let mut editor = self.editor.write();
+                        let tab = editor.focused_tab_mut();
+                        let window = tab.tree.focus();
+                        tab.tree.close_window(window);
+                    }
+                    // quit every document, prompt for dirty ones
+                    (false, true) => {}
+                    // quit current document, but prompt if its dirty
+                    (false, false) => {}
+                };
+                if options.force && options.all {
+                    return Some(ControlFlow::Break);
+                }
+            }
+            RuntimeMessage::Write(_) => todo!(),
+        };
+
+        None
     }
 
     fn draw_frame(&mut self) -> Result<(), std::io::Error> {

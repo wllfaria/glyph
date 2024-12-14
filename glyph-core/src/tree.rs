@@ -144,4 +144,6 @@ impl Tree {
 
         todo!();
     }
+
+    pub fn close_window(&mut self, window: WindowId) {}
 }

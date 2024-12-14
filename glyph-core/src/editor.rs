@@ -29,6 +29,7 @@ where
         match value.as_ref() {
             "normal" | "n" => Mode::Normal,
             "insert" | "i" => Mode::Insert,
+            "command" | "c" => Mode::Command,
             _ => unreachable!(),
         }
     }

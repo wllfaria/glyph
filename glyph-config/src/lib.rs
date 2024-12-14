@@ -11,7 +11,7 @@ use glyph_runtime::keymap::{LuaKeymapOpts, LuaMappableCommand};
 use glyph_runtime::statusline::StatuslineConfig;
 use glyph_runtime::RuntimeMessage;
 use glyph_trie::Trie;
-use mlua::{FromLua, Lua, LuaSerdeExt, Table, Value};
+use mlua::{FromLua, Function, Lua, LuaSerdeExt, Table, Value};
 use serde::Deserialize;
 use tokio::sync::mpsc::UnboundedReceiver;
 
@@ -132,6 +132,7 @@ pub struct Config<'cfg> {
     cursor: CursorConfig,
     gutter: GutterConfig,
     scroll_offset: usize,
+    pub user_commands: HashMap<String, Function>,
     pub statusline: StatuslineConfig,
     pub highlight_groups: HashMap<String, HighlightGroup>,
     pub keymaps: HashMap<Mode, Trie<KeymapConfig<'cfg>>>,
@@ -156,7 +157,11 @@ impl<'cfg> Config<'cfg> {
             setup_messages.push(message);
         }
 
-        let (highlight_groups, keymaps) = handle_setup_messages(setup_messages);
+        let SetupMessagesResult {
+            highlight_groups,
+            keymaps,
+            user_commands,
+        } = handle_setup_messages(setup_messages);
 
         let glyph = glyph_runtime::get_or_create_module(runtime, "glyph")?;
         let config = glyph.get::<Table>("options")?;
@@ -172,6 +177,7 @@ impl<'cfg> Config<'cfg> {
             keymaps,
             statusline,
             scroll_offset,
+            user_commands,
             highlight_groups,
         })
     }
@@ -185,18 +191,27 @@ impl<'cfg> Config<'cfg> {
     }
 }
 
-fn handle_setup_messages(
-    messages: Vec<RuntimeMessage>,
-) -> (HashMap<String, HighlightGroup>, HashMap<Mode, Trie<KeymapConfig>>) {
+struct SetupMessagesResult<'cfg> {
+    highlight_groups: HashMap<String, HighlightGroup>,
+    keymaps: HashMap<Mode, Trie<KeymapConfig<'cfg>>>,
+    user_commands: HashMap<String, Function>,
+}
+
+fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> SetupMessagesResult {
     let mut highlight_groups = HashMap::default();
+
     let mut keymaps = HashMap::default();
     keymaps.insert(Mode::Normal, Trie::default());
     keymaps.insert(Mode::Insert, Trie::default());
+    keymaps.insert(Mode::Command, Trie::default());
+
+    let mut user_commands = HashMap::default();
 
     for message in messages {
         match message {
             RuntimeMessage::Error(error) => println!("{error:?}"),
             RuntimeMessage::UpdateHighlightGroup(name, group) => _ = highlight_groups.insert(name, group),
+            RuntimeMessage::UserCommandCreate(name, callback) => _ = user_commands.insert(name, callback),
             RuntimeMessage::SetKeymap(lua_keymap) => {
                 let keymap = KeymapConfig {
                     mode: lua_keymap.mode,
@@ -206,8 +221,14 @@ fn handle_setup_messages(
                 let mode_maps = keymaps.get_mut(&lua_keymap.mode).unwrap();
                 mode_maps.add_word(&lua_keymap.keys, keymap);
             }
+            RuntimeMessage::Quit(_) => {}
+            RuntimeMessage::Write(_) => {}
         };
     }
 
-    (highlight_groups, keymaps)
+    SetupMessagesResult {
+        highlight_groups,
+        keymaps,
+        user_commands,
+    }
 }
