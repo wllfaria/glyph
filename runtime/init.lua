@@ -12,6 +12,10 @@
 --- @field force? boolean
 --- @field all? boolean
 
+--- @class glyph.t.point
+--- @field x integer
+--- @field y integer
+
 --- @class glyph.core
 --- @field keymap_command_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: string, opts?: KeymapOpts)
 --- @field keymap_function_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: function, opts?: KeymapOpts)

@@ -5,7 +5,7 @@ local M = {}
 function M.load_theme(name)
   local default_themes = require("defaults.themes")
   if default_themes[name] then
-    default_themes[name].load()
+    default_themes[name].setup()
   end
 end
 

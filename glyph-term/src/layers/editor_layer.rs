@@ -343,7 +343,7 @@ impl RenderLayer for EditorLayer {
         self.draw_commandline(buffer, ctx, commandline_area, config);
 
         let editor = ctx.editor.read();
-        for (window, _) in editor.focused_tab().tree.windows() {
+        for window in editor.focused_tab().tree.windows().values() {
             let document = editor.document(&window.document);
             self.draw_window(
                 area,

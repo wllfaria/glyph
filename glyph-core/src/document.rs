@@ -67,6 +67,7 @@ pub struct Document {
     text: Rope,
     language: LanguageId,
     metadata: DocumentMeta,
+    dirty: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -100,6 +101,7 @@ impl Document {
             id: DocumentId::default(),
             language,
             text: text.map(|t| Rope::from_str(t.as_ref())).unwrap_or_default(),
+            dirty: false,
             metadata: DocumentMeta::new(path),
         }
     }

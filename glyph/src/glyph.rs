@@ -3,7 +3,7 @@ use std::io::{self, Stdout};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crossterm::event::{Event, KeyCode, KeyEvent};
+use crossterm::event::Event;
 use futures::{Stream, StreamExt};
 use glyph_config::dirs::DIRS;
 use glyph_config::Config;
@@ -97,7 +97,7 @@ where
             glyph_context.clone(),
         )?;
         let config = glyph_config::Config::load(&runtime, &mut runtime_receiver)?;
-        let mut runtime_receiver = ReceiverStream(runtime_receiver);
+        let runtime_receiver = ReceiverStream(runtime_receiver);
 
         Ok(Glyph {
             editor,
@@ -180,16 +180,14 @@ where
                     // force quit every document
                     (true, true) => return Some(ControlFlow::Break),
                     // force quit current document, keeping others
-                    (true, false) => {
-                        let mut editor = self.editor.write();
-                        let tab = editor.focused_tab_mut();
-                        let window = tab.tree.focus();
-                        tab.tree.close_window(window);
-                    }
+                    (true, false) => todo!(),
                     // quit every document, prompt for dirty ones
                     (false, true) => {}
                     // quit current document, but prompt if its dirty
-                    (false, false) => {}
+                    (false, false) => {
+                        let mut editor = self.editor.write();
+                        editor.close_active_window();
+                    }
                 };
                 if options.force && options.all {
                     return Some(ControlFlow::Break);

@@ -119,7 +119,14 @@ impl Editor {
 
     #[must_use]
     pub fn should_close(&self) -> bool {
-        self.focused_tab().tree.is_empty()
+        self.tabs.len() == 1 && self.focused_tab().tree.is_empty()
+    }
+
+    pub fn close_active_window(&mut self) {
+        let tab = self.focused_tab_mut();
+        let window = tab.tree.focus();
+
+        tab.tree.close_window(window);
     }
 
     pub fn new_file(&mut self, action: OpenAction) -> (WindowId, DocumentId) {

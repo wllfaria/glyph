@@ -66,7 +66,7 @@ fn window_is_valid(window: Integer, context: Arc<RwLock<GlyphContext>>) -> mlua:
                 .read()
                 .focused_tab()
                 .tree
-                .nodes()
+                .windows()
                 .contains_key(&window)
         })
         .unwrap_or_default())

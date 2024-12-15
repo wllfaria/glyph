@@ -18,10 +18,6 @@ function M.window_is_valid(window)
   return glyph._core.window_is_valid(window)
 end
 
---- @class glyph.t.point
---- @field x integer
---- @field y integer
-
 --- @param window integer
 --- @return glyph.t.point
 function M.window_get_cursor(window)
