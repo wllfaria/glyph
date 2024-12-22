@@ -301,7 +301,15 @@ impl EditorLayer {
             // in normal mode everything is a keymap, if not handled, there is nothing to do here
             Mode::Normal => {}
             Mode::Insert => match key_event.code {
-                KeyCode::Char(_) => todo!(),
+                KeyCode::Char(ch) => {
+                    let mut context = CmdContext {
+                        editor: ctx.editor.clone(),
+                        cursors: ctx.cursors.clone(),
+                        highlighter: ctx.highlighter,
+                    };
+                    drop(editor);
+                    glyph_core::command::insert_char(&mut context, ch)
+                }
                 KeyCode::Backspace => todo!(),
                 _ => {}
             },
@@ -344,7 +352,7 @@ impl RenderLayer for EditorLayer {
 
         let editor = ctx.editor.read();
         for window in editor.focused_tab().tree.windows().values() {
-            let document = editor.document(&window.document);
+            let document = editor.document(window.document);
             self.draw_window(
                 area,
                 document,
@@ -367,7 +375,7 @@ impl RenderLayer for EditorLayer {
                 let window = tab.tree.window(focused_window);
                 let cursors = ctx.cursors.read();
                 let cursor = cursors.get(&window.id).unwrap();
-                let document = editor.document(&window.document);
+                let document = editor.document(window.document);
                 let gutter_size = calculate_gutter_size(document, config);
 
                 let point = Point {

@@ -3,6 +3,7 @@ pub mod command;
 pub mod cursor;
 pub mod document;
 pub mod editor;
+pub mod fs;
 pub mod highlights;
 pub mod rect;
 pub mod syntax;

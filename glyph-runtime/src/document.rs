@@ -71,7 +71,7 @@ fn document_is_valid(document: Integer, context: Arc<RwLock<GlyphContext>>) -> m
     }
 
     Ok(DocumentId::new(document)
-        .map(|document| context.read().editor.read().get_document(&document).is_some())
+        .map(|document| context.read().editor.read().get_document(document).is_some())
         .unwrap_or_default())
 }
 
@@ -88,10 +88,10 @@ fn document_get_line_count(document: Integer, context: Arc<RwLock<GlyphContext>>
         let window = editor.focused_tab().tree.focus();
         let window = editor.focused_tab().tree.window(window);
         let document = window.document;
-        let document = editor.document(&document);
+        let document = editor.document(document);
         document.text().len_lines()
     } else {
-        let Some(document) = DocumentId::new(document).and_then(|document| editor.get_document(&document)) else {
+        let Some(document) = DocumentId::new(document).and_then(|document| editor.get_document(document)) else {
             return Err(DocumentError::InvalidDocument(document).into_lua_err());
         };
         document.text().len_lines()
@@ -113,14 +113,16 @@ fn document_get_filepath(document: Integer, context: Arc<RwLock<GlyphContext>>) 
         let window = editor.focused_tab().tree.focus();
         let window = editor.focused_tab().tree.window(window);
         let document = window.document;
-        let document = editor.document(&document);
+        let document = editor.document(document);
         document.metadata().path()
     } else {
-        let Some(document) = DocumentId::new(document).and_then(|document| editor.get_document(&document)) else {
+        let Some(document) = DocumentId::new(document).and_then(|document| editor.get_document(document)) else {
             return Err(DocumentError::InvalidDocument(document).into_lua_err());
         };
         document.metadata().path()
     };
 
-    Ok(filename)
+    Ok(filename
+        .map(|filename| filename.to_string_lossy().to_string())
+        .unwrap_or_default())
 }

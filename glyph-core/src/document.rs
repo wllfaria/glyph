@@ -62,11 +62,8 @@ impl DocumentMeta {
         DocumentMeta { path }
     }
 
-    pub fn path(&self) -> String {
-        self.path
-            .as_ref()
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_default()
+    pub fn path(&self) -> Option<&PathBuf> {
+        self.path.as_ref()
     }
 }
 

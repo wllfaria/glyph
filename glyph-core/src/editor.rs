@@ -86,19 +86,19 @@ impl Editor {
         self.area
     }
 
-    pub fn get_document(&self, id: &DocumentId) -> Option<&Document> {
-        self.documents.get(id)
+    pub fn get_document(&self, id: DocumentId) -> Option<&Document> {
+        self.documents.get(&id)
     }
 
-    pub fn get_document_mut(&mut self, id: &DocumentId) -> Option<&mut Document> {
-        self.documents.get_mut(id)
+    pub fn get_document_mut(&mut self, id: DocumentId) -> Option<&mut Document> {
+        self.documents.get_mut(&id)
     }
 
-    pub fn document(&self, id: &DocumentId) -> &Document {
+    pub fn document(&self, id: DocumentId) -> &Document {
         self.get_document(id).unwrap()
     }
 
-    pub fn document_mut(&mut self, id: &DocumentId) -> &mut Document {
+    pub fn document_mut(&mut self, id: DocumentId) -> &mut Document {
         self.get_document_mut(id).unwrap()
     }
 
@@ -183,6 +183,20 @@ impl Editor {
                 tab.tree.split(window, Layout::Vertical)
             }
             OpenAction::SplitHorizontal => todo!(),
+        }
+    }
+
+    pub fn write_document(&mut self, document: DocumentId) {
+        let document = self.document(document);
+        if let Some(path) = document.metadata().path() {
+            match crate::fs::write_file(path, document.text()) {
+                Ok(amount) => self.messages.push_str(&format!(
+                    r#""~/{path}" {lines}L, {amount}B written"#,
+                    path = path.display(),
+                    lines = document.text().len_lines()
+                )),
+                Err(_) => todo!(),
+            }
         }
     }
 }

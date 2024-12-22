@@ -75,7 +75,7 @@ where
         };
 
         let mut highlighter = Highlighter::new();
-        let document = editor.document(&document);
+        let document = editor.document(document);
         highlighter.add_document(document);
 
         let mut cursors = BTreeMap::default();
@@ -173,23 +173,30 @@ where
             RuntimeMessage::SetKeymap(_) => todo!(),
             RuntimeMessage::UserCommandCreate(_, _) => todo!(),
             RuntimeMessage::Error(_) => todo!(),
-            RuntimeMessage::Quit(options) => {
-                match (options.force, options.all) {
-                    (true, true) => return Some(ControlFlow::Break),
-                    (true, false) => todo!(),
-                    (false, true) => {}
-                    (false, false) => {
-                        let should_quit = self.editor.write().close_active_window();
-                        if should_quit {
-                            return Some(ControlFlow::Break);
-                        }
+            RuntimeMessage::Quit(options) => match (options.force, options.all) {
+                (true, true) => return Some(ControlFlow::Break),
+                (true, false) => todo!(),
+                (false, true) => {}
+                (false, false) => {
+                    let should_quit = self.editor.write().close_active_window();
+                    if should_quit {
+                        return Some(ControlFlow::Break);
                     }
-                };
-                if options.force && options.all {
-                    return Some(ControlFlow::Break);
                 }
-            }
-            RuntimeMessage::Write(_) => todo!(),
+            },
+            RuntimeMessage::Write(options) => match (options.force, options.all) {
+                (true, true) => {}
+                (true, false) => {}
+                (false, true) => {}
+                (false, false) => {
+                    let mut editor = self.editor.write();
+                    let tab = editor.focused_tab();
+                    let window = tab.tree.focus();
+                    let window = tab.tree.window(window);
+                    let document = window.document;
+                    editor.write_document(document);
+                }
+            },
         };
 
         None

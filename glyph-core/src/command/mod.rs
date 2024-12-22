@@ -124,7 +124,7 @@ fn move_down(ctx: &mut Context) {
         let tab = editor.focused_tab();
         let window = tab.tree.focus();
         let window = tab.tree.window(window);
-        let document = editor.document(&window.document);
+        let document = editor.document(window.document);
         let mut cursors = ctx.cursors.write();
         let cursor = cursors.get_mut(&window.id).unwrap();
         cursor.move_down(document);
@@ -171,7 +171,7 @@ fn move_right(ctx: &mut Context) {
         let tab = editor.focused_tab();
         let window = tab.tree.focus();
         let window = tab.tree.window(window);
-        let document = editor.document(&window.document);
+        let document = editor.document(window.document);
         let mut cursors = ctx.cursors.write();
         let cursor = cursors.get_mut(&window.id).unwrap();
         cursor.move_right(document);
@@ -195,7 +195,7 @@ fn remove_curr_char(ctx: &mut Context) {
     let window = tab.tree.focus();
 
     let document = tab.tree.window_mut(window).document;
-    let document = editor.document_mut(&document);
+    let document = editor.document_mut(document);
 
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window).expect("window has no cursor");
@@ -239,7 +239,7 @@ fn remove_prev_char(ctx: &mut Context) {
     let window = tab.tree.focus();
 
     let document = tab.tree.window_mut(window).document;
-    let document = editor.document_mut(&document);
+    let document = editor.document_mut(document);
 
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window).expect("window has no cursor");
@@ -283,7 +283,7 @@ fn delete_line(ctx: &mut Context) {
     let window = tab.tree.focus();
 
     let document = tab.tree.window_mut(window).document;
-    let document = editor.document_mut(&document);
+    let document = editor.document_mut(document);
 
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window).expect("window has no cursor");
@@ -336,7 +336,7 @@ fn move_to_eof(ctx: &mut Context) {
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window_id).unwrap();
 
-    let document = editor.document_mut(&document);
+    let document = editor.document_mut(document);
     let text = document.text_mut();
     let y = text.len_lines() - 1;
     let last_line = text.line(y);
@@ -381,7 +381,7 @@ fn move_to_eol(ctx: &mut Context) {
     let cursor = cursors.get_mut(&window_id).unwrap();
 
     let document = tab.tree.window_mut(window_id).document;
-    let document = editor.document(&document);
+    let document = editor.document(document);
     let line_len = document.text().line(cursor.y()).len_chars();
 
     cursor.move_to(line_len - 1, cursor.y());
@@ -397,7 +397,7 @@ fn page_down(ctx: &mut Context) {
     let cursor = cursors.get_mut(&window_id).unwrap();
 
     let document = tab.tree.window_mut(window_id).document;
-    let max_line = editor.document(&document).text().len_lines();
+    let max_line = editor.document(document).text().len_lines();
 
     let half_page = area.height / 2;
     let next_stop = (cursor.y() + half_page as usize).min(max_line - 1);
@@ -434,7 +434,7 @@ fn insert_line_above(ctx: &mut Context) {
     let window = tab.tree.focus();
 
     let document = tab.tree.window_mut(window).document;
-    let document = editor.document_mut(&document);
+    let document = editor.document_mut(document);
 
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window).expect("window has no cursor");
@@ -476,7 +476,7 @@ fn insert_line_below(ctx: &mut Context) {
     let window = tab.tree.focus();
 
     let document = tab.tree.window_mut(window).document;
-    let document = editor.document_mut(&document);
+    let document = editor.document_mut(document);
 
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window).expect("window has no cursor");
@@ -665,7 +665,7 @@ fn delete_word(ctx: &mut Context) {
     let window = tab.tree.focus();
 
     let document = tab.tree.window_mut(window).document;
-    let document = editor.document_mut(&document);
+    let document = editor.document_mut(document);
 
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window).expect("window has no cursor");
@@ -722,8 +722,6 @@ fn delete_word(ctx: &mut Context) {
     let old_end_position = Point::new(query.end_line, query.end_col);
     let new_end_position = start_position;
 
-    tracing::debug!("same line");
-
     text.remove(start_char..end_char);
 
     let document = document.id;
@@ -746,9 +744,7 @@ fn delete_word(ctx: &mut Context) {
 
 fn edit_tree(ctx: &mut Context, document: DocumentId, edit: InputEdit) {
     let mut editor = ctx.editor.write();
-    let document = editor.document_mut(&document);
-
-    tracing::debug!("{edit:#?}");
+    let document = editor.document_mut(document);
 
     let syntax = ctx
         .highlighter
@@ -770,6 +766,23 @@ fn insert_at_eol(ctx: &mut Context) {
 fn insert_ahead(ctx: &mut Context) {
     move_right(ctx);
     insert_mode(ctx);
+}
+
+pub fn insert_char(ctx: &mut Context, ch: char) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab();
+    let win = tab.tree.focus();
+    let doc = tab.tree.window(win).document;
+    let doc = editor.document_mut(doc);
+
+    let text = doc.text_mut();
+
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&win).unwrap();
+
+    let char_position = text.line_to_char(cursor.y()) + cursor.x();
+    text.insert_char(char_position, ch);
+    cursor.move_right(doc);
 }
 
 fn insert_mode(ctx: &mut Context) {
@@ -807,7 +820,7 @@ mod tests {
         let (_, doc) = editor.new_file_with_document(".", text.to_string(), OpenAction::SplitVertical);
         let mut cursors = BTreeMap::new();
         cursors.insert(WindowId::new(1).unwrap(), cursor);
-        let document = editor.document(&doc);
+        let document = editor.document(doc);
         highlighter.add_document(document);
 
         Context {
@@ -824,7 +837,7 @@ mod tests {
         let editor = ctx.editor.read();
         let win = editor.focused_tab().tree.focus();
         let doc = editor.focused_tab().tree.window(win).document;
-        let document = editor.document(&doc);
+        let document = editor.document(doc);
         f(document);
     }
 
