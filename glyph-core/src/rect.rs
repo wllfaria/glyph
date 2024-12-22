@@ -127,3 +127,20 @@ impl Rect {
         self.x + self.width
     }
 }
+
+impl From<(u16, u16, u16, u16)> for Rect {
+    fn from((x, y, height, width): (u16, u16, u16, u16)) -> Self {
+        Rect { x, y, height, width }
+    }
+}
+
+impl From<(u16, u16)> for Rect {
+    fn from((height, width): (u16, u16)) -> Self {
+        Rect {
+            x: 0,
+            y: 0,
+            height,
+            width,
+        }
+    }
+}

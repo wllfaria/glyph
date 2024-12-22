@@ -20,6 +20,13 @@ local static_commands = {
   "move_to_eol",
   "page_down",
   "page_up",
+  "insert_line_below",
+  "insert_line_above",
+  "insert_at_eol",
+  "insert_ahead",
+  "remove_curr_char",
+  "remove_prev_char",
+  "delete_word",
 }
 
 --- @class KeymapOpts

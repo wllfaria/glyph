@@ -131,7 +131,6 @@ pub struct KeymapConfig<'cfg> {
 pub struct Config<'cfg> {
     cursor: CursorConfig,
     gutter: GutterConfig,
-    scroll_offset: usize,
     pub user_commands: HashMap<String, Function>,
     pub statusline: StatuslineConfig,
     pub highlight_groups: HashMap<String, HighlightGroup>,
@@ -166,7 +165,7 @@ impl<'cfg> Config<'cfg> {
         let glyph = glyph_runtime::get_or_create_module(runtime, "glyph")?;
         let config = glyph.get::<Table>("options")?;
 
-        let scroll_offset = runtime.from_value::<usize>(config.get::<Value>("scroll_offset")?)?;
+        //let scroll_offset = runtime.from_value::<usize>(config.get::<Value>("scroll_offset")?)?;
         let cursor = runtime.from_value::<CursorConfig>(config.get::<Value>("cursor")?)?;
         let gutter = runtime.from_value::<GutterConfig>(config.get::<Value>("gutter")?)?;
         let statusline = StatuslineConfig::from_lua(config.get::<Value>("statusline")?, runtime)?;
@@ -176,7 +175,6 @@ impl<'cfg> Config<'cfg> {
             gutter,
             keymaps,
             statusline,
-            scroll_offset,
             user_commands,
             highlight_groups,
         })

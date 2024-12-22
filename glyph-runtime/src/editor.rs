@@ -19,9 +19,16 @@ pub fn setup_editor_api(
         lua.create_function(move |_: &Lua, _: ()| editor_get_mode(context.clone()))?,
     )?;
 
+    let sender = runtime_sender.clone();
     core.set(
         "editor_quit",
-        lua.create_function(move |lua: &Lua, args: Table| editor_quit(lua, args, runtime_sender.clone()))?,
+        lua.create_function(move |lua: &Lua, args: Table| editor_quit(lua, args, sender.clone()))?,
+    )?;
+
+    let sender = runtime_sender.clone();
+    core.set(
+        "editor_write",
+        lua.create_function(move |lua: &Lua, args: Table| editor_write(lua, args, sender.clone()))?,
     )?;
 
     Ok(())
@@ -46,7 +53,6 @@ fn editor_quit(
 ) -> mlua::Result<()> {
     let options = lua.from_value::<QuitOptions>(mlua::Value::Table(options))?;
     runtime_sender.send(RuntimeMessage::Quit(options)).ok();
-
     Ok(())
 }
 

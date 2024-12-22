@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use crate::document::{Document, DocumentId};
 use crate::rect::Rect;
 use crate::tab::Tab;
-use crate::tree::Layout;
+use crate::tree::{CloseAction, Layout};
 use crate::window::{Window, WindowId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -66,7 +66,8 @@ pub enum OpenAction {
 }
 
 impl Editor {
-    pub fn new(area: Rect) -> Editor {
+    pub fn new(area: impl Into<Rect>) -> Editor {
+        let area = area.into();
         Editor {
             // first document id will be 1 by default
             next_document_id: DocumentId::default(),
@@ -122,11 +123,16 @@ impl Editor {
         self.tabs.len() == 1 && self.focused_tab().tree.is_empty()
     }
 
-    pub fn close_active_window(&mut self) {
+    pub fn close_active_window(&mut self) -> bool {
         let tab = self.focused_tab_mut();
         let window = tab.tree.focus();
-
-        tab.tree.close_window(window);
+        match tab.tree.close_window(window) {
+            CloseAction::None => false,
+            CloseAction::CloseTab => {
+                self.tabs.remove(self.focused_tab);
+                self.tabs.is_empty()
+            }
+        }
     }
 
     pub fn new_file(&mut self, action: OpenAction) -> (WindowId, DocumentId) {
@@ -142,11 +148,11 @@ impl Editor {
 
     pub fn new_file_with_document(
         &mut self,
-        path: PathBuf,
+        path: impl Into<PathBuf>,
         text: String,
         action: OpenAction,
     ) -> (WindowId, DocumentId) {
-        let mut document = Document::new(Some(path), Some(text));
+        let mut document = Document::new(Some(path.into()), Some(text));
         let id = self.next_document_id;
         document.id = id;
         self.next_document_id = self.next_document_id.next();

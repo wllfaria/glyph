@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
@@ -30,15 +31,23 @@ impl DocumentId {
     }
 }
 
-#[derive(Debug)]
-pub enum LineEnding {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum LineBreak {
     Lf,
 }
 
-impl AsRef<str> for LineEnding {
+impl Display for LineBreak {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LineBreak::Lf => f.write_str("\n"),
+        }
+    }
+}
+
+impl AsRef<str> for LineBreak {
     fn as_ref(&self) -> &str {
         match self {
-            LineEnding::Lf => "\n",
+            LineBreak::Lf => "\n",
         }
     }
 }
@@ -67,7 +76,7 @@ pub struct Document {
     text: Rope,
     language: LanguageId,
     metadata: DocumentMeta,
-    dirty: bool,
+    pub line_break: LineBreak,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -101,7 +110,7 @@ impl Document {
             id: DocumentId::default(),
             language,
             text: text.map(|t| Rope::from_str(t.as_ref())).unwrap_or_default(),
-            dirty: false,
+            line_break: LineBreak::Lf,
             metadata: DocumentMeta::new(path),
         }
     }
@@ -125,6 +134,6 @@ impl Document {
 
 impl Default for Document {
     fn default() -> Self {
-        Document::new(None, Some(LineEnding::Lf))
+        Document::new(None, Some(LineBreak::Lf))
     }
 }

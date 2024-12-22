@@ -274,10 +274,9 @@ impl EditorLayer {
             .map(KeymapResult::from_query_result)
             .unwrap_or_default();
 
-        tracing::debug!("{result:?}");
-
         match result.action {
             // if there is no keymap we do nothing, as behavior varies by mode
+            KeymapAction::None if mode == Mode::Normal => editor.buffered_keymap.clear(),
             KeymapAction::None => {}
             KeymapAction::Continue => {
                 editor.buffered_keymap.push_str(&keymap);
@@ -313,7 +312,8 @@ impl EditorLayer {
                         let window = editor.focused_tab().tree.focus();
                         let document = editor.focused_tab().tree.window(window).document;
                         command.call::<()>(usize::from(document) as i64).ok();
-                        tracing::debug!("got command {} -> {command:?}", editor.command);
+                        editor.command.clear();
+                        editor.set_mode(Mode::Normal);
                     }
                 }
                 KeyCode::Backspace => {

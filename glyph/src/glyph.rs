@@ -38,7 +38,6 @@ where
 
 pub enum ControlFlow {
     Break,
-    Continue,
 }
 
 #[derive(Debug)]
@@ -153,7 +152,6 @@ where
 
             match control_flow {
                 Some(ControlFlow::Break) => break Ok(()),
-                Some(ControlFlow::Continue) => {}
                 None => {}
             }
         }
@@ -177,16 +175,14 @@ where
             RuntimeMessage::Error(_) => todo!(),
             RuntimeMessage::Quit(options) => {
                 match (options.force, options.all) {
-                    // force quit every document
                     (true, true) => return Some(ControlFlow::Break),
-                    // force quit current document, keeping others
                     (true, false) => todo!(),
-                    // quit every document, prompt for dirty ones
                     (false, true) => {}
-                    // quit current document, but prompt if its dirty
                     (false, false) => {
-                        let mut editor = self.editor.write();
-                        editor.close_active_window();
+                        let should_quit = self.editor.write().close_active_window();
+                        if should_quit {
+                            return Some(ControlFlow::Break);
+                        }
                     }
                 };
                 if options.force && options.all {

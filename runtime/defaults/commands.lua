@@ -8,47 +8,47 @@ local M = {}
 function M.setup() end
 
 glyph.api.user_command_create("q", function()
-  glyph._core.editor_quit()
+  glyph.api.editor_quit()
 end)
 
 glyph.api.user_command_create("q!", function()
-  glyph._core.editor_quit({ force = true })
+  glyph.api.editor_quit({ force = true })
 end)
 
 glyph.api.user_command_create("qa!", function()
-  glyph._core.editor_quit({ force = true, all = true })
+  glyph.api.editor_quit({ force = true, all = true })
 end)
 
 glyph.api.user_command_create("qa", function()
-  glyph._core.editor_quit({ all = true })
+  glyph.api.editor_quit({ all = true })
 end)
 
 glyph.api.user_command_create("w", function()
-  glyph._core.editor_write()
+  glyph.api.editor_write()
 end)
 
 glyph.api.user_command_create("wq", function()
-  glyph._core.editor_write()
-  glyph._core.editor_quit()
+  glyph.api.editor_write()
+  glyph.api.editor_quit()
 end)
 
 glyph.api.user_command_create("wq!", function()
-  glyph._core.editor_write({ force = true })
-  glyph._core.editor_quit({ force = true })
+  glyph.api.editor_write({ force = true })
+  glyph.api.editor_quit({ force = true })
 end)
 
 glyph.api.user_command_create("wa", function()
-  glyph._core.editor_write({ all = true })
+  glyph.api.editor_write({ all = true })
 end)
 
 glyph.api.user_command_create("waq", function()
-  glyph._core.editor_write({ all = true })
-  glyph._core.editor_quit()
+  glyph.api.editor_write({ all = true })
+  glyph.api.editor_quit()
 end)
 
 glyph.api.user_command_create("waq!", function()
-  glyph._core.editor_write({ all = true, force = true })
-  glyph._core.editor_quit({ all = true })
+  glyph.api.editor_write({ all = true, force = true })
+  glyph.api.editor_quit({ all = true })
 end)
 
 return M

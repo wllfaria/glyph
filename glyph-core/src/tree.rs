@@ -6,13 +6,13 @@ use crate::window::{Window, WindowId};
 #[derive(Debug)]
 pub enum NodeValue {
     Window(WindowId),
-    Split(Box<Split>),
+    Split(Split),
 }
 
 #[derive(Debug)]
 pub struct Split {
     pub layout: Layout,
-    pub nodes: Vec<WindowId>,
+    pub windows: Vec<WindowId>,
     pub area: Rect,
 }
 
@@ -41,7 +41,7 @@ impl Split {
     pub fn new(layout: Layout) -> Split {
         Split {
             layout,
-            nodes: Vec::default(),
+            windows: Vec::default(),
             area: Rect::default(),
         }
     }
@@ -105,6 +105,22 @@ impl Tree {
     }
 
     pub fn close_window(&mut self, window: WindowId) -> CloseAction {
+        match &mut self.root {
+            NodeValue::Window(id) => {
+                self.windows.remove(id);
+                return CloseAction::CloseTab;
+            }
+            NodeValue::Split(split) => {
+                split.windows.retain(|&w| w != window);
+
+                if split.windows.len() == 1 {
+                    let window = split.windows.first().copied().unwrap();
+                    self.focus = window;
+                    self.root = NodeValue::Window(window);
+                }
+            }
+        }
+
         CloseAction::None
     }
 }
