@@ -41,7 +41,7 @@ pub enum MappableCommand {
 }
 
 macro_rules! static_cmd {
-    ($($name:ident,)*) => {
+    ($($name:ident),* $(,)?) => {
         $(
             #[allow(non_upper_case_globals)]
             pub const $name: Self = Self::Static {
@@ -79,6 +79,8 @@ impl MappableCommand {
         remove_curr_char,
         remove_prev_char,
         delete_word,
+        next_word,
+        next_word_big,
     }
 }
 
@@ -166,23 +168,21 @@ fn move_up(ctx: &mut Context) {
 }
 
 fn move_right(ctx: &mut Context) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab();
+    let window = tab.tree.focus();
+
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window).unwrap();
+
     {
-        let editor = ctx.editor.read();
-        let tab = editor.focused_tab();
-        let window = tab.tree.focus();
         let window = tab.tree.window(window);
         let document = editor.document(window.document);
-        let mut cursors = ctx.cursors.write();
-        let cursor = cursors.get_mut(&window.id).unwrap();
         cursor.move_right(document);
     }
 
-    let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
-    let window = tab.tree.focus();
     let window = tab.tree.window_mut(window);
-    let mut cursors = ctx.cursors.write();
-    let cursor = cursors.get_mut(&window.id).unwrap();
 
     if cursor.x() - window.scroll().0 >= window.area.width.into() {
         window.scroll_right();
@@ -505,6 +505,32 @@ fn insert_line_above(ctx: &mut Context) {
     drop(editor);
     drop(cursors);
     edit_tree(ctx, document, edit);
+}
+
+fn next_word(ctx: &mut Context) {
+    next_word_inner(ctx, WordSkip::Small);
+}
+
+fn next_word_big(ctx: &mut Context) {
+    next_word_inner(ctx, WordSkip::Big);
+}
+
+fn next_word_inner(ctx: &mut Context, skip: WordSkip) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab_mut();
+    let window = tab.tree.focus();
+
+    let document = tab.tree.window_mut(window).document;
+    let document = editor.document_mut(document);
+
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window).expect("window has no cursor");
+
+    let text = document.text_mut();
+
+    let query = find_next_word(text, cursor, skip);
+
+    cursor.move_to(query.end_col, query.end_line);
 }
 
 fn insert_line_below(ctx: &mut Context) {

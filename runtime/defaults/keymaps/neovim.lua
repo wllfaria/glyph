@@ -28,6 +28,8 @@ function M.setup()
   glyph.api.keymap_set("n", "x", "remove_curr_char", { description = "Remove char under cursor" })
   glyph.api.keymap_set("n", "X", "remove_prev_char", { description = "Remove char before cursor" })
   glyph.api.keymap_set("n", "dw", "delete_word", { description = "Delete word forward" })
+  glyph.api.keymap_set("n", "w", "next_word", { description = "Move to next word forward" })
+  glyph.api.keymap_set("n", "W", "next_word_big", { description = "Move spaced word forward" })
 
   glyph.api.keymap_set("c", "<c-c>", "normal_mode", { description = "Changes into normal mode" })
   glyph.api.keymap_set("c", "<esc>", "normal_mode", { description = "Changes into normal mode" })
