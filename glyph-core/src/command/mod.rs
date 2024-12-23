@@ -840,7 +840,25 @@ pub fn insert_char(ctx: &mut Context, ch: char) {
 
     let char_position = text.line_to_char(cursor.y()) + cursor.x();
     text.insert_char(char_position, ch);
+
+    let start_char = text.line_to_char(cursor.y()) + cursor.x();
+    let start_byte = text.char_to_byte(start_char);
+
+    let edit = InputEdit {
+        start_byte,
+        old_end_byte: start_byte,
+        new_end_byte: start_byte + ch.len_utf8(),
+        start_position: Point::new(cursor.y(), cursor.x()),
+        old_end_position: Point::new(cursor.y(), cursor.x()),
+        new_end_position: Point::new(cursor.y(), cursor.x() + 1),
+    };
+
     cursor.move_right(doc);
+
+    let document = doc.id;
+    drop(editor);
+    drop(cursors);
+    edit_tree(ctx, document, edit);
 }
 
 fn insert_mode(ctx: &mut Context) {

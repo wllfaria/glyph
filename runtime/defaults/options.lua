@@ -17,7 +17,7 @@ M.cursor = {
 M.gutter = {
   enabled = true,
   anchor = "left",
-  line_numbers = "absolute",
+  line_numbers = "relative_numbered",
   sign_column = "all",
 }
 
