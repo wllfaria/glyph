@@ -310,7 +310,24 @@ impl EditorLayer {
                     drop(editor);
                     glyph_core::command::insert_char(&mut context, ch)
                 }
-                KeyCode::Backspace => todo!(),
+                KeyCode::Backspace => {
+                    let mut context = CmdContext {
+                        editor: ctx.editor.clone(),
+                        cursors: ctx.cursors.clone(),
+                        highlighter: ctx.highlighter,
+                    };
+                    drop(editor);
+                    glyph_core::command::remove_prev_char_breaking(&mut context)
+                }
+                KeyCode::Enter => {
+                    let mut context = CmdContext {
+                        editor: ctx.editor.clone(),
+                        cursors: ctx.cursors.clone(),
+                        highlighter: ctx.highlighter,
+                    };
+                    drop(editor);
+                    glyph_core::command::break_line(&mut context)
+                }
                 _ => {}
             },
             Mode::Command => match key_event.code {

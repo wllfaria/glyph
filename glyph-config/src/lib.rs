@@ -26,12 +26,84 @@ fn yes() -> bool {
 pub enum CursorStyle {
     #[default]
     Block,
+    SteadyBar,
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
+impl<S: AsRef<str>> From<S> for CursorStyle {
+    fn from(value: S) -> CursorStyle {
+        match value.as_ref() {
+            "block" => CursorStyle::Block,
+            "steady_bar" => CursorStyle::SteadyBar,
+            _ => CursorStyle::Block,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct CursorConfig {
-    #[serde(default)]
-    pub style: CursorStyle,
+    pub style: CursorModeStyle,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct CursorModeStyle {
+    pub normal: CursorStyle,
+    pub insert: CursorStyle,
+    pub command: CursorStyle,
+    pub visual: CursorStyle,
+}
+
+impl CursorModeStyle {
+    pub fn block() -> CursorModeStyle {
+        CursorModeStyle {
+            normal: CursorStyle::Block,
+            insert: CursorStyle::Block,
+            command: CursorStyle::Block,
+            visual: CursorStyle::Block,
+        }
+    }
+
+    pub fn bar() -> CursorModeStyle {
+        CursorModeStyle {
+            normal: CursorStyle::SteadyBar,
+            insert: CursorStyle::SteadyBar,
+            command: CursorStyle::SteadyBar,
+            visual: CursorStyle::SteadyBar,
+        }
+    }
+}
+
+impl<S: AsRef<str>> From<S> for CursorModeStyle {
+    fn from(value: S) -> Self {
+        match value.as_ref() {
+            "block" => CursorModeStyle::block(),
+            "steady_bar" => CursorModeStyle::bar(),
+            _ => CursorModeStyle::block(),
+        }
+    }
+}
+
+impl FromLua for CursorConfig {
+    fn from_lua(value: Value, _: &Lua) -> mlua::Result<Self> {
+        let Value::Table(cursor) = value else {
+            return Err(mlua::Error::runtime("cursor must be a table"));
+        };
+
+        let style = cursor.get::<Value>("style")?;
+        Ok(match style {
+            Value::String(style) => CursorConfig {
+                style: CursorModeStyle::from(style.to_string_lossy()),
+            },
+            Value::Table(table) => CursorConfig {
+                style: CursorModeStyle {
+                    normal: table.get::<String>("normal").unwrap_or("block".into()).into(),
+                    insert: table.get::<String>("insert").unwrap_or("block".into()).into(),
+                    command: table.get::<String>("command").unwrap_or("block".into()).into(),
+                    visual: table.get::<String>("visual").unwrap_or("block".into()).into(),
+                },
+            },
+            _ => return Err(mlua::Error::runtime("cursor style must be a string or table")),
+        })
+    }
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -166,8 +238,9 @@ impl<'cfg> Config<'cfg> {
         let config = glyph.get::<Table>("options")?;
 
         //let scroll_offset = runtime.from_value::<usize>(config.get::<Value>("scroll_offset")?)?;
-        let cursor = runtime.from_value::<CursorConfig>(config.get::<Value>("cursor")?)?;
         let gutter = runtime.from_value::<GutterConfig>(config.get::<Value>("gutter")?)?;
+
+        let cursor = CursorConfig::from_lua(config.get::<Value>("cursor")?, runtime)?;
         let statusline = StatuslineConfig::from_lua(config.get::<Value>("statusline")?, runtime)?;
 
         Ok(Config {

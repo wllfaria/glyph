@@ -59,7 +59,7 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
         for (row, line) in (start..end).enumerate() {
             line_str.clear();
             use std::fmt::Write;
-            write!(&mut line_str, "{:>width$}", line + 1, width = line_size).unwrap();
+            write!(&mut line_str, "{:>width$} ", line + 1, width = line_size).unwrap();
 
             let diff = cursor.y().abs_diff(line);
             let style = if diff == 0 { current_line_style } else { style };
@@ -72,7 +72,7 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
             use std::fmt::Write;
 
             let row = end - start + line;
-            write!(&mut line_str, "{diff:>width$}", diff = "~", width = 3).unwrap();
+            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).unwrap();
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
     }

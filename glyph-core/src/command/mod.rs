@@ -210,30 +210,32 @@ fn remove_curr_char(ctx: &mut Context) {
 
     text.remove(col..col + 1);
 
-    let syntax = ctx
-        .highlighter
-        .trees
-        .get_mut(&document.id)
-        .expect("document syntax is not registered on highlighter");
+    let document = document.id;
+    let edit = InputEdit {
+        start_byte,
+        old_end_byte: end_byte,
+        // after we delete the line, end position is the same as the previous starting
+        new_end_byte: start_byte,
+        start_position: Point::new(cursor.y(), cursor.x()),
+        // end edit at the beginning of the next line
+        old_end_position: Point::new(cursor.y(), cursor.x() + 1),
+        new_end_position: Point::new(cursor.y(), cursor.x()),
+    };
 
-    if let Some(tree) = &mut syntax.tree {
-        let edit = InputEdit {
-            start_byte,
-            old_end_byte: end_byte,
-            // after we delete the line, end position is the same as the previous starting
-            new_end_byte: start_byte,
-            start_position: Point::new(cursor.y(), cursor.x()),
-            // end edit at the beginning of the next line
-            old_end_position: Point::new(cursor.y(), cursor.x() + 1),
-            new_end_position: Point::new(cursor.y(), cursor.x()),
-        };
-
-        tree.edit(&edit);
-        ctx.highlighter.update_document(document);
-    }
+    drop(editor);
+    drop(cursors);
+    edit_tree(ctx, document, edit);
 }
 
-fn remove_prev_char(ctx: &mut Context) {
+pub fn remove_prev_char(ctx: &mut Context) {
+    remove_prev_char_inner(ctx, true);
+}
+
+pub fn remove_prev_char_breaking(ctx: &mut Context) {
+    remove_prev_char_inner(ctx, false);
+}
+
+fn remove_prev_char_inner(ctx: &mut Context, stop_at_linebreak: bool) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -244,6 +246,14 @@ fn remove_prev_char(ctx: &mut Context) {
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window).expect("window has no cursor");
 
+    if cursor.x() == 0 && cursor.y() == 0 {
+        return;
+    }
+
+    if stop_at_linebreak && cursor.x() == 0 {
+        return;
+    }
+
     let text = document.text_mut();
 
     let start_char = text.line_to_char(cursor.y());
@@ -252,29 +262,69 @@ fn remove_prev_char(ctx: &mut Context) {
     let start_byte = text.char_to_byte(col.saturating_sub(1));
     let end_byte = text.char_to_byte(col);
 
+    if !stop_at_linebreak && cursor.x() == 0 {
+        cursor.move_up();
+        let len = text.line(cursor.y()).len_chars() - 1;
+        cursor.move_to(len, cursor.y());
+    } else {
+        cursor.move_left();
+    }
+
     text.remove(col.saturating_sub(1)..col);
 
-    let syntax = ctx
-        .highlighter
-        .trees
-        .get_mut(&document.id)
-        .expect("document syntax is not registered on highlighter");
+    let document = document.id;
+    let edit = InputEdit {
+        start_byte,
+        old_end_byte: end_byte,
+        // after we delete the line, end position is the same as the previous starting
+        new_end_byte: start_byte,
+        start_position: Point::new(cursor.y(), cursor.x().saturating_sub(1)),
+        // end edit at the beginning of the next line
+        old_end_position: Point::new(cursor.y(), cursor.x()),
+        new_end_position: Point::new(cursor.y(), cursor.x().saturating_sub(1)),
+    };
+    drop(editor);
+    drop(cursors);
 
-    if let Some(tree) = &mut syntax.tree {
-        let edit = InputEdit {
-            start_byte,
-            old_end_byte: end_byte,
-            // after we delete the line, end position is the same as the previous starting
-            new_end_byte: start_byte,
-            start_position: Point::new(cursor.y(), cursor.x().saturating_sub(1)),
-            // end edit at the beginning of the next line
-            old_end_position: Point::new(cursor.y(), cursor.x()),
-            new_end_position: Point::new(cursor.y(), cursor.x().saturating_sub(1)),
-        };
+    edit_tree(ctx, document, edit);
+}
 
-        tree.edit(&edit);
-        ctx.highlighter.update_document(document);
-    }
+pub fn break_line(ctx: &mut Context) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab_mut();
+    let window = tab.tree.focus();
+
+    let document = tab.tree.window_mut(window).document;
+    let document = editor.document_mut(document);
+
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window).expect("window has no cursor");
+
+    let line_break = document.line_break;
+    let text = document.text_mut();
+
+    let start_char = text.line_to_char(cursor.y()) + cursor.x();
+
+    let start_byte = text.char_to_byte(start_char);
+    let new_end_byte = start_byte + line_break.as_ref().len();
+
+    text.insert(start_char, line_break.as_ref());
+    cursor.move_to(0, cursor.y() + 1);
+
+    let edit = InputEdit {
+        start_byte,
+        old_end_byte: start_byte,
+        new_end_byte,
+        start_position: Point::new(cursor.y(), cursor.x()),
+        old_end_position: Point::new(cursor.y(), cursor.x()),
+        new_end_position: Point::new(cursor.y(), 0),
+    };
+
+    let document = document.id;
+
+    drop(editor);
+    drop(cursors);
+    edit_tree(ctx, document, edit);
 }
 
 fn delete_line(ctx: &mut Context) {
@@ -298,31 +348,26 @@ fn delete_line(ctx: &mut Context) {
 
     text.remove(line_start_char..line_end_char);
 
-    let syntax = ctx
-        .highlighter
-        .trees
-        .get_mut(&document.id)
-        .expect("document syntax is not registered on highlighter");
-
-    if let Some(tree) = &mut syntax.tree {
-        let edit = InputEdit {
-            start_byte: line_start_byte,
-            old_end_byte: line_end_byte,
-            // after we delete the line, end position is the same as the previous starting
-            new_end_byte: line_start_byte,
-            start_position: Point::new(cursor.y(), 0),
-            // end edit at the beginning of the next line
-            old_end_position: Point::new(cursor.y() + 1, 0),
-            new_end_position: Point::new(cursor.y(), 0),
-        };
-
-        tree.edit(&edit);
-        ctx.highlighter.update_document(document);
-    }
-
     if cursor.y() >= total_lines - 1 {
         cursor.move_to(cursor.x(), total_lines - 2);
     }
+
+    let edit = InputEdit {
+        start_byte: line_start_byte,
+        old_end_byte: line_end_byte,
+        // after we delete the line, end position is the same as the previous starting
+        new_end_byte: line_start_byte,
+        start_position: Point::new(cursor.y(), 0),
+        // end edit at the beginning of the next line
+        old_end_position: Point::new(cursor.y() + 1, 0),
+        new_end_position: Point::new(cursor.y(), 0),
+    };
+
+    let document = document.id;
+
+    drop(editor);
+    drop(cursors);
+    edit_tree(ctx, document, edit);
 }
 
 fn move_to_eof(ctx: &mut Context) {
@@ -447,25 +492,19 @@ fn insert_line_above(ctx: &mut Context) {
 
     text.insert(line_start_char, line_break.as_ref());
 
-    let syntax = ctx
-        .highlighter
-        .trees
-        .get_mut(&document.id)
-        .expect("document syntax is not registered on highlighter");
+    let document = document.id;
+    let edit = InputEdit {
+        start_byte: line_start_byte,
+        old_end_byte: line_start_byte,
+        new_end_byte: line_start_byte + line_break.as_ref().len(),
+        start_position: Point::new(cursor.y(), 0),
+        old_end_position: Point::new(cursor.y(), 0),
+        new_end_position: Point::new(cursor.y() + 1, 0),
+    };
 
-    if let Some(tree) = &mut syntax.tree {
-        let edit = InputEdit {
-            start_byte: line_start_byte,
-            old_end_byte: line_start_byte,
-            new_end_byte: line_start_byte + line_break.as_ref().len(),
-            start_position: Point::new(cursor.y(), 0),
-            old_end_position: Point::new(cursor.y(), 0),
-            new_end_position: Point::new(cursor.y() + 1, 0),
-        };
-
-        tree.edit(&edit);
-        ctx.highlighter.update_document(document);
-    }
+    drop(editor);
+    drop(cursors);
+    edit_tree(ctx, document, edit);
 }
 
 fn insert_line_below(ctx: &mut Context) {
@@ -489,26 +528,19 @@ fn insert_line_below(ctx: &mut Context) {
 
     text.insert(line_start_char, line_break.as_ref());
     cursor.move_down(document);
+    let document = document.id;
+    let edit = InputEdit {
+        start_byte: line_start_byte,
+        old_end_byte: line_start_byte,
+        new_end_byte: line_start_byte + line_break.as_ref().len(),
+        start_position: Point::new(cursor.y() + 1, 0),
+        old_end_position: Point::new(cursor.y() + 1, 0),
+        new_end_position: Point::new(cursor.y() + 2, 0),
+    };
 
-    let syntax = ctx
-        .highlighter
-        .trees
-        .get_mut(&document.id)
-        .expect("document syntax is not registered on highlighter");
-
-    if let Some(tree) = &mut syntax.tree {
-        let edit = InputEdit {
-            start_byte: line_start_byte,
-            old_end_byte: line_start_byte,
-            new_end_byte: line_start_byte + line_break.as_ref().len(),
-            start_position: Point::new(cursor.y() + 1, 0),
-            old_end_position: Point::new(cursor.y() + 1, 0),
-            new_end_position: Point::new(cursor.y() + 2, 0),
-        };
-
-        tree.edit(&edit);
-        ctx.highlighter.update_document(document);
-    }
+    drop(editor);
+    drop(cursors);
+    edit_tree(ctx, document, edit);
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

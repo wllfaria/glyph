@@ -22,8 +22,9 @@ trait IntoCursorStyle {
 
 impl IntoCursorStyle for CursorConfig {
     fn into_cursor_style(self) -> cursor::SetCursorStyle {
-        match self.style {
+        match self.style.normal {
             CursorStyle::Block => cursor::SetCursorStyle::SteadyBlock,
+            CursorStyle::SteadyBar => cursor::SetCursorStyle::SteadyBar,
         }
     }
 }

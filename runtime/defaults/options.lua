@@ -11,7 +11,7 @@ local M = {}
 M.scroll_offset = 8
 
 M.cursor = {
-  style = "block",
+  style = "steady_bar",
 }
 
 M.gutter = {
