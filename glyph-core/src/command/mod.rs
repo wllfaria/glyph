@@ -81,6 +81,7 @@ impl MappableCommand {
         delete_word,
         next_word,
         next_word_big,
+        prev_word,
     }
 }
 
@@ -533,6 +534,28 @@ fn next_word_inner(ctx: &mut Context, skip: WordSkip) {
     cursor.move_to(query.end_col, query.end_line);
 }
 
+fn prev_word(ctx: &mut Context) {
+    prev_word_inner(ctx, WordSkip::Small);
+}
+
+fn prev_word_inner(ctx: &mut Context, skip: WordSkip) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab_mut();
+    let window = tab.tree.focus();
+
+    let document = tab.tree.window_mut(window).document;
+    let document = editor.document_mut(document);
+
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window).expect("window has no cursor");
+
+    let text = document.text_mut();
+
+    let query = find_prev_word(text, cursor, skip);
+
+    cursor.move_to(query.end_col, query.end_line)
+}
+
 fn insert_line_below(ctx: &mut Context) {
     let mut editor = ctx.editor.write();
     editor.set_mode(Mode::Insert);
@@ -715,6 +738,54 @@ fn find_next_word(text: &Rope, cursor: &Cursor, skip: WordSkip) -> TextQuery {
         end_line: 0,
         end_col: 0,
     }
+}
+
+/// if we start on a whitespace, the next word is defined by the next non-whitespace
+fn find_prev_word(text: &Rope, cursor: &Cursor, skip: WordSkip) -> TextQuery {
+    let mut start_char = text.line_to_char(cursor.y()) + cursor.x();
+    let char = text.char(start_char);
+
+    let make_result = |start_char: usize| {
+        let end_line = text.char_to_line(start_char);
+        let line_start = text.line_to_char(end_line);
+        let end_col = start_char - line_start;
+
+        TextQuery {
+            start_line: cursor.y(),
+            start_col: cursor.x(),
+            end_line,
+            end_col,
+        }
+    };
+
+    if char.is_whitespace() {
+        let mut found_newline = false;
+        let mut found_word = false;
+        let mut maybe_char = text.get_char(start_char);
+
+        while let Some(char) = maybe_char {
+            if char.is_linebreak() && found_newline {
+                return make_result(start_char);
+            }
+
+            if char.is_whitespace() && found_word {
+                return make_result(start_char);
+            }
+
+            if !char.is_whitespace() {
+                found_word = true;
+            }
+
+            start_char = match start_char.checked_sub(1) {
+                Some(n) => n,
+                None => return make_result(start_char),
+            };
+            maybe_char = text.get_char(start_char);
+            found_newline = char.is_linebreak();
+        }
+    }
+
+    todo!()
 }
 
 fn delete_word(ctx: &mut Context) {
@@ -906,15 +977,17 @@ mod tests {
         }
     }
 
-    fn with_document<'a, F>(ctx: &'a Context<'a>, f: F)
+    fn with_content<'a, F>(ctx: &'a Context<'a>, f: F)
     where
-        F: Fn(&Document),
+        F: Fn(&Document, &Cursor),
     {
         let editor = ctx.editor.read();
         let win = editor.focused_tab().tree.focus();
+        let cursors = ctx.cursors.read();
+        let cursor = cursors.get(&win).unwrap();
         let doc = editor.focused_tab().tree.window(win).document;
         let document = editor.document(doc);
-        f(document);
+        f(document, cursor);
     }
 
     #[test]
@@ -928,7 +1001,7 @@ mod tests {
 
         delete_word(&mut ctx);
 
-        with_document(&ctx, |document| {
+        with_content(&ctx, |document, _| {
             let text = document.text();
             assert_eq!(text.to_string(), "function create_inspector(opts)\n")
         });
@@ -942,7 +1015,7 @@ mod tests {
 
         delete_word(&mut ctx);
 
-        with_document(&ctx, |document| {
+        with_content(&ctx, |document, _| {
             let text = document.text();
             assert_eq!(text.to_string(), "local function _inspector(opts)\n")
         });
@@ -956,9 +1029,36 @@ mod tests {
 
         delete_word(&mut ctx);
 
-        with_document(&ctx, |document| {
+        with_content(&ctx, |document, _| {
             let text = document.text();
             assert_eq!(text.to_string(), "local function createinspector(opts)\n")
         });
+    }
+
+    #[test]
+    fn test_find_word_prev() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "local          function create_inspector(opts)\n",
+            &mut highlighter,
+            Cursor::new(14, 0),
+        );
+
+        prev_word(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(0, 0)));
+
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            r#"
+
+            local function create_inspector(opts)\n"#,
+            &mut highlighter,
+            Cursor::new(11, 2),
+        );
+
+        prev_word(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(0, 1)));
     }
 }
