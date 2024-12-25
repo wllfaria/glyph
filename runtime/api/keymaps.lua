@@ -27,8 +27,11 @@ local static_commands = {
   "remove_curr_char",
   "remove_prev_char",
   "delete_word",
+  "delete_word_prev",
   "next_word",
   "next_word_big",
+  "prev_word",
+  "prev_word_big",
 }
 
 --- @class KeymapOpts

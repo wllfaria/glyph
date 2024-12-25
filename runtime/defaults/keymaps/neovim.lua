@@ -3,7 +3,7 @@ local glyph = require("glyph")
 
 --- Neovim's keymap set for glyph
 --- @class glyph.defaults.keymap.neovim
---- @field setup fun():nil
+--- @field setup fun()
 local M = {}
 
 --- load neovim keymap set
@@ -28,8 +28,11 @@ function M.setup()
   glyph.api.keymap_set("n", "x", "remove_curr_char", { description = "Remove char under cursor" })
   glyph.api.keymap_set("n", "X", "remove_prev_char", { description = "Remove char before cursor" })
   glyph.api.keymap_set("n", "dw", "delete_word", { description = "Delete word forward" })
+  glyph.api.keymap_set("n", "db", "delete_word_prev", { description = "Delete word backwards" })
   glyph.api.keymap_set("n", "w", "next_word", { description = "Move to next word forward" })
   glyph.api.keymap_set("n", "W", "next_word_big", { description = "Move spaced word forward" })
+  glyph.api.keymap_set("n", "b", "prev_word", { description = "Move to previous word forward" })
+  glyph.api.keymap_set("n", "B", "prev_word_big", { description = "Move previous word forward" })
 
   glyph.api.keymap_set("c", "<c-c>", "normal_mode", { description = "Changes into normal mode" })
   glyph.api.keymap_set("c", "<esc>", "normal_mode", { description = "Changes into normal mode" })

@@ -69,7 +69,7 @@ pub fn setup_lua_runtime(
         paths.insert(1, format!("{}/?/init.lua", path.display()));
     };
 
-    #[cfg(debug_assertions)]
+    // #[cfg(debug_assertions)]
     {
         let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let root = workspace.parent().unwrap();

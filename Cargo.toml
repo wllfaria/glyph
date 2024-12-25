@@ -1,5 +1,4 @@
 [workspace]
-default_members = "glyph"
 resolver = "2"
 members = [
     "glyph",

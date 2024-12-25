@@ -79,9 +79,11 @@ impl MappableCommand {
         remove_curr_char,
         remove_prev_char,
         delete_word,
+        delete_word_prev,
         next_word,
         next_word_big,
         prev_word,
+        prev_word_big,
     }
 }
 
@@ -538,6 +540,10 @@ fn prev_word(ctx: &mut Context) {
     prev_word_inner(ctx, WordSkip::Small);
 }
 
+fn prev_word_big(ctx: &mut Context) {
+    prev_word_inner(ctx, WordSkip::Big);
+}
+
 fn prev_word_inner(ctx: &mut Context, skip: WordSkip) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
@@ -732,12 +738,7 @@ fn find_next_word(text: &Rope, cursor: &Cursor, skip: WordSkip) -> TextQuery {
         }
     }
 
-    TextQuery {
-        start_line: cursor.y(),
-        start_col: cursor.x(),
-        end_line: 0,
-        end_col: 0,
-    }
+    unreachable!();
 }
 
 /// if we start on a whitespace, the next word is defined by the next non-whitespace
@@ -765,7 +766,9 @@ fn find_prev_word(text: &Rope, cursor: &Cursor, skip: WordSkip) -> TextQuery {
 
         while let Some(char) = maybe_char {
             if char.is_linebreak() && found_newline {
-                return make_result(start_char);
+                // after finding two consecutive newlines, we should only count the first one, as
+                // the second one marks the end of the word
+                return make_result(start_char + 1);
             }
 
             if char.is_whitespace() && found_word {
@@ -785,7 +788,130 @@ fn find_prev_word(text: &Rope, cursor: &Cursor, skip: WordSkip) -> TextQuery {
         }
     }
 
-    todo!()
+    if start_char == 0 {
+        return make_result(start_char);
+    }
+
+    match skip {
+        WordSkip::Small => {
+            let mut maybe_char = text.get_char(start_char);
+            let mut found_whitespace = false;
+            let mut found_word = false;
+            let in_word = char.is_alphanumeric();
+            let in_punctuation = char.is_ascii_punctuation();
+
+            let stop_at_same_word = match (in_word, in_punctuation) {
+                // if we are on a word, and the previous char is also a word character, then we
+                // stop at the same word
+                (true, false) => text
+                    .get_char(start_char - 1)
+                    .map(|ch| ch.is_alphanumeric())
+                    .unwrap_or_default(),
+                // if we are on a punctuation, and the previous char is also a punctuation, then we
+                // stop at the same word
+                (false, true) => text
+                    .get_char(start_char - 1)
+                    .map(|ch| ch.is_ascii_punctuation())
+                    .unwrap_or_default(),
+                _ => unreachable!(),
+            };
+
+            while let Some(char) = maybe_char {
+                match (in_word, in_punctuation) {
+                    (true, false) => {
+                        if char.is_ascii_punctuation() && stop_at_same_word {
+                            return make_result(start_char + 1);
+                        }
+
+                        if char.is_ascii_punctuation() {
+                            return make_result(start_char);
+                        }
+
+                        if char.is_whitespace() {
+                            found_whitespace = true;
+                        }
+
+                        if char.is_whitespace() && found_word {
+                            return make_result(start_char + 1);
+                        }
+
+                        if char.is_alphanumeric() && found_whitespace {
+                            found_word = true;
+                        }
+                    }
+                    (false, true) => {
+                        if !char.is_ascii_punctuation() && stop_at_same_word {
+                            return make_result(start_char + 1);
+                        }
+
+                        if char.is_alphanumeric() {
+                            found_word = true;
+                        }
+
+                        if char.is_whitespace() && found_word {
+                            return make_result(start_char + 1);
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+
+                start_char = match start_char.checked_sub(1) {
+                    Some(n) => n,
+                    None => return make_result(start_char),
+                };
+                maybe_char = text.get_char(start_char);
+            }
+        }
+        WordSkip::Big => {
+            let mut maybe_char = text.get_char(start_char);
+            let mut found_word = false;
+            let mut found_whitespace = false;
+            let mut found_newline = false;
+
+            let stop_at_same_word = text
+                .get_char(start_char - 1)
+                .map(|ch| !ch.is_whitespace())
+                .unwrap_or_default();
+
+            while let Some(char) = maybe_char {
+                if char.is_linebreak() && found_newline {
+                    return make_result(start_char + 1);
+                }
+
+                if char.is_linebreak() {
+                    found_newline = true;
+                }
+
+                if char.is_whitespace() && stop_at_same_word {
+                    return make_result(start_char + 1);
+                }
+
+                if char.is_whitespace() && found_word {
+                    return make_result(start_char + 1);
+                }
+
+                if char.is_whitespace() {
+                    found_whitespace = true;
+                }
+
+                if !char.is_whitespace() && found_whitespace {
+                    found_word = true;
+                }
+
+                if char.is_whitespace() && found_word {
+                    return make_result(start_char + 1);
+                }
+
+                start_char = match start_char.checked_sub(1) {
+                    Some(n) => n,
+                    None => return make_result(start_char),
+                };
+                maybe_char = text.get_char(start_char);
+            }
+        }
+    }
+
+    unreachable!();
 }
 
 fn delete_word(ctx: &mut Context) {
@@ -810,16 +936,15 @@ fn delete_word(ctx: &mut Context) {
         let line_len_chars = line.len_chars();
 
         let start_char = text.line_to_char(query.start_line) + query.start_col;
-        let start_byte = text.char_to_byte(start_char);
+        let end_char = text.line_to_char(cursor.y() + 1);
 
+        let start_byte = text.char_to_byte(start_char);
         let old_end_byte = line_start_byte + line_len_bytes;
         let new_end_byte = start_byte;
         let start_position = Point::new(cursor.y(), cursor.x());
         let old_end_position = Point::new(cursor.y(), line_len_chars);
         let new_end_position = start_position;
 
-        let start_char = text.line_to_char(cursor.y()) + query.start_col;
-        let end_char = text.line_to_char(cursor.y() + 1);
         text.remove(start_char..end_char);
 
         let document = document.id;
@@ -852,6 +977,86 @@ fn delete_word(ctx: &mut Context) {
     let new_end_position = start_position;
 
     text.remove(start_char..end_char);
+
+    let document = document.id;
+    drop(editor);
+    drop(cursors);
+
+    edit_tree(
+        ctx,
+        document,
+        InputEdit {
+            start_byte,
+            old_end_byte,
+            new_end_byte,
+            start_position,
+            old_end_position,
+            new_end_position,
+        },
+    );
+}
+
+fn delete_word_prev(ctx: &mut Context) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab_mut();
+    let window = tab.tree.focus();
+
+    let document = tab.tree.window_mut(window).document;
+    let document = editor.document_mut(document);
+
+    let mut cursors = ctx.cursors.write();
+    let cursor = cursors.get_mut(&window).expect("window has no cursor");
+
+    let text = document.text_mut();
+    let query = find_prev_word(text, cursor, WordSkip::Small);
+
+    if !query.is_same_line() {
+        let line_start_byte = text.line_to_byte(cursor.y());
+
+        let start_char = text.line_to_char(query.end_line) + query.end_col;
+        let end_char = text.line_to_char(query.start_line) + query.start_col;
+
+        let start_byte = text.char_to_byte(start_char);
+        let old_end_byte = line_start_byte + cursor.x();
+        let new_end_byte = start_byte;
+        let start_position = Point::new(query.end_line, query.end_col);
+        let old_end_position = Point::new(query.start_line, query.start_col);
+        let new_end_position = start_position;
+
+        text.remove(start_char..end_char);
+        cursor.move_to(query.end_col, query.end_line);
+
+        let document = document.id;
+        drop(editor);
+        drop(cursors);
+
+        return edit_tree(
+            ctx,
+            document,
+            InputEdit {
+                start_byte,
+                old_end_byte,
+                new_end_byte,
+                start_position,
+                old_end_position,
+                new_end_position,
+            },
+        );
+    }
+
+    let start_char = text.line_to_char(query.end_line) + query.end_col;
+    let end_char = text.line_to_char(query.start_line) + query.start_col;
+
+    let start_byte = text.char_to_byte(start_char);
+    let old_end_byte = text.char_to_byte(end_char);
+    let new_end_byte = start_byte;
+
+    let start_position = Point::new(query.end_line, query.end_col);
+    let old_end_position = Point::new(query.start_line, query.start_col);
+    let new_end_position = start_position;
+
+    text.remove(start_char..end_char);
+    cursor.move_to(query.end_col, query.end_line);
 
     let document = document.id;
     drop(editor);
@@ -991,7 +1196,7 @@ mod tests {
     }
 
     #[test]
-    fn test_delete_word() {
+    fn test_delete_word_start() {
         let mut highlighter = Highlighter::new();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
@@ -1005,7 +1210,10 @@ mod tests {
             let text = document.text();
             assert_eq!(text.to_string(), "function create_inspector(opts)\n")
         });
+    }
 
+    #[test]
+    fn test_delete_word_until_underscore() {
         let mut highlighter = Highlighter::new();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
@@ -1019,7 +1227,10 @@ mod tests {
             let text = document.text();
             assert_eq!(text.to_string(), "local function _inspector(opts)\n")
         });
+    }
 
+    #[test]
+    fn test_delete_word_separator() {
         let mut highlighter = Highlighter::new();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
@@ -1036,7 +1247,7 @@ mod tests {
     }
 
     #[test]
-    fn test_find_word_prev() {
+    fn test_prev_word_spaces() {
         let mut highlighter = Highlighter::new();
         let mut ctx = setup_test(
             "local          function create_inspector(opts)\n",
@@ -1047,12 +1258,12 @@ mod tests {
         prev_word(&mut ctx);
 
         with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(0, 0)));
-
+    }
+    #[test]
+    fn test_prev_word_empty_lines() {
         let mut highlighter = Highlighter::new();
         let mut ctx = setup_test(
-            r#"
-
-            local function create_inspector(opts)\n"#,
+            "\n\n            local function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(11, 2),
         );
@@ -1060,5 +1271,177 @@ mod tests {
         prev_word(&mut ctx);
 
         with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(0, 1)));
+    }
+
+    #[test]
+    fn test_prev_word_partial() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "local function create_inspector(opts)\n",
+            &mut highlighter,
+            Cursor::new(5, 0),
+        );
+
+        prev_word(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(0, 0)));
+    }
+
+    #[test]
+    fn test_prev_word_big_identifier() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "local function create_inspector(opts)\n",
+            &mut highlighter,
+            Cursor::new(29, 0),
+        );
+
+        prev_word_big(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(15, 0)));
+    }
+
+    #[test]
+    fn test_prev_word_big_function() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "local function create_inspector(opts)\n",
+            &mut highlighter,
+            Cursor::new(15, 0),
+        );
+
+        prev_word_big(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(6, 0)));
+    }
+
+    #[test]
+    fn test_prev_word_big_across_lines() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "\nfn is_linebreak(&self) -> bool {\n    matches!(self, '\\n' | '\\r')\n}",
+            &mut highlighter,
+            Cursor::new(4, 2),
+        );
+
+        prev_word_big(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(31, 1)));
+    }
+
+    #[test]
+    fn test_prev_word_big_empty_lines() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "\n\nfn is_linebreak(&self) -> bool {\n    matches!(self, '\\n' | '\\r')\n}",
+            &mut highlighter,
+            Cursor::new(0, 2),
+        );
+
+        prev_word_big(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(0, 1)));
+    }
+
+    #[test]
+    fn test_prev_word_with_ampersand() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "fn is_linebreak(&self) -> bool { }",
+            &mut highlighter,
+            Cursor::new(14, 0),
+        );
+
+        prev_word(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(6, 0)));
+    }
+
+    #[test]
+    fn test_prev_word_short_word() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "fn is_linebreak(&self) -> bool { }",
+            &mut highlighter,
+            Cursor::new(6, 0),
+        );
+
+        prev_word(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(5, 0)));
+    }
+
+    #[test]
+    fn test_prev_word_with_pub() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "pub fn is_linebreak(&self) -> bool { }",
+            &mut highlighter,
+            Cursor::new(7, 0),
+        );
+
+        prev_word(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(4, 0)));
+    }
+
+    #[test]
+    fn test_prev_word_with_colons() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test("use crate::config::Config;", &mut highlighter, Cursor::new(10, 0));
+
+        prev_word(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(9, 0)));
+    }
+
+    #[test]
+    fn test_prev_word_after_keyword() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "pub fn is_linebreak(&self) -> bool { }",
+            &mut highlighter,
+            Cursor::new(9, 0),
+        );
+
+        prev_word(&mut ctx);
+
+        with_content(&ctx, |_, cursor| assert_eq!(cursor, &Cursor::new(7, 0)));
+    }
+
+    #[test]
+    fn test_delete_word_prev() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "pub fn is_linebreak(&self) -> bool { }",
+            &mut highlighter,
+            Cursor::new(7, 0),
+        );
+
+        delete_word_prev(&mut ctx);
+
+        with_content(&ctx, |document, _| {
+            let text = document.text();
+            let expected = "pub is_linebreak(&self) -> bool { }";
+            assert_eq!(text.to_string(), expected);
+        });
+    }
+
+    #[test]
+    fn test_delete_word_prev_line() {
+        let mut highlighter = Highlighter::new();
+        let mut ctx = setup_test(
+            "with_content(&ctx, |document, _| {\n    let text = document.text();\n});",
+            &mut highlighter,
+            Cursor::new(4, 1),
+        );
+
+        delete_word_prev(&mut ctx);
+
+        with_content(&ctx, |document, _| {
+            let text = document.text();
+            let expected = "with_content(&ctx, |document, _| let text = document.text();\n});";
+            assert_eq!(text.to_string(), expected);
+        });
     }
 }
