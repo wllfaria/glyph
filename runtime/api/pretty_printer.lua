@@ -1,5 +1,5 @@
 --- @class glyph.api.pretty_printer
---- @field pretty_print fun(tbl: any, opts: PrettyPrinterOpts): nil
+--- @field pretty_print fun(tbl: any, opts?: PrettyPrinterOpts): nil
 local M = {}
 
 -- pretty printer for lua values, heavily inspired by neovim's `vim.inspect()`

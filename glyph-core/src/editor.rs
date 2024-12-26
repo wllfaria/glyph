@@ -166,7 +166,16 @@ impl Editor {
         assert!(self.documents.contains_key(&id));
 
         match action {
-            OpenAction::Replace => todo!(),
+            OpenAction::Replace => {
+                let tab = self.focused_tab_mut();
+                let window = tab
+                    .tree
+                    .get_window_mut(tab.tree.focus())
+                    .expect("no active window on the editor");
+
+                window.document = id;
+                window.id
+            }
             OpenAction::SplitVertical => {
                 let tab = self.focused_tab_mut();
 

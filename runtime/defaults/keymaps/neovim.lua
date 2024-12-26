@@ -34,6 +34,10 @@ function M.setup()
   glyph.api.keymap_set("n", "b", "prev_word", { description = "Move to previous word forward" })
   glyph.api.keymap_set("n", "B", "prev_word_big", { description = "Move previous word forward" })
 
+  glyph.api.keymap_set("n", "-", function()
+    glyph.plugins.explorer.open()
+  end, { description = "Open file explorer" })
+
   glyph.api.keymap_set("c", "<c-c>", "normal_mode", { description = "Changes into normal mode" })
   glyph.api.keymap_set("c", "<esc>", "normal_mode", { description = "Changes into normal mode" })
 

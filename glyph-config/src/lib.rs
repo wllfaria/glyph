@@ -7,7 +7,7 @@ use dirs::DIRS;
 use glyph_core::command::{Context, MappableCommand};
 use glyph_core::editor::Mode;
 use glyph_core::highlights::HighlightGroup;
-use glyph_runtime::keymap::{LuaKeymapOpts, LuaMappableCommand};
+use glyph_runtime::keymap::{LuaKeymap, LuaKeymapOpts, LuaMappableCommand};
 use glyph_runtime::statusline::StatuslineConfig;
 use glyph_runtime::RuntimeMessage;
 use glyph_trie::Trie;
@@ -199,6 +199,16 @@ pub struct KeymapConfig<'cfg> {
     pub options: KeymapOptions,
 }
 
+impl<'cfg> From<LuaKeymap<'cfg>> for KeymapConfig<'cfg> {
+    fn from(lua_keymap: LuaKeymap<'cfg>) -> KeymapConfig<'cfg> {
+        KeymapConfig {
+            mode: lua_keymap.mode,
+            command: lua_keymap.command.into(),
+            options: lua_keymap.options.into(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Config<'cfg> {
     cursor: CursorConfig,
@@ -280,19 +290,22 @@ fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> SetupMessagesResult {
 
     for message in messages {
         match message {
-            RuntimeMessage::Error(error) => println!("{error:?}"),
+            RuntimeMessage::Error(error) => panic!("{error:?}"),
             RuntimeMessage::UpdateHighlightGroup(name, group) => _ = highlight_groups.insert(name, group),
             RuntimeMessage::UserCommandCreate(name, callback) => _ = user_commands.insert(name, callback),
             RuntimeMessage::SetKeymap(lua_keymap) => {
-                let keymap = KeymapConfig {
-                    mode: lua_keymap.mode,
-                    command: lua_keymap.command.into(),
-                    options: lua_keymap.options.into(),
-                };
                 let mode_maps = keymaps.get_mut(&lua_keymap.mode).unwrap();
-                mode_maps.add_word(&lua_keymap.keys, keymap);
+                let keys = lua_keymap.keys.clone();
+                let keymap = KeymapConfig::from(lua_keymap);
+                mode_maps.add_word(keys, keymap);
             }
+            // Some runtime messages are ignored here as we don't want to handle them within
+            // configuration context.
+            //
+            // Only messages that change configuration values should be considered when loading
+            // configuration.
             RuntimeMessage::Quit(_) => {}
+            RuntimeMessage::OpenFile(_) => {}
             RuntimeMessage::Write(_) => {}
         };
     }

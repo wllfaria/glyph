@@ -31,4 +31,19 @@ function M.document_get_filepath(document)
   return glyph._core.document_get_filepath(document)
 end
 
+--- @class glyph.t.document_create_opts
+--- @field filename? string
+
+--- @param opts? glyph.t.document_create_opts
+--- @return integer
+function M.document_create(opts)
+  opts = opts or {}
+
+  glyph.u.table_validate(opts, {
+    filename = { "string", "nil" },
+  })
+
+  return glyph._core.document_create(opts)
+end
+
 return M

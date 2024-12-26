@@ -45,27 +45,65 @@ function M.setup()
 
   -- syntax groups
   glyph.api.set_hl_group("string", { fg = palette.yellow })
+
   glyph.api.set_hl_group("type", { fg = palette.blue })
   glyph.api.set_hl_group("type.builtin", { fg = palette.blue })
+  glyph.api.set_hl_group("type.parameter", { fg = palette.purple })
+  glyph.api.set_hl_group("type.builtin", { fg = palette.purple })
+  glyph.api.set_hl_group("type.enum.variant", { fg = palette.purple })
+  glyph.api.set_hl_group("type.enum.variant.builtin", { fg = palette.purple })
+
   glyph.api.set_hl_group("property", { fg = palette.orange })
+
   glyph.api.set_hl_group("constant", { fg = palette.orange })
+  glyph.api.set_hl_group("constant.builtin", { fg = palette.purple })
+  glyph.api.set_hl_group("constant.builtin.boolean", { fg = palette.purple })
+  glyph.api.set_hl_group("constant.numeric.integer", { fg = palette.purple })
+  glyph.api.set_hl_group("constant.numeric.float", { fg = palette.purple })
+  glyph.api.set_hl_group("constant.character", { fg = palette.purple })
+  glyph.api.set_hl_group("constant.character.escape", { fg = palette.purple })
+
   glyph.api.set_hl_group("constructor", { fg = palette.orange })
+
   glyph.api.set_hl_group("function", { fg = palette.green })
   glyph.api.set_hl_group("function.method", { fg = palette.green })
   glyph.api.set_hl_group("function.macro", { fg = palette.purple })
+
   glyph.api.set_hl_group("comment", { fg = palette.bg4 })
   glyph.api.set_hl_group("comment.documentation", { fg = palette.bg4 })
+
   glyph.api.set_hl_group("punctuation.bracket", { fg = palette.fg })
   glyph.api.set_hl_group("punctuation.delimiter", { fg = palette.fg })
+
   glyph.api.set_hl_group("variable.parameter", { fg = palette.orange })
-  glyph.api.set_hl_group("label", { fg = palette.purple })
-  glyph.api.set_hl_group("keyword", { fg = palette.red })
   glyph.api.set_hl_group("variable.builtin", { fg = palette.purple })
-  glyph.api.set_hl_group("string", { fg = palette.yellow })
-  glyph.api.set_hl_group("constant.builtin", { fg = palette.purple })
+  glyph.api.set_hl_group("variable.other.member", { fg = palette.orange })
+  glyph.api.set_hl_group("variable", { fg = palette.fg })
+
+  glyph.api.set_hl_group("label", { fg = palette.purple })
+
+  glyph.api.set_hl_group("keyword", { fg = palette.red })
+  glyph.api.set_hl_group("keyword.control.import", { fg = palette.red })
+  glyph.api.set_hl_group("keyword.control.repeat", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.control", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.control.conditional", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.control.return", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.operator", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.storage.type", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.storage", { fg = palette.red })
+  glyph.api.set_hl_group("keyword.function", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.special", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.storage.modifier.mut", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.storage.modifier.ref", { fg = palette.purple })
+  glyph.api.set_hl_group("keyword.storage.modifier", { fg = palette.purple })
+
   glyph.api.set_hl_group("escape", { fg = palette.purple })
   glyph.api.set_hl_group("attribute", { fg = palette.red })
   glyph.api.set_hl_group("operator", { fg = palette.red })
+
+  glyph.api.set_hl_group("special", { fg = palette.purple })
+  glyph.api.set_hl_group("namespace", { fg = palette.red })
 end
 
 return M

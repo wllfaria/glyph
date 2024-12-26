@@ -36,8 +36,10 @@ where
     runtime_receiver: ReceiverStream<RuntimeMessage<'static>>,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
 pub enum ControlFlow {
     Break,
+    Continue,
 }
 
 #[derive(Debug)]
@@ -145,14 +147,13 @@ where
                 Some(event) = input_stream.next() => {
                     self.handle_event(event?)?;
                     self.draw_frame()?;
-                    None
+                    ControlFlow::Continue
                 }
-                Some(message) = self.runtime_receiver.next() => self.handle_runtime_message(message),
+                Some(message) = self.runtime_receiver.next() => self.handle_runtime_message(message)?,
             };
 
-            match control_flow {
-                Some(ControlFlow::Break) => break Ok(()),
-                None => {}
+            if control_flow == ControlFlow::Break {
+                break Ok(());
             }
         }
     }
@@ -167,20 +168,19 @@ where
         self.renderer.handle_event(&event, &mut context, &self.config)
     }
 
-    fn handle_runtime_message(&mut self, message: RuntimeMessage) -> Option<ControlFlow> {
+    fn handle_runtime_message(&mut self, message: RuntimeMessage) -> Result<ControlFlow, io::Error> {
         match message {
             RuntimeMessage::UpdateHighlightGroup(_, _) => todo!(),
             RuntimeMessage::SetKeymap(_) => todo!(),
             RuntimeMessage::UserCommandCreate(_, _) => todo!(),
             RuntimeMessage::Error(_) => todo!(),
             RuntimeMessage::Quit(options) => match (options.force, options.all) {
-                (true, true) => return Some(ControlFlow::Break),
+                (true, true) => return Ok(ControlFlow::Break),
                 (true, false) => todo!(),
                 (false, true) => {}
                 (false, false) => {
-                    let should_quit = self.editor.write().close_active_window();
-                    if should_quit {
-                        return Some(ControlFlow::Break);
+                    if self.editor.write().close_active_window() {
+                        return Ok(ControlFlow::Break);
                     }
                 }
             },
@@ -195,11 +195,27 @@ where
                     let window = tab.tree.window(window);
                     let document = window.document;
                     editor.write_document(document);
+                    drop(editor);
+                    self.draw_frame()?;
                 }
             },
+            RuntimeMessage::OpenFile(filename) => {
+                let mut editor = self.editor.write();
+                if filename.is_empty() {
+                    editor.new_file(OpenAction::Replace);
+                    return Ok(ControlFlow::Continue);
+                }
+                let text = std::fs::read_to_string(&filename).expect("TODO: handle this error");
+                let (_, document) = editor.new_file_with_document(filename, text, OpenAction::Replace);
+                let document = editor.document(document);
+                self.highlighter.add_document(document);
+
+                drop(editor);
+                self.draw_frame()?;
+            }
         };
 
-        None
+        Ok(ControlFlow::Continue)
     }
 
     fn draw_frame(&mut self) -> Result<(), std::io::Error> {

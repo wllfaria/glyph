@@ -2,6 +2,7 @@
 --- @field u glyph.utils
 --- @field api glyph.api
 --- @field options glyph.options
+--- @field plugins glyph.plugins
 --- @field _core glyph.core
 
 --- @class glyph.t.quit_opts
@@ -23,13 +24,16 @@
 --- @field editor_get_mode fun(): string
 --- @field editor_quit fun(opts?: glyph.t.quit_opts)
 --- @field editor_write fun(opts?: glyph.t.write_opts)
+--- @field editor_open_file fun(filename: string)
 --- @field window_get_active fun(): integer
 --- @field window_get_cursor fun(window: integer): glyph.t.point
 --- @field window_is_valid fun(window: integer): boolean
+--- @field window_create fun(document: integer, opts?: glyph.t.window_create_opts): integer
 --- @field document_get_active fun(): integer
 --- @field document_get_line_count fun(document: integer): integer
 --- @field document_is_valid fun(document: integer): boolean
 --- @field document_get_filepath fun(document: integer): string
+--- @field document_create fun(opts?: glyph.t.document_create_opts): integer
 --- @field user_command_create fun(name: string, callback: fun(document: integer))
 
 --- @class glyph.options

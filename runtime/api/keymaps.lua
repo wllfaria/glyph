@@ -2,7 +2,7 @@
 local glyph = require("glyph")
 
 --- @class glyph.api.keymaps
---- @field keymap_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: string | function, opts?: KeymapOpts): nil
+--- @field keymap_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: string | function, opts?: KeymapOpts)
 local M = {}
 
 local static_commands = {
@@ -42,6 +42,7 @@ local static_commands = {
 --- @param command string | function
 --- @param opts? KeymapOpts
 function M.keymap_set(mode, keys, command, opts)
+  opts = opts or {}
   if not mode or not glyph.u.table_contains({ "n", "i", "c", "v" }, mode) then
     error("invalid keymap mode " .. mode)
   end

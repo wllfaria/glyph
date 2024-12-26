@@ -106,7 +106,16 @@ impl LineNumberDrawer for RelativeLineDrawer {
             let diff = cursor.y().abs_diff(line);
             let style = if diff == 0 { current_line_style } else { style };
 
-            write!(&mut line_str, "{:>width$}", diff, width = line_size).unwrap();
+            write!(&mut line_str, "{:>width$} ", diff, width = line_size).unwrap();
+            buffer.set_string(x, area.y + row as u16, &line_str, *style);
+        }
+
+        let remaining = area.height as usize - (end - start);
+        for line in 0..remaining {
+            line_str.clear();
+            use std::fmt::Write;
+            let row = end - start + line;
+            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).unwrap();
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
     }
@@ -141,7 +150,7 @@ impl LineNumberDrawer for RelativeNumberedLineDrawer {
             let style = if diff == 0 { current_line_style } else { style };
             let diff = if diff == 0 { cursor.y() + 1 } else { diff };
 
-            write!(&mut line_str, "{:>width$}", diff, width = line_size).unwrap();
+            write!(&mut line_str, "{:>width$} ", diff, width = line_size).unwrap();
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
 
@@ -150,7 +159,7 @@ impl LineNumberDrawer for RelativeNumberedLineDrawer {
             line_str.clear();
             use std::fmt::Write;
             let row = end - start + line;
-            write!(&mut line_str, "{diff:>width$}", diff = "~", width = 6).unwrap();
+            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).unwrap();
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
     }

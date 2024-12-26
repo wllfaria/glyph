@@ -31,6 +31,12 @@ pub fn setup_editor_api(
         lua.create_function(move |lua: &Lua, args: Table| editor_write(lua, args, sender.clone()))?,
     )?;
 
+    let sender = runtime_sender.clone();
+    core.set(
+        "editor_open_file",
+        lua.create_function(move |_: &Lua, filename: mlua::String| editor_open_file(filename, sender.clone()))?,
+    )?;
+
     Ok(())
 }
 
@@ -72,5 +78,14 @@ fn editor_write(
     let options = lua.from_value::<WriteOptions>(mlua::Value::Table(options))?;
     runtime_sender.send(RuntimeMessage::Write(options)).ok();
 
+    Ok(())
+}
+
+fn editor_open_file(
+    filename: mlua::String,
+    runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
+) -> mlua::Result<()> {
+    let filename = filename.to_string_lossy();
+    runtime_sender.send(RuntimeMessage::OpenFile(filename)).ok();
     Ok(())
 }

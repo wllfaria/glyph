@@ -7,7 +7,7 @@ local glyph = require("glyph")
 --- @field editor_write fun(opts?: glyph.t.write_opts)
 local M = {}
 
---- gets the current active editor mode in lowercer string format
+--- gets the current active editor mode in lowercase string format
 ---
 --- @return string
 function M.editor_get_mode()
@@ -24,6 +24,11 @@ end
 function M.editor_write(opts)
   opts = opts or {}
   glyph._core.editor_write(opts)
+end
+
+--- @param filename string
+function M.editor_open_file(filename)
+  glyph._core.editor_open_file(filename)
 end
 
 return M

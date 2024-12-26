@@ -333,10 +333,14 @@ impl EditorLayer {
             Mode::Command => match key_event.code {
                 KeyCode::Char(ch) => editor.command.push(ch),
                 KeyCode::Enter => {
-                    if let Some(command) = config.user_commands.get(&editor.command) {
-                        let window = editor.focused_tab().tree.focus();
-                        let document = editor.focused_tab().tree.window(window).document;
-                        command.call::<()>(usize::from(document) as i64).ok();
+                    if editor.command.is_empty() {
+                        return Ok(None);
+                    }
+
+                    let pieces = editor.command.split_whitespace().collect::<Vec<_>>();
+
+                    if let Some(command) = config.user_commands.get(pieces[0]) {
+                        command.call::<()>(&pieces[1..]).unwrap();
                         editor.command.clear();
                         editor.set_mode(Mode::Normal);
                     }

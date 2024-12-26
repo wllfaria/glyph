@@ -51,4 +51,10 @@ glyph.api.user_command_create("waq!", function()
   glyph.api.editor_quit({ all = true })
 end)
 
+glyph.api.user_command_create("e", function(args)
+  --- @type string
+  local filename = args[1]
+  glyph.api.editor_open_file(filename)
+end)
+
 return M

@@ -31,7 +31,7 @@ end
 local function format_cursor()
   local window = glyph.api.window_get_active()
   local cursor = glyph.api.window_get_cursor(window)
-  return " " .. cursor.y .. ":" .. cursor.x .. " "
+  return " " .. cursor.y + 1 .. ":" .. cursor.x .. " "
 end
 
 local function cursor_percentage()

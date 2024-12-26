@@ -57,7 +57,7 @@ impl Highlighter {
     pub fn add_document(&mut self, document: &Document) {
         let parser = self.get_or_create_parser(document.language());
 
-        let tree = parser.and_then(|p| p.parse(document.text().slice(..).to_string(), None));
+        let tree = parser.and_then(|p| p.parse(document.text().to_string(), None));
 
         let mut syntax = Syntax {
             language: document.language(),
@@ -67,9 +67,12 @@ impl Highlighter {
         };
 
         if let Some(ref tree) = syntax.tree {
+            // let mut file = std::fs::File::create("tree.sexp").unwrap();
+            // print_highlights_sexp(tree, document.language(), &document.text().to_string(), &mut file).unwrap();
+
             let mut cursor = tree_sitter::QueryCursor::new();
             let root = tree.root_node();
-            let language = self.get_ts_language(document.language()).unwrap();
+            let language = get_ts_language(document.language()).unwrap();
 
             let query = self.queries.entry(document.language()).or_insert(
                 tree_sitter::Query::new(&language.into(), &get_ts_query(document.language()).unwrap()).unwrap(),
@@ -143,7 +146,7 @@ impl Highlighter {
             return self.parsers.get_mut(&language);
         }
 
-        if let Some(ts_language) = self.get_ts_language(language) {
+        if let Some(ts_language) = get_ts_language(language) {
             let mut parser = Parser::new();
             parser.set_language(&ts_language.into()).ok();
             self.parsers.insert(language, parser);
@@ -152,20 +155,70 @@ impl Highlighter {
 
         None
     }
+}
 
-    fn get_ts_language(&self, language: LanguageId) -> Option<impl Into<Language>> {
-        match language {
-            LanguageId::Rust => Some(tree_sitter_rust::LANGUAGE),
-            LanguageId::Lua => Some(tree_sitter_lua::LANGUAGE),
-            _ => None,
-        }
+fn get_ts_language(language: LanguageId) -> Option<impl Into<Language>> {
+    match language {
+        LanguageId::Rust => Some(tree_sitter_rust::LANGUAGE),
+        LanguageId::Lua => Some(tree_sitter_lua::LANGUAGE),
+        _ => None,
     }
 }
 
 fn get_ts_query(language: LanguageId) -> Option<String> {
     match language {
-        LanguageId::Rust => Some(tree_sitter_rust::HIGHLIGHTS_QUERY.to_string()),
+        LanguageId::Rust => {
+            let highlights = include_str!("../../languages/queries/rust/highlights.scm");
+            Some(highlights.to_string())
+        }
         LanguageId::Lua => Some(tree_sitter_lua::HIGHLIGHTS_QUERY.to_string()),
         _ => None,
     }
 }
+
+// fn print_highlights_sexp<W: std::io::Write>(
+//     tree: &Tree,
+//     language_id: LanguageId,
+//     source_code: &str,
+//     writer: &mut W,
+// ) -> std::io::Result<()> {
+//     let Some(language) = get_ts_language(language_id) else {
+//         return Ok(());
+//     };
+//
+//     let Some(query) = get_ts_query(language_id) else {
+//         return Ok(());
+//     };
+//
+//     let Ok(query) = tree_sitter::Query::new(&language.into(), &query) else {
+//         return Ok(());
+//     };
+//
+//     let mut query_cursor = tree_sitter::QueryCursor::new();
+//     let mut matches = query_cursor.matches(&query, tree.root_node(), source_code.as_bytes());
+//
+//     let mut nodes_with_captures = Vec::new();
+//     while let Some(match_) = matches.next() {
+//         for capture in match_.captures {
+//             let node = capture.node;
+//             let capture_name = &query.capture_names()[capture.index as usize];
+//             nodes_with_captures.push((node, capture_name));
+//         }
+//     }
+//
+//     nodes_with_captures.sort_by_key(|(node, _)| (node.start_position(), node.end_position()));
+//
+//     for (node, capture_name) in nodes_with_captures {
+//         let text = &source_code[node.start_byte()..node.end_byte()];
+//         writeln!(
+//             writer,
+//             "({} \"{}\" @{})",
+//             node.kind(),
+//             text.replace('"', "\\\""),
+//             capture_name
+//         )?;
+//         //writeln!(writer, "@{}", capture_name)?;
+//     }
+//
+//     Ok(())
+// }

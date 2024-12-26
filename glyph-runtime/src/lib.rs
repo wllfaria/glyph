@@ -40,6 +40,7 @@ pub enum RuntimeMessage<'msg> {
     Error(String),
     Quit(QuitOptions),
     Write(WriteOptions),
+    OpenFile(String),
 }
 
 pub fn setup_lua_runtime(
