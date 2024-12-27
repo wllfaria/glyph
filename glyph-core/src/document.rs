@@ -80,6 +80,10 @@ pub struct Document {
 pub enum LanguageId {
     Rust,
     Markdown,
+    C,
+    Cpp,
+    Zig,
+    Ocaml,
     Plain,
     Lua,
 }
@@ -90,6 +94,11 @@ impl LanguageId {
             Some("rs") => LanguageId::Rust,
             Some("md") => LanguageId::Markdown,
             Some("lua") => LanguageId::Lua,
+            Some("ml") => LanguageId::Ocaml,
+            Some("zig") => LanguageId::Zig,
+            Some("c") => LanguageId::C,
+            Some("cpp") => LanguageId::Cpp,
+            Some("cc") => LanguageId::Cpp,
             Some(_) => LanguageId::Plain,
             None => LanguageId::Plain,
         }

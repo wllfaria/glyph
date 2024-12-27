@@ -75,7 +75,7 @@ impl Highlighter {
             let language = get_ts_language(document.language()).unwrap();
 
             let query = self.queries.entry(document.language()).or_insert(
-                tree_sitter::Query::new(&language.into(), &get_ts_query(document.language()).unwrap()).unwrap(),
+                tree_sitter::Query::new(&language.into(), get_ts_query(document.language()).unwrap()).unwrap(),
             );
 
             let text = document.text().slice(..).to_string();
@@ -161,18 +161,25 @@ fn get_ts_language(language: LanguageId) -> Option<impl Into<Language>> {
     match language {
         LanguageId::Rust => Some(tree_sitter_rust::LANGUAGE),
         LanguageId::Lua => Some(tree_sitter_lua::LANGUAGE),
-        _ => None,
+        LanguageId::Markdown => Some(tree_sitter_md::LANGUAGE),
+        LanguageId::C => Some(tree_sitter_c::LANGUAGE),
+        LanguageId::Cpp => Some(tree_sitter_cpp::LANGUAGE),
+        LanguageId::Zig => Some(tree_sitter_zig::LANGUAGE),
+        LanguageId::Ocaml => Some(tree_sitter_ocaml::LANGUAGE_OCAML),
+        LanguageId::Plain => None,
     }
 }
 
-fn get_ts_query(language: LanguageId) -> Option<String> {
+fn get_ts_query(language: LanguageId) -> Option<&'static str> {
     match language {
-        LanguageId::Rust => {
-            let highlights = include_str!("../../languages/queries/rust/highlights.scm");
-            Some(highlights.to_string())
-        }
-        LanguageId::Lua => Some(tree_sitter_lua::HIGHLIGHTS_QUERY.to_string()),
-        _ => None,
+        LanguageId::Rust => Some(include_str!("../../languages/queries/rust/highlights.scm")),
+        LanguageId::Lua => Some(include_str!("../../languages/queries/lua/highlights.scm")),
+        LanguageId::Markdown => Some(include_str!("../../languages/queries/markdown/highlights.scm")),
+        LanguageId::C => Some(include_str!("../../languages/queries/c/highlights.scm")),
+        LanguageId::Cpp => Some(include_str!("../../languages/queries/cpp/highlights.scm")),
+        LanguageId::Zig => Some(include_str!("../../languages/queries/zig/highlights.scm")),
+        LanguageId::Ocaml => Some(include_str!("../../languages/queries/ocaml/highlights.scm")),
+        LanguageId::Plain => None,
     }
 }
 

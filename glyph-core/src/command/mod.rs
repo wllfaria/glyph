@@ -153,9 +153,10 @@ fn move_up(ctx: &mut Context) {
         let tab = editor.focused_tab();
         let window = tab.tree.focus();
         let window = tab.tree.window(window);
+        let document = editor.document(window.document);
         let mut cursors = ctx.cursors.write();
         let cursor = cursors.get_mut(&window.id).unwrap();
-        cursor.move_up();
+        cursor.move_up(document);
     }
 
     let mut editor = ctx.editor.write();
@@ -266,9 +267,8 @@ fn remove_prev_char_inner(ctx: &mut Context, stop_at_linebreak: bool) {
     let end_byte = text.char_to_byte(col);
 
     if !stop_at_linebreak && cursor.x() == 0 {
-        cursor.move_up();
-        let len = text.line(cursor.y()).len_chars() - 1;
-        cursor.move_to(len, cursor.y());
+        let len = text.line(cursor.y().saturating_sub(1)).len_chars() - 1;
+        cursor.move_to(len, cursor.y().saturating_sub(1));
     } else {
         cursor.move_left();
     }
