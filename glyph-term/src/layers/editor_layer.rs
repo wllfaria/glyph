@@ -264,6 +264,7 @@ impl EditorLayer {
     ) -> Result<Option<EventResult>, std::io::Error> {
         let mode = ctx.editor.read().mode();
         let mut editor = ctx.editor.write();
+        editor.messages.clear();
 
         let keymap = format!("{}{}", editor.buffered_keymap, stringify_key(key_event));
         let result = config

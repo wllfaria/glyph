@@ -32,6 +32,7 @@ local static_commands = {
   "next_word_big",
   "prev_word",
   "prev_word_big",
+  "join_line_below",
 }
 
 --- @class KeymapOpts

@@ -70,7 +70,7 @@ where
         renderer.push_layer(Box::new(editor_layer));
 
         let (window, document) = if let Some(file) = file {
-            let content = std::fs::read_to_string(&file).unwrap();
+            let content = std::fs::read_to_string(&file).expect("only files are supported");
             editor.new_file_with_document(PathBuf::from(file), content, OpenAction::SplitVertical)
         } else {
             editor.new_file(OpenAction::SplitVertical)

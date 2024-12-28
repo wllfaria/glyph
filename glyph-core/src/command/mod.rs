@@ -84,6 +84,7 @@ impl MappableCommand {
         next_word_big,
         prev_word,
         prev_word_big,
+        join_line_below,
     }
 }
 
@@ -226,6 +227,66 @@ fn remove_curr_char(ctx: &mut Context) {
         new_end_position: Point::new(cursor.y(), cursor.x()),
     };
 
+    drop(editor);
+    drop(cursors);
+    edit_tree(ctx, document, edit);
+}
+
+fn join_line_below(ctx: &mut Context) {
+    let mut editor = ctx.editor.write();
+    let tab = editor.focused_tab_mut();
+    let window = tab.tree.focus();
+
+    let document = tab.tree.window(window).document;
+    let document = editor.document_mut(document);
+
+    let cursors = ctx.cursors.read();
+    let cursor = cursors.get(&window).unwrap();
+
+    let text = document.text_mut();
+
+    if cursor.y() >= text.len_lines() - 1 {
+        return;
+    }
+
+    let curr_line_idx = cursor.y();
+    let next_line_idx = cursor.y() + 1;
+
+    let line_start = text.line_to_char(curr_line_idx);
+    let next_line_start = text.line_to_char(next_line_idx);
+    let next_line_end = if next_line_idx + 1 < text.len_lines() {
+        text.line_to_char(next_line_idx + 1) - 1 // -1 to not include the next line's newline
+    } else {
+        text.len_chars()
+    };
+
+    let start_byte = text.char_to_byte(line_start + text.line(curr_line_idx).len_chars() - 1);
+    let end_byte = text.char_to_byte(next_line_end);
+
+    let next_line_slice = text.slice(next_line_start..next_line_end);
+    let next_line_str = next_line_slice.to_string();
+    let trimmed_content = next_line_str.trim_start();
+
+    let new_content = format!(" {}", trimmed_content);
+    let new_content_bytes = new_content.len();
+    let next_line_chars = next_line_slice.len_chars();
+
+    text.remove(line_start + text.line(curr_line_idx).len_chars() - 1..next_line_end);
+    text.insert(line_start + text.line(curr_line_idx).len_chars() - 1, &new_content);
+
+    let edit = InputEdit {
+        start_byte,
+        old_end_byte: end_byte,
+        new_end_byte: start_byte + new_content_bytes,
+        start_position: Point::new(curr_line_idx, text.line(curr_line_idx).len_chars() - 1),
+        old_end_position: Point::new(next_line_idx, next_line_chars),
+        new_end_position: Point::new(
+            curr_line_idx,
+            text.line(curr_line_idx).len_chars() - 1 + new_content.chars().count(),
+        ),
+    };
+
+    let document = document.id;
     drop(editor);
     drop(cursors);
     edit_tree(ctx, document, edit);
@@ -432,7 +493,7 @@ fn move_to_eol(ctx: &mut Context) {
     let document = editor.document(document);
     let line_len = document.text().line(cursor.y()).len_chars();
 
-    cursor.move_to(line_len - 1, cursor.y());
+    cursor.move_to(line_len - 2, cursor.y());
 }
 
 fn page_down(ctx: &mut Context) {

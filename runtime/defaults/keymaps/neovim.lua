@@ -33,6 +33,7 @@ function M.setup()
   glyph.api.keymap_set("n", "W", "next_word_big", { description = "Move spaced word forward" })
   glyph.api.keymap_set("n", "b", "prev_word", { description = "Move to previous word forward" })
   glyph.api.keymap_set("n", "B", "prev_word_big", { description = "Move previous word forward" })
+  glyph.api.keymap_set("n", "J", "join_line_below", { description = "Joins the line below" })
 
   glyph.api.keymap_set("n", "-", function()
     glyph.plugins.explorer.open()
