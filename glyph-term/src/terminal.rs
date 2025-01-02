@@ -1,4 +1,5 @@
 use glyph_config::GlyphConfig;
+use glyph_core::rect::Rect;
 
 use crate::backend::Backend;
 use crate::buffer::Buffer;
@@ -29,5 +30,9 @@ impl<B: Backend> Terminal<B> {
         let diffs = buffer.diff(&self.buffers[1]);
         self.backend.draw(diffs.into_iter(), config)?;
         self.backend.flush()
+    }
+
+    pub fn resize(&mut self, new_area: Rect) {
+        self.buffers.iter_mut().for_each(|b| b.resize(new_area));
     }
 }

@@ -127,7 +127,7 @@ impl<'cs> Iterator for ChangeSetIter<'cs> {
 impl Buffer {
     pub fn new(area: Rect) -> Buffer {
         Buffer {
-            cells: vec![Cell::default(); (area.width * area.height) as usize],
+            cells: make_cells(area),
             area,
         }
     }
@@ -200,4 +200,13 @@ impl Buffer {
 
         ChangeSet { changes }
     }
+
+    pub fn resize(&mut self, new_area: Rect) {
+        self.area = new_area;
+        self.cells = make_cells(new_area);
+    }
+}
+
+fn make_cells(area: Rect) -> Vec<Cell> {
+    vec![Cell::default(); (area.width * area.height) as usize]
 }

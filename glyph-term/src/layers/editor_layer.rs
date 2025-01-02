@@ -80,7 +80,6 @@ impl EditorLayer {
     #[allow(clippy::too_many_arguments)]
     pub fn draw_window(
         &self,
-        mut area: Rect,
         document: &Document,
         window: &Window,
         buffer: &mut Buffer,
@@ -88,6 +87,7 @@ impl EditorLayer {
         cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
         config: GlyphConfig,
     ) {
+        let mut area = window.area;
         if config.gutter().enabled {
             let gutter_size = calculate_gutter_size(document, config);
             let gutter_area = match config.gutter().anchor {
@@ -153,12 +153,12 @@ impl EditorLayer {
 
                 match ch {
                     '\n' | '\r' => buffer.set_cell(area.x + x as u16, y as u16, ' ', style),
-                    _ => buffer.set_cell(area.x + x as u16, y as u16, ch, style),
+                    _ => buffer.set_cell(area.x + x as u16, area.y + y as u16, ch, style),
                 }
             }
 
             for x in line.chars().count()..area.width as usize {
-                buffer.set_cell(area.x + x as u16, y as u16, ' ', style);
+                buffer.set_cell(area.x + x as u16, area.y + y as u16, ' ', style);
             }
         }
     }
@@ -358,6 +358,11 @@ impl EditorLayer {
 
         Ok(None)
     }
+
+    fn handle_resize(&self, new_area: Rect, ctx: &mut Context) -> Result<Option<EventResult>, std::io::Error> {
+        ctx.editor.write().resize(new_area);
+        Ok(None)
+    }
 }
 
 impl RenderLayer for EditorLayer {
@@ -375,15 +380,7 @@ impl RenderLayer for EditorLayer {
         let editor = ctx.editor.read();
         for window in editor.focused_tab().tree.windows().values() {
             let document = editor.document(window.document);
-            self.draw_window(
-                area,
-                document,
-                window,
-                buffer,
-                ctx.highlighter,
-                ctx.cursors.clone(),
-                config,
-            );
+            self.draw_window(document, window, buffer, ctx.highlighter, ctx.cursors.clone(), config);
         }
     }
 
@@ -401,8 +398,8 @@ impl RenderLayer for EditorLayer {
                 let gutter_size = calculate_gutter_size(document, config);
 
                 let point = Point {
-                    x: ((cursor.x() + gutter_size as usize) - window.scroll().0) as u16,
-                    y: (cursor.y() - window.scroll().1) as u16,
+                    x: window.area.x + ((cursor.x() + gutter_size as usize) - window.scroll().0) as u16,
+                    y: window.area.y + (cursor.y() - window.scroll().1) as u16,
                 };
 
                 (Some(point), CursorKind::Block)
@@ -429,6 +426,7 @@ impl RenderLayer for EditorLayer {
     ) -> Result<Option<EventResult>, std::io::Error> {
         match event {
             Event::Key(key_event) => self.handle_key_event(key_event, ctx, config),
+            Event::Resize(width, height) => self.handle_resize((height, width).into(), ctx),
             _ => Ok(None),
         }
     }

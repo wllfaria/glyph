@@ -183,7 +183,6 @@ impl Editor {
                 let mut window = tab
                     .tree
                     .get_window(tab.tree.focus())
-                    .filter(|w| id == w.document)
                     .cloned()
                     .unwrap_or_else(|| Window::new(id));
 
@@ -191,7 +190,20 @@ impl Editor {
 
                 tab.tree.split(window, Layout::Vertical)
             }
-            OpenAction::SplitHorizontal => todo!(),
+            OpenAction::SplitHorizontal => {
+                let tab = self.focused_tab_mut();
+
+                // get the current focused window or make a new one if theres none
+                let mut window = tab
+                    .tree
+                    .get_window(tab.tree.focus())
+                    .cloned()
+                    .unwrap_or_else(|| Window::new(id));
+
+                window.document = id;
+
+                tab.tree.split(window, Layout::Horizontal)
+            }
         }
     }
 
@@ -207,5 +219,10 @@ impl Editor {
                 Err(_) => todo!(),
             }
         }
+    }
+
+    pub fn resize(&mut self, new_area: Rect) {
+        self.area = new_area;
+        self.tabs.iter_mut().for_each(|tab| tab.tree.resize(new_area));
     }
 }

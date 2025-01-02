@@ -81,8 +81,7 @@ where
         highlighter.add_document(document);
 
         let mut cursors = BTreeMap::default();
-        let cursor = Cursor::default();
-        cursors.insert(window, cursor);
+        cursors.insert(window, Cursor::default());
 
         let editor = Arc::new(RwLock::new(editor));
         let cursors = Arc::new(RwLock::new(cursors));
@@ -159,6 +158,10 @@ where
     }
 
     fn handle_event(&mut self, event: Event) -> Result<Option<EventResult>, io::Error> {
+        if let Event::Resize(width, height) = event {
+            self.terminal.resize((height, width).into());
+        };
+
         let mut context = Context {
             editor: self.editor.clone(),
             highlighter: &mut self.highlighter,

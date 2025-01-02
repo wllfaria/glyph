@@ -3,7 +3,7 @@ use std::num::NonZeroUsize;
 use crate::document::DocumentId;
 use crate::rect::Rect;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WindowId(NonZeroUsize);
 
 impl WindowId {
