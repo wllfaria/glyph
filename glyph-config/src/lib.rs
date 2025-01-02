@@ -224,7 +224,7 @@ impl<'cfg> Config<'cfg> {
         runtime: &Lua,
         runtime_receiver: &mut UnboundedReceiver<RuntimeMessage<'static>>,
     ) -> glyph_runtime::error::Result<Config<'cfg>> {
-        let config = DIRS.get().unwrap().config();
+        let config = DIRS.get().expect("failed to get dirs").config();
         let init = config.join("init.lua");
 
         if let Ok(content) = std::fs::read_to_string(&init) {
@@ -294,7 +294,7 @@ fn handle_setup_messages(messages: Vec<RuntimeMessage>) -> SetupMessagesResult {
             RuntimeMessage::UpdateHighlightGroup(name, group) => _ = highlight_groups.insert(name, group),
             RuntimeMessage::UserCommandCreate(name, callback) => _ = user_commands.insert(name, callback),
             RuntimeMessage::SetKeymap(lua_keymap) => {
-                let mode_maps = keymaps.get_mut(&lua_keymap.mode).unwrap();
+                let mode_maps = keymaps.get_mut(&lua_keymap.mode).expect("should have a mode keymaps");
                 let keys = lua_keymap.keys.clone();
                 let keymap = KeymapConfig::from(lua_keymap);
                 mode_maps.add_word(keys, keymap);

@@ -85,7 +85,7 @@ impl FromLua for StatuslineStyle {
         match value {
             Value::Table(_) => {
                 let style = lua.from_value::<LuaHighlightGroup>(value)?;
-                let style = HighlightGroup::try_from(style).unwrap();
+                let style = HighlightGroup::try_from(style).expect("invalid highlight group");
                 Ok(StatuslineStyle::HighlightGroup(style))
             }
             Value::String(inner) => Ok(StatuslineStyle::Named(inner.to_string_lossy())),

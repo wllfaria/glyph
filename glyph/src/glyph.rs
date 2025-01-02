@@ -92,7 +92,7 @@ where
         }));
         let (runtime_sender, mut runtime_receiver) = unbounded_channel();
         let runtime = glyph_runtime::setup_lua_runtime(
-            DIRS.get().unwrap().config(),
+            DIRS.get().expect("failed to get dirs").config(),
             runtime_sender.clone(),
             glyph_context.clone(),
         )?;

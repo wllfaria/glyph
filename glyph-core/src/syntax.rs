@@ -72,10 +72,14 @@ impl Highlighter {
 
             let mut cursor = tree_sitter::QueryCursor::new();
             let root = tree.root_node();
-            let language = get_ts_language(document.language()).unwrap();
+            let language = get_ts_language(document.language()).expect("if we have a tree, we must have a language");
 
             let query = self.queries.entry(document.language()).or_insert(
-                tree_sitter::Query::new(&language.into(), get_ts_query(document.language()).unwrap()).unwrap(),
+                tree_sitter::Query::new(
+                    &language.into(),
+                    get_ts_query(document.language()).expect("if we have a tree, we must have a query"),
+                )
+                .unwrap(),
             );
 
             let text = document.text().slice(..).to_string();

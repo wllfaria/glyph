@@ -173,7 +173,7 @@ impl EditorLayer {
         config: GlyphConfig,
     ) {
         let cursors = cursors.read();
-        let cursor = cursors.get(&window.id).unwrap();
+        let cursor = cursors.get(&window.id).expect("window has no cursor");
         let line_drawer = get_line_drawer(config);
         line_drawer.draw_line_numbers(area, document, window, cursor, buffer, config);
     }
@@ -190,11 +190,17 @@ impl EditorLayer {
             .map(|section| {
                 let content = match &section.content {
                     StatuslineContent::Immediate(inner) => inner.to_owned(),
-                    StatuslineContent::Dynamic(fun) => fun.call::<mlua::String>(()).unwrap().to_string_lossy(),
+                    StatuslineContent::Dynamic(fun) => fun
+                        .call::<mlua::String>(())
+                        .expect("failed to convert statusline to string")
+                        .to_string_lossy(),
                 };
                 let style = match &section.style {
                     StatuslineStyle::HighlightGroup(group) => group,
-                    StatuslineStyle::Named(group) => config.highlight_groups.get(group).unwrap(),
+                    StatuslineStyle::Named(group) => config
+                        .highlight_groups
+                        .get(group)
+                        .expect("unregistered highlight_group"),
                 };
                 StatusSection::new(content, *style)
             })
@@ -206,11 +212,17 @@ impl EditorLayer {
             .map(|section| {
                 let content = match &section.content {
                     StatuslineContent::Immediate(inner) => inner.to_owned(),
-                    StatuslineContent::Dynamic(fun) => fun.call::<mlua::String>(()).unwrap().to_string_lossy(),
+                    StatuslineContent::Dynamic(fun) => fun
+                        .call::<mlua::String>(())
+                        .expect("failed to convert statusline to string")
+                        .to_string_lossy(),
                 };
                 let style = match &section.style {
                     StatuslineStyle::HighlightGroup(group) => group,
-                    StatuslineStyle::Named(group) => config.highlight_groups.get(group).unwrap(),
+                    StatuslineStyle::Named(group) => config
+                        .highlight_groups
+                        .get(group)
+                        .expect("using unregistered highlight_group"),
                 };
                 StatusSection::new(content, *style)
             })
@@ -270,7 +282,7 @@ impl EditorLayer {
         let result = config
             .keymaps
             .get(&mode)
-            .unwrap()
+            .expect("should have keymaps for all modes")
             .find_word(&keymap)
             .map(KeymapResult::from_query_result)
             .unwrap_or_default();
@@ -341,7 +353,7 @@ impl EditorLayer {
                     let pieces = editor.command.split_whitespace().collect::<Vec<_>>();
 
                     if let Some(command) = config.user_commands.get(pieces[0]) {
-                        command.call::<()>(&pieces[1..]).unwrap();
+                        command.call::<()>(&pieces[1..]).expect("TODO: HANDLE ERROR");
                         editor.command.clear();
                         editor.set_mode(Mode::Normal);
                     }
@@ -393,7 +405,7 @@ impl RenderLayer for EditorLayer {
                 let focused_window = tab.tree.focus();
                 let window = tab.tree.window(focused_window);
                 let cursors = ctx.cursors.read();
-                let cursor = cursors.get(&window.id).unwrap();
+                let cursor = cursors.get(&window.id).expect("window has no cursor");
                 let document = editor.document(window.document);
                 let gutter_size = calculate_gutter_size(document, config);
 

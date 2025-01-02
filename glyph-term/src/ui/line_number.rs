@@ -53,13 +53,19 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
         let x = area.x + config.gutter().sign_column.size();
         let mut line_str = String::with_capacity(line_size);
 
-        let style = config.highlight_groups.get("line_number").unwrap();
-        let current_line_style = config.highlight_groups.get("current_line").unwrap();
+        let style = config
+            .highlight_groups
+            .get("line_number")
+            .expect("unregistered highlight group for line_number");
+        let current_line_style = config
+            .highlight_groups
+            .get("current_line")
+            .expect("unregistered highlight group for current_line");
 
         for (row, line) in (start..end).enumerate() {
             line_str.clear();
             use std::fmt::Write;
-            write!(&mut line_str, "{:>width$} ", line + 1, width = line_size).unwrap();
+            write!(&mut line_str, "{:>width$} ", line + 1, width = line_size).expect("failed to write to string");
 
             let diff = cursor.y().abs_diff(line);
             let style = if diff == 0 { current_line_style } else { style };
@@ -72,7 +78,7 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
             use std::fmt::Write;
 
             let row = end - start + line;
-            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).unwrap();
+            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).expect("failed to write to string");
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
     }
@@ -96,8 +102,14 @@ impl LineNumberDrawer for RelativeLineDrawer {
         let x = area.x + config.gutter().sign_column.size();
         let mut line_str = String::with_capacity(line_size);
 
-        let style = config.highlight_groups.get("line_number").unwrap();
-        let current_line_style = config.highlight_groups.get("current_line").unwrap();
+        let style = config
+            .highlight_groups
+            .get("line_number")
+            .expect("unregistered highlight group for line_number");
+        let current_line_style = config
+            .highlight_groups
+            .get("current_line")
+            .expect("unregistered highlight group for current_line");
 
         for (row, line) in (start..end).enumerate() {
             line_str.clear();
@@ -106,7 +118,7 @@ impl LineNumberDrawer for RelativeLineDrawer {
             let diff = cursor.y().abs_diff(line);
             let style = if diff == 0 { current_line_style } else { style };
 
-            write!(&mut line_str, "{:>width$} ", diff, width = line_size).unwrap();
+            write!(&mut line_str, "{:>width$} ", diff, width = line_size).expect("failed to write to string");
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
 
@@ -115,7 +127,7 @@ impl LineNumberDrawer for RelativeLineDrawer {
             line_str.clear();
             use std::fmt::Write;
             let row = end - start + line;
-            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).unwrap();
+            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).expect("failed to write to string");
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
     }
@@ -139,8 +151,14 @@ impl LineNumberDrawer for RelativeNumberedLineDrawer {
         let x = area.x + config.gutter().sign_column.size();
         let mut line_str = String::with_capacity(line_size);
 
-        let style = config.highlight_groups.get("line_number").unwrap();
-        let current_line_style = config.highlight_groups.get("current_line").unwrap();
+        let style = config
+            .highlight_groups
+            .get("line_number")
+            .expect("unregistered highlight group for line_number");
+        let current_line_style = config
+            .highlight_groups
+            .get("current_line")
+            .expect("unregistered highlight group for current_line");
 
         for (row, line) in (start..end).enumerate() {
             line_str.clear();
@@ -150,7 +168,7 @@ impl LineNumberDrawer for RelativeNumberedLineDrawer {
             let style = if diff == 0 { current_line_style } else { style };
             let diff = if diff == 0 { cursor.y() + 1 } else { diff };
 
-            write!(&mut line_str, "{:>width$} ", diff, width = line_size).unwrap();
+            write!(&mut line_str, "{:>width$} ", diff, width = line_size).expect("failed to write to string");
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
 
@@ -159,7 +177,7 @@ impl LineNumberDrawer for RelativeNumberedLineDrawer {
             line_str.clear();
             use std::fmt::Write;
             let row = end - start + line;
-            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).unwrap();
+            write!(&mut line_str, "{diff:>width$} ", diff = "~", width = line_size).expect("failed to write to string");
             buffer.set_string(x, area.y + row as u16, &line_str, *style);
         }
     }

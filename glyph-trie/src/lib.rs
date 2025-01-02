@@ -74,7 +74,7 @@ impl TrieNode {
         }
 
         let end = word.as_ref().len() == 1;
-        let value = word.as_ref().chars().nth(0).unwrap();
+        let value = word.as_ref().chars().nth(0).expect("word cannot be empty here");
         let rest = &word.as_ref()[1..];
         let data = if end { Some(idx) } else { None };
 
@@ -89,7 +89,7 @@ impl TrieNode {
         self.children
             .iter_mut()
             .find(|node| node.value == value)
-            .unwrap()
+            .expect("children should not be empty here")
             .add_word(rest, idx);
     }
 
@@ -102,7 +102,7 @@ impl TrieNode {
         }
 
         let end = word.as_ref().len() == 1;
-        let value = word.as_ref().chars().nth(0).unwrap();
+        let value = word.as_ref().chars().nth(0).expect("word cannot be empty here");
         let rest = &word.as_ref()[1..];
 
         let existing = self.children.iter().find(|node| node.value == value)?;

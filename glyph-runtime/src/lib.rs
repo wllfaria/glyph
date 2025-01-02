@@ -73,7 +73,7 @@ pub fn setup_lua_runtime(
     // #[cfg(debug_assertions)]
     {
         let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let root = workspace.parent().unwrap();
+        let root = workspace.parent().expect("failed to get workspace root");
         let runtime = root.join("runtime");
         prefix_path(&mut path_list, &runtime);
     }
