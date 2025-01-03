@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 glyph-core.workspace = true
 glyph-term.workspace = true
-glyph-config.workspace = true
 glyph-runtime.workspace = true
 
 tokio.workspace = true
@@ -18,3 +17,6 @@ parking_lot.workspace = true
 
 crossterm = { version = "0.28.1", features = ["event-stream"] }
 futures = { version = "0.3.31" }
+
+[lints]
+workspace = true

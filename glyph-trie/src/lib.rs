@@ -45,7 +45,7 @@ impl<T> Trie<T> {
         self.root.add_word(word, idx);
     }
 
-    pub fn find_word<S>(&self, word: S) -> Option<QueryResult<T>>
+    pub fn find_word<S>(&self, word: S) -> Option<QueryResult<'_, T>>
     where
         S: AsRef<str>,
     {
@@ -116,5 +116,18 @@ impl TrieNode {
             // needle string still has keys, so keep going
             (false, _) => existing.find_word(rest),
         }
+    }
+}
+
+impl<I, S, T> From<I> for Trie<T>
+where
+    S: AsRef<str>,
+    I: Iterator<Item = (S, T)>,
+{
+    fn from(values: I) -> Self {
+        values.fold(Default::default(), |mut acc, (word, value)| {
+            acc.add_word(word, value);
+            acc
+        })
     }
 }

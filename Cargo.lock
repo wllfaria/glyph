@@ -350,7 +350,6 @@ version = "0.1.0"
 dependencies = [
  "crossterm",
  "futures",
- "glyph-config",
  "glyph-core",
  "glyph-runtime",
  "glyph-term",
@@ -363,25 +362,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "glyph-config"
-version = "0.1.0"
-dependencies = [
- "directories",
- "glyph-core",
- "glyph-runtime",
- "glyph-trie",
- "mlua",
- "parking_lot",
- "serde",
- "thiserror 2.0.3",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "glyph-core"
 version = "0.1.0"
 dependencies = [
+ "directories",
+ "glyph-trie",
  "parking_lot",
  "ropey",
  "streaming-iterator",
@@ -402,6 +387,7 @@ name = "glyph-runtime"
 version = "0.1.0"
 dependencies = [
  "glyph-core",
+ "glyph-trie",
  "mlua",
  "parking_lot",
  "serde",
@@ -415,7 +401,6 @@ version = "0.1.0"
 dependencies = [
  "crossterm",
  "divan",
- "glyph-config",
  "glyph-core",
  "glyph-runtime",
  "glyph-trie",

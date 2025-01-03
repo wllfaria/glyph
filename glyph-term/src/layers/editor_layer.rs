@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use glyph_config::{GlyphConfig, GutterAnchor, KeymapConfig};
 use glyph_core::command::Context as CmdContext;
+use glyph_core::config::{GlyphConfig, GutterAnchor, KeymapConfig, StatuslineContent, StatuslineStyle};
 use glyph_core::cursor::Cursor;
 use glyph_core::document::Document;
 use glyph_core::editor::{EventResult, Mode};
@@ -11,7 +11,6 @@ use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::{Point, Rect};
 use glyph_core::syntax::Highlighter;
 use glyph_core::window::{Window, WindowId};
-use glyph_runtime::statusline::{StatuslineContent, StatuslineStyle};
 use glyph_trie::QueryResult;
 use parking_lot::RwLock;
 
@@ -85,12 +84,12 @@ impl EditorLayer {
         buffer: &mut Buffer,
         highlighter: &Highlighter,
         cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
-        config: GlyphConfig,
+        config: GlyphConfig<'_>,
     ) {
         let mut area = window.area;
-        if config.gutter().enabled {
+        if config.gutter.enabled {
             let gutter_size = calculate_gutter_size(document, config);
-            let gutter_area = match config.gutter().anchor {
+            let gutter_area = match config.gutter.anchor {
                 GutterAnchor::Left => area.split_left(gutter_size),
                 GutterAnchor::Right => area.split_right(gutter_size),
             };
@@ -107,11 +106,11 @@ impl EditorLayer {
         window: &Window,
         buffer: &mut Buffer,
         highlighter: &Highlighter,
-        config: GlyphConfig,
+        config: GlyphConfig<'_>,
     ) {
         let text = document.text();
 
-        let start_line = window.scroll().1;
+        let start_line = window.scroll().y;
         let visible_lines = area.height as usize;
 
         let document_lines = text.len_lines();
@@ -138,7 +137,7 @@ impl EditorLayer {
 
             for (x, ch) in line.chars().enumerate() {
                 if let Some(syntax) = highlighter.document_syntax(document.id) {
-                    if let Some(captures) = syntax.captures.get(&(y + window.scroll().1)) {
+                    if let Some(captures) = syntax.captures.get(&(y + window.scroll().y)) {
                         if let Some(capture) = captures.iter().find(|c| x >= c.start.column && x < c.end.column) {
                             if let Some(group) = config.highlight_groups.get(&capture.name) {
                                 style = *group
@@ -170,7 +169,7 @@ impl EditorLayer {
         window: &Window,
         cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
         buffer: &mut Buffer,
-        config: GlyphConfig,
+        config: GlyphConfig<'_>,
     ) {
         let cursors = cursors.read();
         let cursor = cursors.get(&window.id).expect("window has no cursor");
@@ -178,7 +177,7 @@ impl EditorLayer {
         line_drawer.draw_line_numbers(area, document, window, cursor, buffer, config);
     }
 
-    pub fn draw_statusline(&self, buffer: &mut Buffer, area: Rect, config: GlyphConfig) {
+    pub fn draw_statusline(&self, buffer: &mut Buffer, area: Rect, config: GlyphConfig<'_>) {
         let statusline = &config.statusline;
 
         let clear = " ".repeat(area.width as usize);
@@ -190,10 +189,7 @@ impl EditorLayer {
             .map(|section| {
                 let content = match &section.content {
                     StatuslineContent::Immediate(inner) => inner.to_owned(),
-                    StatuslineContent::Dynamic(fun) => fun
-                        .call::<mlua::String>(())
-                        .expect("failed to convert statusline to string")
-                        .to_string_lossy(),
+                    StatuslineContent::Dynamic(fun) => fun(),
                 };
                 let style = match &section.style {
                     StatuslineStyle::HighlightGroup(group) => group,
@@ -212,10 +208,7 @@ impl EditorLayer {
             .map(|section| {
                 let content = match &section.content {
                     StatuslineContent::Immediate(inner) => inner.to_owned(),
-                    StatuslineContent::Dynamic(fun) => fun
-                        .call::<mlua::String>(())
-                        .expect("failed to convert statusline to string")
-                        .to_string_lossy(),
+                    StatuslineContent::Dynamic(fun) => fun(),
                 };
                 let style = match &section.style {
                     StatuslineStyle::HighlightGroup(group) => group,
@@ -241,7 +234,7 @@ impl EditorLayer {
         }
     }
 
-    pub fn draw_commandline(&self, buffer: &mut Buffer, ctx: &mut Context, area: Rect, config: GlyphConfig) {
+    pub fn draw_commandline(&self, buffer: &mut Buffer, ctx: &mut Context<'_>, area: Rect, config: GlyphConfig<'_>) {
         let clear = " ".repeat(area.width as usize);
         buffer.set_string(area.x, area.y, clear, HighlightGroup::default());
 
@@ -271,8 +264,8 @@ impl EditorLayer {
     pub fn handle_key_event(
         &self,
         key_event: &KeyEvent,
-        ctx: &mut Context,
-        config: GlyphConfig,
+        ctx: &mut Context<'_>,
+        config: GlyphConfig<'_>,
     ) -> Result<Option<EventResult>, std::io::Error> {
         let mode = ctx.editor.read().mode();
         let mut editor = ctx.editor.write();
@@ -304,6 +297,7 @@ impl EditorLayer {
                     editor: ctx.editor.clone(),
                     cursors: ctx.cursors.clone(),
                     highlighter: ctx.highlighter,
+                    config: ctx.config,
                 };
                 keymap.command.run(&mut context);
                 return Ok(Some(EventResult::Consumed(None)));
@@ -319,6 +313,7 @@ impl EditorLayer {
                         editor: ctx.editor.clone(),
                         cursors: ctx.cursors.clone(),
                         highlighter: ctx.highlighter,
+                        config: ctx.config,
                     };
                     drop(editor);
                     glyph_core::command::insert_char(&mut context, ch)
@@ -328,6 +323,7 @@ impl EditorLayer {
                         editor: ctx.editor.clone(),
                         cursors: ctx.cursors.clone(),
                         highlighter: ctx.highlighter,
+                        config: ctx.config,
                     };
                     drop(editor);
                     glyph_core::command::remove_prev_char_breaking(&mut context)
@@ -337,6 +333,7 @@ impl EditorLayer {
                         editor: ctx.editor.clone(),
                         cursors: ctx.cursors.clone(),
                         highlighter: ctx.highlighter,
+                        config: ctx.config,
                     };
                     drop(editor);
                     glyph_core::command::break_line(&mut context)
@@ -353,7 +350,7 @@ impl EditorLayer {
                     let pieces = editor.command.split_whitespace().collect::<Vec<_>>();
 
                     if let Some(command) = config.user_commands.get(pieces[0]) {
-                        command.call::<()>(&pieces[1..]).expect("TODO: HANDLE ERROR");
+                        command.call().expect("TODO: handle error");
                         editor.command.clear();
                         editor.set_mode(Mode::Normal);
                     }
@@ -371,14 +368,14 @@ impl EditorLayer {
         Ok(None)
     }
 
-    fn handle_resize(&self, new_area: Rect, ctx: &mut Context) -> Result<Option<EventResult>, std::io::Error> {
+    fn handle_resize(&self, new_area: Rect, ctx: &mut Context<'_>) -> Result<Option<EventResult>, std::io::Error> {
         ctx.editor.write().resize(new_area);
         Ok(None)
     }
 }
 
 impl RenderLayer for EditorLayer {
-    fn draw(&self, buffer: &mut Buffer, ctx: &mut Context, config: GlyphConfig) {
+    fn draw(&self, buffer: &mut Buffer, ctx: &mut Context<'_>, config: GlyphConfig<'_>) {
         let mut area = ctx.editor.read().area();
         let commandline_area = area.split_bottom(1);
         let statusline_area = area.split_bottom(1);
@@ -396,7 +393,7 @@ impl RenderLayer for EditorLayer {
         }
     }
 
-    fn cursor(&self, ctx: &mut Context, config: GlyphConfig) -> (Option<Point>, CursorKind) {
+    fn cursor(&self, ctx: &mut Context<'_>, config: GlyphConfig<'_>) -> (Option<Point>, CursorKind) {
         let editor = ctx.editor.read();
 
         match editor.mode() {
@@ -410,8 +407,8 @@ impl RenderLayer for EditorLayer {
                 let gutter_size = calculate_gutter_size(document, config);
 
                 let point = Point {
-                    x: window.area.x + ((cursor.x() + gutter_size as usize) - window.scroll().0) as u16,
-                    y: window.area.y + (cursor.y() - window.scroll().1) as u16,
+                    x: window.area.x + ((cursor.x() + gutter_size as usize) - window.scroll().x) as u16,
+                    y: window.area.y + (cursor.y() - window.scroll().y) as u16,
                 };
 
                 (Some(point), CursorKind::Block)
@@ -433,8 +430,8 @@ impl RenderLayer for EditorLayer {
     fn handle_event(
         &self,
         event: &Event,
-        ctx: &mut Context,
-        config: GlyphConfig,
+        ctx: &mut Context<'_>,
+        config: GlyphConfig<'_>,
     ) -> Result<Option<EventResult>, std::io::Error> {
         match event {
             Event::Key(key_event) => self.handle_key_event(key_event, ctx, config),
@@ -444,11 +441,11 @@ impl RenderLayer for EditorLayer {
     }
 }
 
-fn calculate_gutter_size(document: &Document, config: GlyphConfig) -> u16 {
+fn calculate_gutter_size(document: &Document, config: GlyphConfig<'_>) -> u16 {
     let total_lines = document.text().len_lines();
     // +1 is to always accomodate bigger lines
     let lines_length = digits_in_number(total_lines) as u16 + 1;
-    let lines_length = u16::max(lines_length, 3) + config.gutter().sign_column.size();
+    let lines_length = u16::max(lines_length, 3) + config.gutter.sign_column.size();
     // +1 is the padding before document
     lines_length + 1
 }

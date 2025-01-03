@@ -36,8 +36,14 @@ impl From<WindowId> for usize {
 pub struct Window {
     pub id: WindowId,
     pub document: DocumentId,
-    scroll: (usize, usize),
+    scroll: Scroll,
     pub area: Rect,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Scroll {
+    pub x: usize,
+    pub y: usize,
 }
 
 impl Window {
@@ -45,32 +51,32 @@ impl Window {
         Window {
             id: WindowId::default(),
             document,
-            scroll: (0, 0),
+            scroll: Scroll::default(),
             area: Rect::default(),
         }
     }
 
-    pub fn scroll(&self) -> (usize, usize) {
+    pub fn scroll(&self) -> Scroll {
         self.scroll
     }
 
     pub fn scroll_left(&mut self) {
-        self.scroll.0 = self.scroll.0.saturating_sub(1);
+        self.scroll.x = self.scroll.x.saturating_sub(1);
     }
 
     pub fn scroll_down(&mut self) {
-        self.scroll.1 += 1;
+        self.scroll.y += 1;
     }
 
     pub fn scroll_up(&mut self) {
-        self.scroll.1 = self.scroll.1.saturating_sub(1);
+        self.scroll.y = self.scroll.y.saturating_sub(1);
     }
 
     pub fn scroll_right(&mut self) {
-        self.scroll.0 += 1;
+        self.scroll.x += 1;
     }
 
     pub fn scroll_y_to(&mut self, to: usize) {
-        self.scroll.1 = to;
+        self.scroll.y = to;
     }
 }

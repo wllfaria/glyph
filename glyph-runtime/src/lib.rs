@@ -1,31 +1,28 @@
-pub mod colors;
-pub mod command;
-pub mod document;
-pub mod editor;
+pub mod api;
+
+pub mod config;
 pub mod error;
-pub mod keymap;
-pub mod statusline;
-pub mod window;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use colors::setup_colors_api;
-use command::setup_command_api;
-use document::setup_document_api;
-use editor::{setup_editor_api, QuitOptions, WriteOptions};
+use api::colors::setup_colors_api;
+use api::command::setup_command_api;
+use api::document::setup_document_api;
+use api::editor::{setup_editor_api, QuitOptions, WriteOptions};
+use api::keymap::setup_keymap_api;
+use api::window::setup_window_api;
+use config::keymap::LuaKeymapConfig;
 use error::{Error, Result};
 use glyph_core::cursor::Cursor;
 use glyph_core::editor::{Editor, Mode};
 use glyph_core::highlights::HighlightGroup;
 use glyph_core::window::WindowId;
-use keymap::{setup_keymap_api, LuaKeymap};
 use mlua::{Function, Lua, Table, Value};
 use parking_lot::RwLock;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot::Sender;
-use window::setup_window_api;
 
 #[derive(Debug)]
 pub enum RuntimeQuery {
@@ -35,7 +32,7 @@ pub enum RuntimeQuery {
 #[derive(Debug)]
 pub enum RuntimeMessage<'msg> {
     UpdateHighlightGroup(String, HighlightGroup),
-    SetKeymap(LuaKeymap<'msg>),
+    SetKeymap(LuaKeymapConfig<'msg>),
     UserCommandCreate(String, Function),
     Error(String),
     Quit(QuitOptions),

@@ -183,7 +183,7 @@ impl Buffer {
         }
     }
 
-    pub fn diff(&self, other: &Buffer) -> ChangeSet {
+    pub fn diff(&self, other: &Buffer) -> ChangeSet<'_> {
         let mut changes = vec![];
 
         for (idx, cell) in self.cells.iter().enumerate() {

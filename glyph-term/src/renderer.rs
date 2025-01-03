@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crossterm::event::Event;
-use glyph_config::GlyphConfig;
+use glyph_core::config::GlyphConfig;
 use glyph_core::cursor::Cursor;
 use glyph_core::editor::{Editor, EventResult};
 use glyph_core::rect::Point;
@@ -15,20 +15,20 @@ use crate::backend::CursorKind;
 use crate::buffer::Buffer;
 
 pub trait RenderLayer {
-    fn draw(&self, buffer: &mut Buffer, ctx: &mut Context, config: GlyphConfig);
+    fn draw(&self, buffer: &mut Buffer, ctx: &mut Context<'_>, config: GlyphConfig<'_>);
 
     #[allow(unused_variables)]
     fn handle_event(
         &self,
         event: &Event,
-        ctx: &mut Context,
-        config: GlyphConfig,
+        ctx: &mut Context<'_>,
+        config: GlyphConfig<'_>,
     ) -> Result<Option<EventResult>, std::io::Error> {
         Ok(None)
     }
 
     #[allow(unused_variables)]
-    fn cursor(&self, editor: &mut Context, config: GlyphConfig) -> (Option<Point>, CursorKind) {
+    fn cursor(&self, editor: &mut Context<'_>, config: GlyphConfig<'_>) -> (Option<Point>, CursorKind) {
         (None, CursorKind::Hidden)
     }
 }
@@ -39,6 +39,7 @@ pub struct Context<'ctx> {
     pub cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
     pub runtime: &'ctx Lua,
     pub highlighter: &'ctx mut Highlighter,
+    pub config: GlyphConfig<'ctx>,
 }
 
 #[derive(Default)]
@@ -61,7 +62,7 @@ impl Renderer {
         self.layers.push(layer)
     }
 
-    pub fn cursor(&self, ctx: &mut Context, config: GlyphConfig) -> (Option<Point>, CursorKind) {
+    pub fn cursor(&self, ctx: &mut Context<'_>, config: GlyphConfig<'_>) -> (Option<Point>, CursorKind) {
         for layer in &self.layers {
             if let (Some(pos), kind) = layer.cursor(ctx, config) {
                 return (Some(pos), kind);
@@ -73,8 +74,8 @@ impl Renderer {
     pub fn handle_event(
         &self,
         event: &Event,
-        ctx: &mut Context,
-        config: GlyphConfig,
+        ctx: &mut Context<'_>,
+        config: GlyphConfig<'_>,
     ) -> Result<Option<EventResult>, std::io::Error> {
         for layer in &self.layers {
             match layer.handle_event(event, ctx, config)? {
@@ -87,7 +88,7 @@ impl Renderer {
         Ok(None)
     }
 
-    pub fn draw_frame(&mut self, buffer: &mut Buffer, ctx: &mut Context, config: GlyphConfig) {
+    pub fn draw_frame(&mut self, buffer: &mut Buffer, ctx: &mut Context<'_>, config: GlyphConfig<'_>) {
         for layer in &mut self.layers {
             layer.draw(buffer, ctx, config);
         }

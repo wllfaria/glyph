@@ -1,31 +1,10 @@
 use glyph_core::command::MappableCommand;
-use glyph_core::editor::Mode;
 use mlua::{Function, Lua, LuaSerdeExt, Table, Value};
-use serde::Deserialize;
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::config::keymap::{LuaKeymapConfig, LuaKeymapOptions, LuaMappableCommand};
 use crate::error::Result;
 use crate::RuntimeMessage;
-
-#[derive(Debug, Deserialize)]
-pub struct LuaKeymapOpts {
-    #[serde(default)]
-    pub description: String,
-}
-
-#[derive(Debug)]
-pub enum LuaMappableCommand<'key> {
-    Borrowed(&'key MappableCommand),
-    Owned(MappableCommand),
-}
-
-#[derive(Debug)]
-pub struct LuaKeymap<'key> {
-    pub mode: Mode,
-    pub keys: String,
-    pub command: LuaMappableCommand<'key>,
-    pub options: LuaKeymapOpts,
-}
 
 pub fn setup_keymap_api(
     lua: &Lua,
@@ -58,7 +37,7 @@ pub fn keymap_command_set(
     (mode, keys, command, options): (String, String, String, Table),
     runtime_sender: UnboundedSender<RuntimeMessage<'_>>,
 ) -> mlua::Result<()> {
-    let options = lua.from_value::<LuaKeymapOpts>(Value::Table(options))?;
+    let options = lua.from_value::<LuaKeymapOptions>(Value::Table(options))?;
 
     let command = MappableCommand::STATIC_CMD_LIST
         .iter()
@@ -68,7 +47,7 @@ pub fn keymap_command_set(
         })
         .unwrap();
 
-    let keymap = LuaKeymap {
+    let keymap = LuaKeymapConfig {
         mode: mode.into(),
         keys,
         command: LuaMappableCommand::Borrowed(command),
@@ -85,10 +64,10 @@ pub fn keymap_function_set(
     (mode, keys, command, options): (String, String, Function, Table),
     runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
 ) -> mlua::Result<()> {
-    let options = lua.from_value::<LuaKeymapOpts>(Value::Table(options))?;
+    let options = lua.from_value::<LuaKeymapOptions>(Value::Table(options))?;
 
     let sender = runtime_sender.clone();
-    let keymap = LuaKeymap {
+    let keymap = LuaKeymapConfig {
         mode: mode.into(),
         keys,
         command: LuaMappableCommand::Owned(MappableCommand::Dynamic {

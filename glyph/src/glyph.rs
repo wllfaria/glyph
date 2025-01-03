@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use crossterm::event::Event;
 use futures::{Stream, StreamExt};
-use glyph_config::dirs::DIRS;
-use glyph_config::Config;
+use glyph_core::config::Config;
 use glyph_core::cursor::Cursor;
+use glyph_core::dirs::DIRS;
 use glyph_core::editor::{Editor, EventResult, OpenAction};
 use glyph_core::rect::Point;
 use glyph_core::syntax::Highlighter;
@@ -96,7 +96,8 @@ where
             runtime_sender.clone(),
             glyph_context.clone(),
         )?;
-        let config = glyph_config::Config::load(&runtime, &mut runtime_receiver)?;
+
+        let config: Config<'_> = glyph_runtime::config::load(&runtime, &mut runtime_receiver)?.into();
         let runtime_receiver = ReceiverStream(runtime_receiver);
 
         Ok(Glyph {
@@ -167,11 +168,12 @@ where
             highlighter: &mut self.highlighter,
             runtime: &self.runtime,
             cursors: self.cursors.clone(),
+            config: &self.config,
         };
         self.renderer.handle_event(&event, &mut context, &self.config)
     }
 
-    fn handle_runtime_message(&mut self, message: RuntimeMessage) -> Result<ControlFlow, io::Error> {
+    fn handle_runtime_message(&mut self, message: RuntimeMessage<'_>) -> Result<ControlFlow, io::Error> {
         match message {
             RuntimeMessage::UpdateHighlightGroup(_, _) => todo!(),
             RuntimeMessage::SetKeymap(_) => todo!(),
@@ -227,6 +229,7 @@ where
             highlighter: &mut self.highlighter,
             runtime: &self.runtime,
             cursors: self.cursors.clone(),
+            config: &self.config,
         };
         let buffer = self.terminal.current_buffer();
         self.renderer.draw_frame(buffer, &mut context, &self.config);

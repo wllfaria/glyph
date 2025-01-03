@@ -51,7 +51,7 @@ pub fn setup_colors_api(
 fn set_hl_group(
     lua: &Lua,
     (name, opts): (String, Table),
-    runtime_sender: UnboundedSender<RuntimeMessage>,
+    runtime_sender: UnboundedSender<RuntimeMessage<'_>>,
 ) -> mlua::Result<()> {
     let style = lua.from_value::<LuaHighlightGroup>(Value::Table(opts))?;
 

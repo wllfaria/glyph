@@ -1,4 +1,4 @@
-use glyph_config::{GlyphConfig, LineNumbersConfig};
+use glyph_core::config::{GlyphConfig, LineNumbersConfig};
 use glyph_core::cursor::Cursor;
 use glyph_core::document::Document;
 use glyph_core::rect::Rect;
@@ -22,7 +22,7 @@ pub trait LineNumberDrawer {
         window: &Window,
         cursor: &Cursor,
         buffer: &mut Buffer,
-        config: GlyphConfig,
+        config: GlyphConfig<'_>,
     );
 }
 
@@ -43,14 +43,14 @@ impl LineNumberDrawer for AbsoluteLineDrawer {
         window: &Window,
         cursor: &Cursor,
         buffer: &mut Buffer,
-        config: GlyphConfig,
+        config: GlyphConfig<'_>,
     ) {
         let height = area.height as usize;
         let total_lines = document.text().len_lines();
-        let start = window.scroll().1;
+        let start = window.scroll().y;
         let end = total_lines.min(start + height);
         let line_size = usize::max(digits_in_number(total_lines) + 1, 3);
-        let x = area.x + config.gutter().sign_column.size();
+        let x = area.x + config.gutter.sign_column.size();
         let mut line_str = String::with_capacity(line_size);
 
         let style = config
@@ -92,14 +92,14 @@ impl LineNumberDrawer for RelativeLineDrawer {
         window: &Window,
         cursor: &Cursor,
         buffer: &mut Buffer,
-        config: GlyphConfig,
+        config: GlyphConfig<'_>,
     ) {
         let height = area.height as usize;
         let total_lines = document.text().len_lines();
-        let start = window.scroll().1;
+        let start = window.scroll().y;
         let end = total_lines.min(start + height);
         let line_size = usize::max(digits_in_number(total_lines) + 1, 3);
-        let x = area.x + config.gutter().sign_column.size();
+        let x = area.x + config.gutter.sign_column.size();
         let mut line_str = String::with_capacity(line_size);
 
         let style = config
@@ -141,14 +141,14 @@ impl LineNumberDrawer for RelativeNumberedLineDrawer {
         window: &Window,
         cursor: &Cursor,
         buffer: &mut Buffer,
-        config: GlyphConfig,
+        config: GlyphConfig<'_>,
     ) {
         let height = area.height as usize;
         let total_lines = document.text().len_lines();
-        let start = window.scroll().1;
+        let start = window.scroll().y;
         let end = total_lines.min(start + height);
         let line_size = usize::max(digits_in_number(total_lines) + 1, 3);
-        let x = area.x + config.gutter().sign_column.size();
+        let x = area.x + config.gutter.sign_column.size();
         let mut line_str = String::with_capacity(line_size);
 
         let style = config
@@ -191,7 +191,7 @@ impl LineNumberDrawer for LineDrawer {
         window: &Window,
         cursor: &Cursor,
         buffer: &mut Buffer,
-        config: GlyphConfig,
+        config: GlyphConfig<'_>,
     ) {
         match self {
             LineDrawer::Absolute(inner) => inner.draw_line_numbers(area, document, window, cursor, buffer, config),
@@ -203,8 +203,8 @@ impl LineNumberDrawer for LineDrawer {
     }
 }
 
-pub fn get_line_drawer(config: GlyphConfig) -> LineDrawer {
-    match config.gutter().line_numbers {
+pub fn get_line_drawer(config: GlyphConfig<'_>) -> LineDrawer {
+    match config.gutter.line_numbers {
         LineNumbersConfig::Absolute => LineDrawer::Absolute(AbsoluteLineDrawer),
         LineNumbersConfig::Relative => LineDrawer::Relative(RelativeLineDrawer),
         LineNumbersConfig::RelativeNumbered => LineDrawer::RelativeNumbered(RelativeNumberedLineDrawer),

@@ -1,4 +1,4 @@
-use glyph_config::GlyphConfig;
+use glyph_core::config::GlyphConfig;
 use glyph_core::rect::Rect;
 
 use crate::backend::Backend;
@@ -25,7 +25,7 @@ impl<B: Backend> Terminal<B> {
         self.buffers.swap(0, 1)
     }
 
-    pub fn flush(&mut self, config: GlyphConfig) -> Result<(), std::io::Error> {
+    pub fn flush(&mut self, config: GlyphConfig<'_>) -> Result<(), std::io::Error> {
         let buffer = &self.buffers[0];
         let diffs = buffer.diff(&self.buffers[1]);
         self.backend.draw(diffs.into_iter(), config)?;

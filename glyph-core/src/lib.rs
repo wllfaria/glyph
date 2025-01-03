@@ -1,6 +1,8 @@
 pub mod color;
 pub mod command;
+pub mod config;
 pub mod cursor;
+pub mod dirs;
 pub mod document;
 pub mod editor;
 pub mod fs;

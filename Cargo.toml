@@ -4,7 +4,6 @@ members = [
     "glyph",
     "glyph-core",
     "glyph-term",
-    "glyph-config",
     "glyph-runtime",
     "glyph-trie",
 ]
@@ -12,7 +11,6 @@ members = [
 [workspace.dependencies]
 glyph-core = { path = "glyph-core" }
 glyph-term = { path = "glyph-term" }
-glyph-config = { path = "glyph-config" }
 glyph-runtime = { path = "glyph-runtime" }
 glyph-trie = { path = "glyph-trie" }
 
@@ -24,3 +22,6 @@ tracing-subscriber = { version = "0.3.18" }
 mlua = { version = "0.10.1", features = ["luajit", "vendored", "serialize"] }
 serde = { version = "1.0.215", features = ["derive"] }
 parking_lot = { version = "0.12.3" }
+
+[workspace.lints.rust]
+rust_2018_idioms = "deny"

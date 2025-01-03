@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 glyph-core.workspace = true
-glyph-config.workspace = true
 glyph-runtime.workspace = true
 glyph-trie.workspace = true
 
@@ -24,3 +23,6 @@ divan = "0.1.16"
 [[bench]]
 name = "digits_in_number"
 harness = false
+
+[lints]
+workspace = true

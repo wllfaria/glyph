@@ -5,7 +5,7 @@ use crossterm::event::{
 };
 use crossterm::style::{Attribute, Attributes};
 use crossterm::{cursor, execute, queue, style, terminal};
-use glyph_config::{CursorConfig, CursorStyle, GlyphConfig};
+use glyph_core::config::{CursorConfig, CursorStyle, GlyphConfig};
 use glyph_core::rect::Rect;
 
 use super::{Backend, CursorKind, Drawable};
@@ -53,7 +53,7 @@ where
         terminal::disable_raw_mode()
     }
 
-    fn draw<'a, I, T>(&mut self, content: I, config: GlyphConfig) -> Result<(), std::io::Error>
+    fn draw<'a, I, T>(&mut self, content: I, config: GlyphConfig<'_>) -> Result<(), std::io::Error>
     where
         I: Iterator<Item = T>,
         T: Into<Drawable<'a>>,
@@ -74,7 +74,7 @@ where
             queue!(
                 self.buffer,
                 cursor::MoveTo(drawable.x, drawable.y),
-                config.cursor().clone().into_cursor_style(),
+                config.cursor.clone().into_cursor_style(),
                 style::SetAttributes(attributes),
                 style::SetForegroundColor(drawable.cell.style.fg.into_color()),
                 style::SetBackgroundColor(drawable.cell.style.bg.into_color()),

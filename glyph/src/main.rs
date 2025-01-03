@@ -4,14 +4,14 @@ use std::io::stdout;
 
 use crossterm::event::EventStream;
 use glyph::Glyph;
-use glyph_config::dirs::DIRS;
+use glyph_core::dirs::DIRS;
 use glyph_term::backend::CrosstermBackend;
 use tracing::level_filters::LevelFilter;
 use tracing_appender::non_blocking::WorkerGuard;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    glyph_config::dirs::setup_dirs();
+    glyph_core::dirs::setup_dirs();
     let _guard = setup_logger();
 
     let backend = CrosstermBackend::new(stdout());

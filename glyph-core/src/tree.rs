@@ -78,21 +78,37 @@ impl NodeVisitor for NodeResizer<'_> {
 
     fn visit_split(&mut self, split: &mut Split) -> Option<Self::Output> {
         let windows = split.nodes.len();
+
         let width = self.area.width / windows as u16;
+        let width_remainder = self.area.width % windows as u16;
+
         let height = self.area.height / windows as u16;
+        let height_remainder = self.area.height % windows as u16;
+
+        let make_vertical_rect = |i: usize| {
+            let extra_width = if i == 0 { width_remainder } else { 0 };
+            let x = if i != 0 { width * i as u16 + extra_width } else { width * i as u16 };
+            Rect::new(x, self.area.y, width + extra_width, self.area.height)
+        };
+
+        let make_horizontal_rect = |i: usize| {
+            let extra_height = if i == 0 { height_remainder } else { 0 };
+            let y = if i != 0 { height * i as u16 + extra_height } else { width * i as u16 };
+            Rect::new(self.area.x, y, self.area.width, height + extra_height)
+        };
 
         let areas = match split.layout {
             Layout::Vertical => split
                 .nodes
                 .iter()
                 .enumerate()
-                .map(|(i, _)| Rect::new(width * i as u16, self.area.y, width, self.area.height))
+                .map(|(i, _)| make_vertical_rect(i))
                 .collect::<Vec<_>>(),
             Layout::Horizontal => split
                 .nodes
                 .iter()
                 .enumerate()
-                .map(|(i, _)| Rect::new(self.area.x, height * i as u16, self.area.width, height))
+                .map(|(i, _)| make_horizontal_rect(i))
                 .collect::<Vec<_>>(),
         };
 
@@ -139,14 +155,15 @@ impl NodeVisitor for NodeSplitter<'_> {
         // be based on configuration
         split.area = area.with_height(area.height);
 
-        let mut left = split.area;
-        let right = match self.layout {
-            Layout::Vertical => left.split_right(left.width / 2),
-            Layout::Horizontal => left.split_bottom(left.height / 2),
+        let mut first = split.area;
+
+        let second = match self.layout {
+            Layout::Vertical => first.split_right(first.width / 2),
+            Layout::Horizontal => first.split_bottom(first.height / 2),
         };
 
-        self.windows.get_mut(&window_id).unwrap().area = left;
-        self.windows.get_mut(&id).unwrap().area = right;
+        self.windows.get_mut(&window_id).unwrap().area = first;
+        self.windows.get_mut(&id).unwrap().area = second;
 
         split.nodes.push(NodeValue::Window(window_id));
         split.nodes.push(NodeValue::Window(id));
@@ -351,5 +368,57 @@ mod tests {
             .values()
             .enumerate()
             .for_each(|(i, w)| assert_eq!(w.area, Rect::new(5 * i as u16, 0, 5, 8)));
+    }
+
+    #[test]
+    fn test_multi_split_horizontally() {
+        let mut tree = Tree::new((17, 15).into());
+        let document = Document::new::<String>(None, None);
+
+        let window = Window::new(document.id);
+        tree.split(window, Layout::Horizontal);
+
+        let window = Window::new(document.id);
+        tree.split(window, Layout::Horizontal);
+
+        let window = Window::new(document.id);
+        tree.split(window, Layout::Horizontal);
+
+        assert!(matches!(tree.root, NodeValue::Split(_)));
+        if let NodeValue::Split(split) = &tree.root {
+            assert_eq!(split.area, Rect::new(0, 0, 15, 15));
+        }
+        tree.windows
+            .values()
+            .enumerate()
+            .for_each(|(i, w)| assert_eq!(w.area, Rect::new(0, 5 * i as u16, 15, 5)));
+    }
+
+    #[test]
+    fn test_multi_split_multi_direction() {
+        let mut tree = Tree::new((17, 10).into());
+        let document = Document::new::<String>(None, None);
+
+        let window = Window::new(document.id);
+        tree.split(window, Layout::Vertical);
+
+        let window = Window::new(document.id);
+        tree.split(window, Layout::Vertical);
+
+        let window = Window::new(document.id);
+        tree.split(window, Layout::Horizontal);
+
+        assert!(matches!(tree.root, NodeValue::Split(_)));
+        if let NodeValue::Split(split) = &tree.root {
+            assert_eq!(split.area, Rect::new(0, 0, 10, 15));
+        }
+
+        let first = tree.windows.get(&WindowId::new(1).unwrap()).unwrap().area;
+        let second = tree.windows.get(&WindowId::new(2).unwrap()).unwrap().area;
+        let third = tree.windows.get(&WindowId::new(3).unwrap()).unwrap().area;
+
+        assert_eq!(first, Rect::new(0, 0, 5, 8));
+        assert_eq!(second, Rect::new(5, 0, 5, 15));
+        assert_eq!(third, Rect::new(0, 7, 5, 7));
     }
 }

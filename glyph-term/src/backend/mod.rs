@@ -3,8 +3,8 @@ mod crossterm;
 use std::io;
 
 pub use crossterm::CrosstermBackend;
-use glyph_config::GlyphConfig;
 use glyph_core::color::Color;
+use glyph_core::config::GlyphConfig;
 use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::Rect;
 
@@ -52,7 +52,7 @@ pub enum CursorKind {
 pub trait Backend {
     fn setup(&mut self) -> Result<(), io::Error>;
     fn restore(&mut self) -> Result<(), io::Error>;
-    fn draw<'a, I, T>(&mut self, content: I, config: GlyphConfig) -> Result<(), io::Error>
+    fn draw<'a, I, T>(&mut self, content: I, config: GlyphConfig<'_>) -> Result<(), io::Error>
     where
         I: Iterator<Item = T>,
         T: Into<Drawable<'a>>;

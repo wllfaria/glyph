@@ -6,6 +6,7 @@ use parking_lot::RwLock;
 use ropey::Rope;
 use tree_sitter::{InputEdit, Point};
 
+use crate::config::GlyphConfig;
 use crate::cursor::Cursor;
 use crate::document::DocumentId;
 use crate::editor::{Editor, Mode};
@@ -28,12 +29,13 @@ pub struct Context<'ctx> {
     pub editor: Arc<RwLock<Editor>>,
     pub cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
     pub highlighter: &'ctx mut Highlighter,
+    pub config: GlyphConfig<'ctx>,
 }
 
 pub enum MappableCommand {
     Static {
         name: &'static str,
-        fun: fn(ctx: &mut Context),
+        fun: fn(ctx: &mut Context<'_>),
     },
     Dynamic {
         callback: Box<dyn Fn()>,
@@ -101,15 +103,29 @@ impl Debug for MappableCommand {
     }
 }
 
-fn move_left(ctx: &mut Context) {
+enum Direction {
+    Left,
+    Down,
+    Up,
+    Right,
+}
+
+fn move_cursor(ctx: &mut Context<'_>, dir: Direction) {
     {
         let editor = ctx.editor.read();
         let tab = editor.focused_tab();
         let window = tab.tree.focus();
         let window = tab.tree.window(window);
+        let document = editor.document(window.document);
         let mut cursors = ctx.cursors.write();
         let cursor = cursors.get_mut(&window.id).unwrap();
-        cursor.move_left();
+
+        match dir {
+            Direction::Left => cursor.move_left(),
+            Direction::Down => cursor.move_down(document),
+            Direction::Up => cursor.move_up(document),
+            Direction::Right => cursor.move_right(document),
+        }
     }
 
     let mut editor = ctx.editor.write();
@@ -119,82 +135,49 @@ fn move_left(ctx: &mut Context) {
     let mut cursors = ctx.cursors.write();
     let cursor = cursors.get_mut(&window.id).unwrap();
 
-    if cursor.x().checked_sub(window.scroll().0).is_none() {
-        window.scroll_left();
+    let scroll_offset = ctx.config.scroll_offset;
+
+    match dir {
+        Direction::Left => {
+            if cursor.x().checked_sub(window.scroll().x).is_none() {
+                window.scroll_left();
+            }
+        }
+        Direction::Down => {
+            if cursor.y() - window.scroll().y + scroll_offset >= window.area.height.into() {
+                window.scroll_down();
+            }
+        }
+        Direction::Up => {
+            if cursor.y().checked_sub(window.scroll().y + scroll_offset).is_none() {
+                window.scroll_up();
+            }
+        }
+        Direction::Right => {
+            if cursor.x() - window.scroll().x >= window.area.width.into() {
+                window.scroll_right();
+            }
+        }
     }
 }
 
-fn move_down(ctx: &mut Context) {
-    {
-        let editor = ctx.editor.read();
-        let tab = editor.focused_tab();
-        let window = tab.tree.focus();
-        let window = tab.tree.window(window);
-        let document = editor.document(window.document);
-        let mut cursors = ctx.cursors.write();
-        let cursor = cursors.get_mut(&window.id).unwrap();
-        cursor.move_down(document);
-    }
-
-    let mut editor = ctx.editor.write();
-    let tab = editor.focused_tab_mut();
-    let window = tab.tree.focus();
-    let window = tab.tree.window_mut(window);
-    let mut cursors = ctx.cursors.write();
-    let cursor = cursors.get_mut(&window.id).unwrap();
-
-    if cursor.y() - window.scroll().1 >= window.area.height.into() {
-        window.scroll_down();
-    }
+fn move_left(ctx: &mut Context<'_>) {
+    move_cursor(ctx, Direction::Left);
 }
 
-fn move_up(ctx: &mut Context) {
-    {
-        let editor = ctx.editor.read();
-        let tab = editor.focused_tab();
-        let window = tab.tree.focus();
-        let window = tab.tree.window(window);
-        let document = editor.document(window.document);
-        let mut cursors = ctx.cursors.write();
-        let cursor = cursors.get_mut(&window.id).unwrap();
-        cursor.move_up(document);
-    }
-
-    let mut editor = ctx.editor.write();
-    let tab = editor.focused_tab_mut();
-    let window = tab.tree.focus();
-    let window = tab.tree.window_mut(window);
-    let mut cursors = ctx.cursors.write();
-    let cursor = cursors.get_mut(&window.id).unwrap();
-
-    if cursor.y().checked_sub(window.scroll().1).is_none() {
-        window.scroll_up();
-    }
+fn move_down(ctx: &mut Context<'_>) {
+    move_cursor(ctx, Direction::Down);
 }
 
-fn move_right(ctx: &mut Context) {
-    let mut editor = ctx.editor.write();
-    let tab = editor.focused_tab();
-    let window = tab.tree.focus();
-
-    let mut cursors = ctx.cursors.write();
-    let cursor = cursors.get_mut(&window).unwrap();
-
-    {
-        let window = tab.tree.window(window);
-        let document = editor.document(window.document);
-        cursor.move_right(document);
-    }
-
-    let tab = editor.focused_tab_mut();
-    let window = tab.tree.window_mut(window);
-
-    if cursor.x() - window.scroll().0 >= window.area.width.into() {
-        window.scroll_right();
-    }
+fn move_up(ctx: &mut Context<'_>) {
+    move_cursor(ctx, Direction::Up);
 }
 
-fn remove_curr_char(ctx: &mut Context) {
+fn move_right(ctx: &mut Context<'_>) {
+    move_cursor(ctx, Direction::Right);
+}
+
+fn remove_curr_char(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -232,7 +215,7 @@ fn remove_curr_char(ctx: &mut Context) {
     edit_tree(ctx, document, edit);
 }
 
-fn join_line_below(ctx: &mut Context) {
+fn join_line_below(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -292,15 +275,15 @@ fn join_line_below(ctx: &mut Context) {
     edit_tree(ctx, document, edit);
 }
 
-pub fn remove_prev_char(ctx: &mut Context) {
+pub fn remove_prev_char(ctx: &mut Context<'_>) {
     remove_prev_char_inner(ctx, true);
 }
 
-pub fn remove_prev_char_breaking(ctx: &mut Context) {
+pub fn remove_prev_char_breaking(ctx: &mut Context<'_>) {
     remove_prev_char_inner(ctx, false);
 }
 
-fn remove_prev_char_inner(ctx: &mut Context, stop_at_linebreak: bool) {
+fn remove_prev_char_inner(ctx: &mut Context<'_>, stop_at_linebreak: bool) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -353,7 +336,7 @@ fn remove_prev_char_inner(ctx: &mut Context, stop_at_linebreak: bool) {
     edit_tree(ctx, document, edit);
 }
 
-pub fn break_line(ctx: &mut Context) {
+pub fn break_line(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -391,7 +374,7 @@ pub fn break_line(ctx: &mut Context) {
     edit_tree(ctx, document, edit);
 }
 
-fn delete_line(ctx: &mut Context) {
+fn delete_line(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -434,7 +417,7 @@ fn delete_line(ctx: &mut Context) {
     edit_tree(ctx, document, edit);
 }
 
-fn move_to_eof(ctx: &mut Context) {
+fn move_to_eof(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window_id = tab.tree.focus();
@@ -459,7 +442,7 @@ fn move_to_eof(ctx: &mut Context) {
     snap_scroll_down(cursor, window, area);
 }
 
-fn move_to_sof(ctx: &mut Context) {
+fn move_to_sof(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window_id = tab.tree.focus();
@@ -472,7 +455,7 @@ fn move_to_sof(ctx: &mut Context) {
     snap_scroll_up(cursor, window);
 }
 
-fn move_to_sol(ctx: &mut Context) {
+fn move_to_sol(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window_id = tab.tree.focus();
@@ -481,7 +464,7 @@ fn move_to_sol(ctx: &mut Context) {
     cursor.move_to(0, cursor.y());
 }
 
-fn move_to_eol(ctx: &mut Context) {
+fn move_to_eol(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window_id = tab.tree.focus();
@@ -496,7 +479,7 @@ fn move_to_eol(ctx: &mut Context) {
     cursor.move_to(line_len - 2, cursor.y());
 }
 
-fn page_down(ctx: &mut Context) {
+fn page_down(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window_id = tab.tree.focus();
@@ -517,7 +500,7 @@ fn page_down(ctx: &mut Context) {
     snap_scroll_down(cursor, window, area);
 }
 
-fn page_up(ctx: &mut Context) {
+fn page_up(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window_id = tab.tree.focus();
@@ -535,7 +518,7 @@ fn page_up(ctx: &mut Context) {
     snap_scroll_up(cursor, window);
 }
 
-fn insert_line_above(ctx: &mut Context) {
+fn insert_line_above(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     editor.set_mode(Mode::Insert);
 
@@ -571,15 +554,15 @@ fn insert_line_above(ctx: &mut Context) {
     edit_tree(ctx, document, edit);
 }
 
-fn next_word(ctx: &mut Context) {
+fn next_word(ctx: &mut Context<'_>) {
     next_word_inner(ctx, WordSkip::Small);
 }
 
-fn next_word_big(ctx: &mut Context) {
+fn next_word_big(ctx: &mut Context<'_>) {
     next_word_inner(ctx, WordSkip::Big);
 }
 
-fn next_word_inner(ctx: &mut Context, skip: WordSkip) {
+fn next_word_inner(ctx: &mut Context<'_>, skip: WordSkip) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -597,15 +580,15 @@ fn next_word_inner(ctx: &mut Context, skip: WordSkip) {
     cursor.move_to(query.end_col, query.end_line);
 }
 
-fn prev_word(ctx: &mut Context) {
+fn prev_word(ctx: &mut Context<'_>) {
     prev_word_inner(ctx, WordSkip::Small);
 }
 
-fn prev_word_big(ctx: &mut Context) {
+fn prev_word_big(ctx: &mut Context<'_>) {
     prev_word_inner(ctx, WordSkip::Big);
 }
 
-fn prev_word_inner(ctx: &mut Context, skip: WordSkip) {
+fn prev_word_inner(ctx: &mut Context<'_>, skip: WordSkip) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -623,7 +606,7 @@ fn prev_word_inner(ctx: &mut Context, skip: WordSkip) {
     cursor.move_to(query.end_col, query.end_line)
 }
 
-fn insert_line_below(ctx: &mut Context) {
+fn insert_line_below(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     editor.set_mode(Mode::Insert);
 
@@ -975,7 +958,7 @@ fn find_prev_word(text: &Rope, cursor: &Cursor, skip: WordSkip) -> TextQuery {
     unreachable!();
 }
 
-fn delete_word(ctx: &mut Context) {
+fn delete_word(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -1057,7 +1040,7 @@ fn delete_word(ctx: &mut Context) {
     );
 }
 
-fn delete_word_prev(ctx: &mut Context) {
+fn delete_word_prev(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -1137,7 +1120,7 @@ fn delete_word_prev(ctx: &mut Context) {
     );
 }
 
-fn edit_tree(ctx: &mut Context, document: DocumentId, edit: InputEdit) {
+fn edit_tree(ctx: &mut Context<'_>, document: DocumentId, edit: InputEdit) {
     let mut editor = ctx.editor.write();
     let document = editor.document_mut(document);
 
@@ -1153,17 +1136,17 @@ fn edit_tree(ctx: &mut Context, document: DocumentId, edit: InputEdit) {
     }
 }
 
-fn insert_at_eol(ctx: &mut Context) {
+fn insert_at_eol(ctx: &mut Context<'_>) {
     move_to_eol(ctx);
     insert_mode(ctx);
 }
 
-fn insert_ahead(ctx: &mut Context) {
+fn insert_ahead(ctx: &mut Context<'_>) {
     move_right(ctx);
     insert_mode(ctx);
 }
 
-pub fn insert_char(ctx: &mut Context, ch: char) {
+pub fn insert_char(ctx: &mut Context<'_>, ch: char) {
     let mut editor = ctx.editor.write();
     let tab = editor.focused_tab();
     let win = tab.tree.focus();
@@ -1198,37 +1181,43 @@ pub fn insert_char(ctx: &mut Context, ch: char) {
     edit_tree(ctx, document, edit);
 }
 
-fn insert_mode(ctx: &mut Context) {
+fn insert_mode(ctx: &mut Context<'_>) {
     ctx.editor.write().set_mode(Mode::Insert)
 }
 
-fn normal_mode(ctx: &mut Context) {
+fn normal_mode(ctx: &mut Context<'_>) {
     ctx.editor.write().set_mode(Mode::Normal)
 }
 
-fn command_mode(ctx: &mut Context) {
+fn command_mode(ctx: &mut Context<'_>) {
     ctx.editor.write().set_mode(Mode::Command)
 }
 
 fn snap_scroll_down(cursor: &Cursor, window: &mut Window, area: Rect) {
-    if cursor.y() - window.scroll().1 >= area.height.into() {
+    if cursor.y() - window.scroll().y >= area.height.into() {
         window.scroll_y_to(cursor.y() - area.height as usize + 1);
     }
 }
 
 fn snap_scroll_up(cursor: &Cursor, window: &mut Window) {
-    if cursor.y().saturating_sub(window.scroll().1) == 0 {
-        window.scroll_y_to(window.scroll().1 - (window.scroll().1 - cursor.y()));
+    if cursor.y().saturating_sub(window.scroll().y) == 0 {
+        window.scroll_y_to(window.scroll().y - (window.scroll().y - cursor.y()));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Config;
     use crate::document::Document;
     use crate::editor::OpenAction;
 
-    fn setup_test<'a>(text: &str, highlighter: &'a mut Highlighter, cursor: Cursor) -> Context<'a> {
+    fn setup_test<'a>(
+        text: &str,
+        highlighter: &'a mut Highlighter,
+        cursor: Cursor,
+        config: GlyphConfig<'a>,
+    ) -> Context<'a> {
         let mut editor = Editor::new((0, 0, 10, 10));
         let (_, doc) = editor.new_file_with_document(".", text.to_string(), OpenAction::SplitVertical);
         let mut cursors = BTreeMap::new();
@@ -1240,6 +1229,7 @@ mod tests {
             editor: Arc::new(RwLock::new(editor)),
             cursors: Arc::new(RwLock::new(cursors)),
             highlighter,
+            config,
         }
     }
 
@@ -1259,10 +1249,12 @@ mod tests {
     #[test]
     fn test_delete_word_start() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(0, 0),
+            &config,
         );
 
         delete_word(&mut ctx);
@@ -1276,10 +1268,12 @@ mod tests {
     #[test]
     fn test_delete_word_until_underscore() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(15, 0),
+            &config,
         );
 
         delete_word(&mut ctx);
@@ -1293,10 +1287,12 @@ mod tests {
     #[test]
     fn test_delete_word_separator() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(21, 0),
+            &config,
         );
 
         delete_word(&mut ctx);
@@ -1310,10 +1306,12 @@ mod tests {
     #[test]
     fn test_prev_word_spaces() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "local          function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(14, 0),
+            &config,
         );
 
         prev_word(&mut ctx);
@@ -1323,10 +1321,12 @@ mod tests {
     #[test]
     fn test_prev_word_empty_lines() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "\n\n            local function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(11, 2),
+            &config,
         );
 
         prev_word(&mut ctx);
@@ -1337,10 +1337,12 @@ mod tests {
     #[test]
     fn test_prev_word_partial() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(5, 0),
+            &config,
         );
 
         prev_word(&mut ctx);
@@ -1351,10 +1353,12 @@ mod tests {
     #[test]
     fn test_prev_word_big_identifier() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(29, 0),
+            &config,
         );
 
         prev_word_big(&mut ctx);
@@ -1365,10 +1369,12 @@ mod tests {
     #[test]
     fn test_prev_word_big_function() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "local function create_inspector(opts)\n",
             &mut highlighter,
             Cursor::new(15, 0),
+            &config,
         );
 
         prev_word_big(&mut ctx);
@@ -1379,10 +1385,12 @@ mod tests {
     #[test]
     fn test_prev_word_big_across_lines() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "\nfn is_linebreak(&self) -> bool {\n    matches!(self, '\\n' | '\\r')\n}",
             &mut highlighter,
             Cursor::new(4, 2),
+            &config,
         );
 
         prev_word_big(&mut ctx);
@@ -1393,10 +1401,12 @@ mod tests {
     #[test]
     fn test_prev_word_big_empty_lines() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "\n\nfn is_linebreak(&self) -> bool {\n    matches!(self, '\\n' | '\\r')\n}",
             &mut highlighter,
             Cursor::new(0, 2),
+            &config,
         );
 
         prev_word_big(&mut ctx);
@@ -1407,10 +1417,12 @@ mod tests {
     #[test]
     fn test_prev_word_with_ampersand() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "fn is_linebreak(&self) -> bool { }",
             &mut highlighter,
             Cursor::new(14, 0),
+            &config,
         );
 
         prev_word(&mut ctx);
@@ -1421,10 +1433,12 @@ mod tests {
     #[test]
     fn test_prev_word_short_word() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "fn is_linebreak(&self) -> bool { }",
             &mut highlighter,
             Cursor::new(6, 0),
+            &config,
         );
 
         prev_word(&mut ctx);
@@ -1435,10 +1449,12 @@ mod tests {
     #[test]
     fn test_prev_word_with_pub() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "pub fn is_linebreak(&self) -> bool { }",
             &mut highlighter,
             Cursor::new(7, 0),
+            &config,
         );
 
         prev_word(&mut ctx);
@@ -1449,7 +1465,13 @@ mod tests {
     #[test]
     fn test_prev_word_with_colons() {
         let mut highlighter = Highlighter::new();
-        let mut ctx = setup_test("use crate::config::Config;", &mut highlighter, Cursor::new(10, 0));
+        let config = Config::default();
+        let mut ctx = setup_test(
+            "use crate::config::Config;",
+            &mut highlighter,
+            Cursor::new(10, 0),
+            &config,
+        );
 
         prev_word(&mut ctx);
 
@@ -1459,10 +1481,12 @@ mod tests {
     #[test]
     fn test_prev_word_after_keyword() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "pub fn is_linebreak(&self) -> bool { }",
             &mut highlighter,
             Cursor::new(9, 0),
+            &config,
         );
 
         prev_word(&mut ctx);
@@ -1473,10 +1497,12 @@ mod tests {
     #[test]
     fn test_delete_word_prev() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "pub fn is_linebreak(&self) -> bool { }",
             &mut highlighter,
             Cursor::new(7, 0),
+            &config,
         );
 
         delete_word_prev(&mut ctx);
@@ -1491,10 +1517,12 @@ mod tests {
     #[test]
     fn test_delete_word_prev_line() {
         let mut highlighter = Highlighter::new();
+        let config = Config::default();
         let mut ctx = setup_test(
             "with_content(&ctx, |document, _| {\n    let text = document.text();\n});",
             &mut highlighter,
             Cursor::new(4, 1),
+            &config,
         );
 
         delete_word_prev(&mut ctx);
