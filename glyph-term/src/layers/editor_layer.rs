@@ -350,7 +350,9 @@ impl EditorLayer {
                     let pieces = editor.command.split_whitespace().collect::<Vec<_>>();
 
                     if let Some(command) = config.user_commands.get(pieces[0]) {
-                        command.call().expect("TODO: handle error");
+                        command
+                            .call(pieces[1..].iter().map(|p| p.to_string()).collect())
+                            .expect("TODO: handle error");
                         editor.command.clear();
                         editor.set_mode(Mode::Normal);
                     }

@@ -125,8 +125,8 @@ fn handle_setup_messages(messages: Vec<RuntimeMessage<'_>>) -> SetupMessagesResu
 pub struct UserCommandCallback(mlua::Function);
 
 impl UserCommand for UserCommandCallback {
-    fn call(&self) -> Result<(), String> {
-        self.0.call::<()>(()).unwrap();
+    fn call(&self, args: Vec<String>) -> Result<(), String> {
+        self.0.call::<()>(args).unwrap();
         Ok(())
     }
 }

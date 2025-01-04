@@ -111,6 +111,7 @@ enum Direction {
 }
 
 fn move_cursor(ctx: &mut Context<'_>, dir: Direction) {
+    // this is within a block to prevent double locking the guard for the rwlock
     {
         let editor = ctx.editor.read();
         let tab = editor.focused_tab();

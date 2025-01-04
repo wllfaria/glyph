@@ -149,7 +149,7 @@ impl std::fmt::Debug for StatuslineContent {
 }
 
 pub trait UserCommand {
-    fn call(&self) -> Result<(), String>;
+    fn call(&self, args: Vec<String>) -> Result<(), String>;
 }
 
 #[derive(Default)]
