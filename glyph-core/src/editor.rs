@@ -19,6 +19,9 @@ pub enum Mode {
     Normal,
     Insert,
     Command,
+    Visual,
+    VisualLine,
+    VisualBlock,
 }
 
 impl<T> From<T> for Mode
@@ -30,6 +33,7 @@ where
             "normal" | "n" => Mode::Normal,
             "insert" | "i" => Mode::Insert,
             "command" | "c" => Mode::Command,
+            "visual" | "v" => Mode::Visual,
             _ => unreachable!(),
         }
     }
@@ -41,6 +45,9 @@ impl std::fmt::Display for Mode {
             Mode::Normal => f.write_str("normal"),
             Mode::Insert => f.write_str("insert"),
             Mode::Command => f.write_str("command"),
+            Mode::Visual => f.write_str("visual"),
+            Mode::VisualBlock => f.write_str("visual"),
+            Mode::VisualLine => f.write_str("visual"),
         }
     }
 }
@@ -107,7 +114,7 @@ impl Editor {
     }
 
     pub fn set_mode(&mut self, mode: Mode) {
-        self.mode = mode
+        self.mode = mode;
     }
 
     pub fn focused_tab(&self) -> &Tab {

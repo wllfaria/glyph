@@ -6,6 +6,12 @@ pub struct Point {
     pub y: u16,
 }
 
+impl Point {
+    pub fn new(x: u16, y: u16) -> Self {
+        Point { x, y }
+    }
+}
+
 impl From<Cursor> for Point {
     fn from(value: Cursor) -> Point {
         Point {

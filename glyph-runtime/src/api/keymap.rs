@@ -14,7 +14,7 @@ pub fn setup_keymap_api(
     let sender = runtime_sender.clone();
     core.set(
         "keymap_command_set",
-        lua.create_function(move |lua: &Lua, args: (String, String, String, Table)| {
+        lua.create_function(move |lua: &Lua, args: (Value, String, String, Table)| {
             let sender = sender.clone();
             keymap_command_set(lua, args, sender)
         })?,
@@ -23,7 +23,7 @@ pub fn setup_keymap_api(
     let sender = runtime_sender.clone();
     core.set(
         "keymap_function_set",
-        lua.create_function(move |lua: &Lua, args: (String, String, Function, Table)| {
+        lua.create_function(move |lua: &Lua, args: (Value, String, Function, Table)| {
             let sender = sender.clone();
             keymap_function_set(lua, args, sender)
         })?,
@@ -34,7 +34,7 @@ pub fn setup_keymap_api(
 
 pub fn keymap_command_set(
     lua: &Lua,
-    (mode, keys, command, options): (String, String, String, Table),
+    (mode, keys, command, options): (Value, String, String, Table),
     runtime_sender: UnboundedSender<RuntimeMessage<'_>>,
 ) -> mlua::Result<()> {
     let options = lua.from_value::<LuaKeymapOptions>(Value::Table(options))?;
@@ -47,39 +47,61 @@ pub fn keymap_command_set(
         })
         .unwrap();
 
-    let keymap = LuaKeymapConfig {
-        mode: mode.into(),
-        keys,
-        command: LuaMappableCommand::Borrowed(command),
-        options,
+    let modes = match mode {
+        Value::String(mode) => vec![mode.to_string_lossy()],
+        Value::Table(modes) => modes
+            .pairs::<mlua::Number, mlua::String>()
+            .map(|pair| pair.unwrap())
+            .map(|(_, mode)| mode.to_string_lossy())
+            .collect(),
+        _ => unreachable!(),
     };
 
-    runtime_sender.send(RuntimeMessage::SetKeymap(keymap)).ok();
+    modes.into_iter().for_each(|mode| {
+        _ = runtime_sender.send(RuntimeMessage::SetKeymap(LuaKeymapConfig {
+            mode: mode.into(),
+            keys: keys.clone(),
+            options: options.clone(),
+            command: LuaMappableCommand::Borrowed(command),
+        }))
+    });
 
     Ok(())
 }
 
 pub fn keymap_function_set(
     lua: &Lua,
-    (mode, keys, command, options): (String, String, Function, Table),
+    (mode, keys, command, options): (Value, String, Function, Table),
     runtime_sender: UnboundedSender<RuntimeMessage<'static>>,
 ) -> mlua::Result<()> {
     let options = lua.from_value::<LuaKeymapOptions>(Value::Table(options))?;
 
-    let sender = runtime_sender.clone();
-    let keymap = LuaKeymapConfig {
-        mode: mode.into(),
-        keys,
-        command: LuaMappableCommand::Owned(MappableCommand::Dynamic {
+    let modes = match mode {
+        Value::String(mode) => vec![mode.to_string_lossy()],
+        Value::Table(modes) => modes
+            .pairs::<mlua::Number, mlua::String>()
+            .map(|pair| pair.unwrap())
+            .map(|(_, mode)| mode.to_string_lossy())
+            .collect(),
+        _ => unreachable!(),
+    };
+
+    for mode in modes {
+        let sender = runtime_sender.clone();
+        let command = command.clone();
+        let command = LuaMappableCommand::Owned(MappableCommand::Dynamic {
             callback: Box::new(move || match command.call::<()>(()) {
                 Ok(_) => {}
                 Err(err) => _ = sender.send(RuntimeMessage::Error(err.to_string())).ok(),
             }),
-        }),
-        options,
-    };
-
-    runtime_sender.send(RuntimeMessage::SetKeymap(keymap)).ok();
+        });
+        _ = runtime_sender.send(RuntimeMessage::SetKeymap(LuaKeymapConfig {
+            mode: mode.into(),
+            keys: keys.clone(),
+            options: options.clone(),
+            command,
+        }));
+    }
 
     Ok(())
 }

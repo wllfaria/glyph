@@ -12,7 +12,7 @@ use crate::document::DocumentId;
 use crate::editor::{Editor, Mode};
 use crate::rect::Rect;
 use crate::syntax::Highlighter;
-use crate::window::{Window, WindowId};
+use crate::window::{self, Selection, Window, WindowId};
 
 trait GlyphChar {
     fn is_linebreak(&self) -> bool;
@@ -87,6 +87,9 @@ impl MappableCommand {
         prev_word,
         prev_word_big,
         join_line_below,
+        visual_mode,
+        visual_line_mode,
+        visual_block_mode,
     }
 }
 
@@ -120,43 +123,70 @@ fn move_cursor(ctx: &mut Context<'_>, dir: Direction) {
         let document = editor.document(window.document);
         let mut cursors = ctx.cursors.write();
         let cursor = cursors.get_mut(&window.id).unwrap();
+        let mode = editor.mode();
 
         match dir {
             Direction::Left => cursor.move_left(),
-            Direction::Down => cursor.move_down(document),
-            Direction::Up => cursor.move_up(document),
-            Direction::Right => cursor.move_right(document),
+            Direction::Down => cursor.move_down(document, mode),
+            Direction::Up => cursor.move_up(document, mode),
+            Direction::Right => cursor.move_right(document, mode),
         }
     }
 
     let mut editor = ctx.editor.write();
+    let mode = editor.mode();
     let tab = editor.focused_tab_mut();
-    let window = tab.tree.focus();
-    let window = tab.tree.window_mut(window);
+    let win = tab.tree.focus();
+    let win = tab.tree.window_mut(win);
     let mut cursors = ctx.cursors.write();
-    let cursor = cursors.get_mut(&window.id).unwrap();
+    let cursor = cursors.get_mut(&win.id).unwrap();
+
+    if matches!(mode, Mode::Visual | Mode::VisualLine | Mode::VisualBlock) {
+        match dir {
+            Direction::Left => {
+                let mut selection = win.selection();
+                selection.end.x = selection.end.x.saturating_sub(1);
+                win.set_selection(selection);
+            }
+            Direction::Down => {
+                let mut selection = win.selection();
+                selection.end.y += 1;
+                win.set_selection(selection);
+            }
+            Direction::Up => {
+                let mut selection = win.selection();
+                selection.end.y = selection.end.y.saturating_sub(1);
+                win.set_selection(selection);
+            }
+            Direction::Right => {
+                let mut selection = win.selection();
+                selection.end.x += 1;
+                win.set_selection(selection);
+            }
+        }
+    }
 
     let scroll_offset = ctx.config.scroll_offset;
 
     match dir {
         Direction::Left => {
-            if cursor.x().checked_sub(window.scroll().x).is_none() {
-                window.scroll_left();
+            if cursor.x().checked_sub(win.scroll().x).is_none() {
+                win.scroll_left();
             }
         }
         Direction::Down => {
-            if cursor.y() - window.scroll().y + scroll_offset >= window.area.height.into() {
-                window.scroll_down();
+            if cursor.y() - win.scroll().y + scroll_offset >= win.area.height.into() {
+                win.scroll_down();
             }
         }
         Direction::Up => {
-            if cursor.y().checked_sub(window.scroll().y + scroll_offset).is_none() {
-                window.scroll_up();
+            if cursor.y().checked_sub(win.scroll().y + scroll_offset).is_none() {
+                win.scroll_up();
             }
         }
         Direction::Right => {
-            if cursor.x() - window.scroll().x >= window.area.width.into() {
-                window.scroll_right();
+            if cursor.x() - win.scroll().x >= win.area.width.into() {
+                win.scroll_right();
             }
         }
     }
@@ -610,6 +640,7 @@ fn prev_word_inner(ctx: &mut Context<'_>, skip: WordSkip) {
 fn insert_line_below(ctx: &mut Context<'_>) {
     let mut editor = ctx.editor.write();
     editor.set_mode(Mode::Insert);
+    let mode = editor.mode();
 
     let tab = editor.focused_tab_mut();
     let window = tab.tree.focus();
@@ -627,7 +658,7 @@ fn insert_line_below(ctx: &mut Context<'_>) {
     let line_start_byte = text.line_to_byte(cursor.y() + 1);
 
     text.insert(line_start_char, line_break.as_ref());
-    cursor.move_down(document);
+    cursor.move_down(document, mode);
     let document = document.id;
     let edit = InputEdit {
         start_byte: line_start_byte,
@@ -1138,13 +1169,13 @@ fn edit_tree(ctx: &mut Context<'_>, document: DocumentId, edit: InputEdit) {
 }
 
 fn insert_at_eol(ctx: &mut Context<'_>) {
-    move_to_eol(ctx);
     insert_mode(ctx);
+    move_to_eol(ctx);
 }
 
 fn insert_ahead(ctx: &mut Context<'_>) {
-    move_right(ctx);
     insert_mode(ctx);
+    move_right(ctx);
 }
 
 pub fn insert_char(ctx: &mut Context<'_>, ch: char) {
@@ -1152,6 +1183,7 @@ pub fn insert_char(ctx: &mut Context<'_>, ch: char) {
     let tab = editor.focused_tab();
     let win = tab.tree.focus();
     let doc = tab.tree.window(win).document;
+    let mode = editor.mode();
     let doc = editor.document_mut(doc);
 
     let text = doc.text_mut();
@@ -1174,7 +1206,7 @@ pub fn insert_char(ctx: &mut Context<'_>, ch: char) {
         new_end_position: Point::new(cursor.y(), cursor.x() + 1),
     };
 
-    cursor.move_right(doc);
+    cursor.move_right(doc, mode);
 
     let document = doc.id;
     drop(editor);
@@ -1188,6 +1220,35 @@ fn insert_mode(ctx: &mut Context<'_>) {
 
 fn normal_mode(ctx: &mut Context<'_>) {
     ctx.editor.write().set_mode(Mode::Normal)
+}
+
+fn visual_mode_inner(ctx: &mut Context<'_>, mode: Mode) {
+    let mut editor = ctx.editor.write();
+    editor.set_mode(mode);
+
+    let tab = editor.focused_tab_mut();
+    let win = tab.tree.focus();
+    let win = tab.tree.window_mut(win);
+
+    let cursors = ctx.cursors.read();
+    let cursor = cursors.get(&win.id).expect("window must have a cursor");
+
+    win.set_selection(Selection {
+        start: window::Point::new(cursor.x(), cursor.y()),
+        end: window::Point::new(cursor.x(), cursor.y()),
+    });
+}
+
+fn visual_mode(ctx: &mut Context<'_>) {
+    visual_mode_inner(ctx, Mode::Visual);
+}
+
+fn visual_block_mode(ctx: &mut Context<'_>) {
+    visual_mode_inner(ctx, Mode::VisualBlock);
+}
+
+fn visual_line_mode(ctx: &mut Context<'_>) {
+    visual_mode_inner(ctx, Mode::VisualLine);
 }
 
 fn command_mode(ctx: &mut Context<'_>) {

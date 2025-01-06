@@ -2,7 +2,7 @@ use glyph_core::command::MappableCommand;
 use glyph_core::editor::Mode;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct LuaKeymapOptions {
     #[serde(default)]
     pub description: String,

@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use glyph_core::highlights::HighlightGroup;
 use glyph_core::rect::{Point, Rect};
 
@@ -6,7 +8,7 @@ use crate::backend::{Cell, Drawable, StyleMerge};
 #[derive(Debug)]
 pub enum CellRange<T: Into<Point>> {
     All(std::marker::PhantomData<T>),
-    Range(T, T),
+    Range(Range<T>),
 }
 
 impl<T: Into<Point>> CellRange<T> {
@@ -19,6 +21,13 @@ impl<T: Into<Point>> CellRange<T> {
 pub struct Buffer {
     area: Rect,
     cells: Vec<Cell>,
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub enum BufferBounds {
+    #[default]
+    All,
+    Area(Rect),
 }
 
 #[derive(Debug)]
@@ -157,21 +166,63 @@ impl Buffer {
         }
     }
 
-    pub fn set_range_style<T>(&mut self, range: impl Into<CellRange<T>>, style_def: impl IntoStyleDef)
-    where
+    pub fn set_range_style<T>(
+        &mut self,
+        range: impl Into<CellRange<T>>,
+        style_def: impl IntoStyleDef,
+        bounds: BufferBounds,
+    ) where
         T: Into<Point>,
     {
         let range: CellRange<T> = range.into();
         let style_def = style_def.into_style_def();
 
-        match range {
-            CellRange::All(_) => self
+        match (range, bounds) {
+            // Apply style to the entire buffer without bounds
+            (CellRange::All(_), BufferBounds::All) => self
                 .cells
                 .iter_mut()
                 .for_each(|cell| cell.merge_style(style_def.style, style_def.behavior)),
-            CellRange::Range(start, end) => {
-                let start: Point = start.into();
-                let end: Point = end.into();
+
+            // Apply to the entire buffer but only within an area
+            (CellRange::All(_), BufferBounds::Area(area)) => {
+                for y in area.y..area.y + area.height {
+                    for x in area.x..area.x + area.width {
+                        let idx = self.idx(x, y);
+
+                        if let Some(cell) = self.cells.get_mut(idx as usize) {
+                            cell.merge_style(style_def.style, style_def.behavior);
+                        }
+                    }
+                }
+            }
+            (CellRange::Range(range), BufferBounds::Area(area)) => {
+                let start: Point = range.start.into();
+                let end: Point = range.end.into();
+
+                let start = self.idx(start.x, start.y) as usize;
+                let end = self.idx(end.x, end.y) as usize;
+
+                for idx in start..end {
+                    let x = idx % self.area.width as usize;
+                    let y = idx / self.area.width as usize;
+
+                    if x < area.x.into() || y < area.y.into() {
+                        continue;
+                    }
+
+                    if x > area.width.into() || y > area.height.into() {
+                        continue;
+                    }
+
+                    let cell = &mut self.cells[idx];
+                    cell.merge_style(style_def.style, style_def.behavior)
+                }
+            }
+            (CellRange::Range(range), BufferBounds::All) => {
+                let start: Point = range.start.into();
+                let end: Point = range.end.into();
+
                 let start = self.idx(start.x, start.y);
                 let end = self.idx(end.x, end.y);
 

@@ -1,7 +1,8 @@
 use std::num::NonZeroUsize;
+use std::ops::Range;
 
 use crate::document::DocumentId;
-use crate::rect::Rect;
+use crate::rect::{self, Rect};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WindowId(NonZeroUsize);
@@ -32,31 +33,82 @@ impl From<WindowId> for usize {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Point {
+    pub x: usize,
+    pub y: usize,
+}
+
+impl Point {
+    pub fn new(x: usize, y: usize) -> Self {
+        Self { x, y }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Selection {
+    pub start: Point,
+    pub end: Point,
+}
+
+impl Selection {
+    pub fn to_range(self, scroll: Point, area: Rect) -> Range<rect::Point> {
+        let screen_start = Point {
+            x: self.start.x.saturating_sub(scroll.x).max(area.x.into()),
+            y: self.start.y.saturating_sub(scroll.y).max(area.y.into()),
+        };
+
+        let screen_end = Point {
+            x: self.end.x.saturating_sub(scroll.x).max(area.x.into()),
+            y: self.end.y.saturating_sub(scroll.y).max(area.y.into()),
+        };
+
+        let start_point = rect::Point {
+            x: (screen_start.x.min(area.width as usize) as u16),
+            y: (screen_start.y.min(area.height as usize) as u16),
+        };
+
+        let end_point = rect::Point {
+            x: (screen_end.x.min(area.width as usize) as u16),
+            y: (screen_end.y.min(area.height as usize) as u16),
+        };
+
+        start_point..end_point
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Window {
     pub id: WindowId,
     pub document: DocumentId,
-    scroll: Scroll,
+    // current text selection defined as start/end points, this should be updated
+    // whenever the cursor moves on the window, and cleared when any action that
+    // involves the selection is performed
+    selection: Selection,
+    scroll: Point,
     pub area: Rect,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Scroll {
-    pub x: usize,
-    pub y: usize,
 }
 
 impl Window {
     pub fn new(document: DocumentId) -> Window {
         Window {
-            id: WindowId::default(),
             document,
-            scroll: Scroll::default(),
             area: Rect::default(),
+            id: WindowId::default(),
+            scroll: Point::default(),
+            selection: Default::default(),
         }
     }
 
-    pub fn scroll(&self) -> Scroll {
+    pub fn selection(&self) -> Selection {
+        self.selection
+    }
+
+    pub fn set_selection(&mut self, selection: Selection) {
+        self.selection = selection;
+    }
+
+    pub fn scroll(&self) -> Point {
         self.scroll
     }
 

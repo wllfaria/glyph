@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use cursor::{LuaCursorConfig, LuaCursorModeStyle, LuaCursorStyle};
 use glyph_core::config::{
     Config, CursorConfig, CursorModeStyle, CursorStyle, GutterAnchor, GutterConfig, KeymapConfig, KeymapOptions,
-    LineNumbersConfig, MappableCommandConfig, SignColumnConfig, StatuslineConfig, StatuslineContent, StatuslineSection,
-    StatuslineStyle, UserCommand,
+    LineNumbersConfig, MappableCommandConfig, ModeMaps, SignColumnConfig, StatuslineConfig, StatuslineContent,
+    StatuslineSection, StatuslineStyle, UserCommand,
 };
 use glyph_core::dirs::DIRS;
 use glyph_core::editor::Mode;
@@ -26,7 +26,7 @@ use crate::RuntimeMessage;
 pub struct LuaConfig<'cfg> {
     pub cursor: LuaCursorConfig,
     pub gutter: LuaGutterConfig,
-    pub keymaps: HashMap<Mode, Vec<LuaKeymapConfig<'cfg>>>,
+    pub keymaps: HashMap<ModeMaps, Vec<LuaKeymapConfig<'cfg>>>,
     pub highlight_groups: HashMap<String, HighlightGroup>,
     pub statusline: LuaStatuslineConfig,
     pub user_commands: HashMap<String, mlua::Function>,
@@ -81,7 +81,7 @@ pub fn load<'cfg>(
 
 struct SetupMessagesResult<'cfg> {
     highlight_groups: HashMap<String, HighlightGroup>,
-    keymaps: HashMap<Mode, Vec<LuaKeymapConfig<'cfg>>>,
+    keymaps: HashMap<ModeMaps, Vec<LuaKeymapConfig<'cfg>>>,
     user_commands: HashMap<String, mlua::Function>,
 }
 
@@ -89,9 +89,10 @@ fn handle_setup_messages(messages: Vec<RuntimeMessage<'_>>) -> SetupMessagesResu
     let mut highlight_groups = HashMap::default();
 
     let mut keymaps = HashMap::default();
-    keymaps.insert(Mode::Normal, Vec::default());
-    keymaps.insert(Mode::Insert, Vec::default());
-    keymaps.insert(Mode::Command, Vec::default());
+    keymaps.insert(Mode::Normal.into(), Vec::default());
+    keymaps.insert(Mode::Insert.into(), Vec::default());
+    keymaps.insert(Mode::Command.into(), Vec::default());
+    keymaps.insert(Mode::Visual.into(), Vec::default());
 
     let mut user_commands = HashMap::default();
 
@@ -101,7 +102,9 @@ fn handle_setup_messages(messages: Vec<RuntimeMessage<'_>>) -> SetupMessagesResu
             RuntimeMessage::UpdateHighlightGroup(name, group) => _ = highlight_groups.insert(name, group),
             RuntimeMessage::UserCommandCreate(name, callback) => _ = user_commands.insert(name, callback),
             RuntimeMessage::SetKeymap(lua_keymap) => {
-                let mode_maps = keymaps.get_mut(&lua_keymap.mode).expect("should have a mode keymaps");
+                let mode_maps = keymaps
+                    .get_mut(&lua_keymap.mode.into())
+                    .expect("should have a mode keymaps");
                 mode_maps.push(lua_keymap);
             }
             // Some runtime messages are ignored here as we don't want to handle them within

@@ -173,6 +173,7 @@ where
         self.renderer.handle_event(&event, &mut context, &self.config)
     }
 
+    #[tracing::instrument(skip_all)]
     fn handle_runtime_message(&mut self, message: RuntimeMessage<'_>) -> Result<ControlFlow, io::Error> {
         match message {
             RuntimeMessage::UpdateHighlightGroup(_, _) => todo!(),
@@ -205,15 +206,27 @@ where
                 }
             },
             RuntimeMessage::OpenFile(filename) => {
+                let span = tracing::info_span!("OPEN_FILE");
+                let _guard = span.enter();
+
+                tracing::info!("message received with filename: {filename}");
+                let start = std::time::Instant::now();
+
                 let mut editor = self.editor.write();
                 if filename.is_empty() {
                     editor.new_file(OpenAction::Replace);
                     return Ok(ControlFlow::Continue);
                 }
                 let text = std::fs::read_to_string(&filename).expect("TODO: handle this error");
-                let (_, document) = editor.new_file_with_document(filename, text, OpenAction::Replace);
-                let document = editor.document(document);
-                self.highlighter.add_document(document);
+                let (_, doc_id) = editor.new_file_with_document(filename, text, OpenAction::Replace);
+                tracing::info!("file opened with document_id {doc_id}, took {:?}", start.elapsed());
+
+                let start = std::time::Instant::now();
+                tracing::info!("registering syntax for document {doc_id}");
+
+                let doc = editor.document(doc_id);
+                self.highlighter.add_document(doc);
+                tracing::info!("syntax registered for document {doc_id}, took {:?}", start.elapsed());
 
                 drop(editor);
                 self.draw_frame()?;

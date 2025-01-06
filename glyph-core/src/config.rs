@@ -152,6 +152,26 @@ pub trait UserCommand {
     fn call(&self, args: Vec<String>) -> Result<(), String>;
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Default)]
+pub enum ModeMaps {
+    #[default]
+    Normal,
+    Insert,
+    Command,
+    Visual,
+}
+
+impl From<Mode> for ModeMaps {
+    fn from(mode: Mode) -> ModeMaps {
+        match mode {
+            Mode::Normal => ModeMaps::Normal,
+            Mode::Insert => ModeMaps::Insert,
+            Mode::Command => ModeMaps::Command,
+            Mode::Visual | Mode::VisualLine | Mode::VisualBlock => ModeMaps::Visual,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Config<'cfg> {
     pub cursor: CursorConfig,
@@ -160,7 +180,7 @@ pub struct Config<'cfg> {
     pub scroll_offset: usize,
     pub statusline: StatuslineConfig,
     pub highlight_groups: HashMap<String, HighlightGroup>,
-    pub keymaps: HashMap<Mode, Trie<KeymapConfig<'cfg>>>,
+    pub keymaps: HashMap<ModeMaps, Trie<KeymapConfig<'cfg>>>,
 }
 
 impl std::fmt::Debug for Config<'_> {

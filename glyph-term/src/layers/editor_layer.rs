@@ -15,7 +15,7 @@ use glyph_trie::QueryResult;
 use parking_lot::RwLock;
 
 use crate::backend::CursorKind;
-use crate::buffer::{Buffer, CellRange, StyleDef};
+use crate::buffer::{Buffer, BufferBounds, CellRange, StyleDef};
 use crate::renderer::{Context, RenderLayer};
 use crate::ui::line_number::{get_line_drawer, LineNumberDrawer};
 
@@ -84,6 +84,7 @@ impl EditorLayer {
         buffer: &mut Buffer,
         highlighter: &Highlighter,
         cursors: Arc<RwLock<BTreeMap<WindowId, Cursor>>>,
+        mode: Mode,
         config: GlyphConfig<'_>,
     ) {
         let mut area = window.area;
@@ -96,6 +97,7 @@ impl EditorLayer {
             self.draw_gutter(gutter_area, document, window, cursors, buffer, config);
         }
         self.draw_document(area, document, window, buffer, highlighter, config);
+        self.draw_selection(area, mode, window, buffer, config);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -109,6 +111,8 @@ impl EditorLayer {
         config: GlyphConfig<'_>,
     ) {
         let text = document.text();
+        let selection = window.selection().to_range(window.scroll(), area);
+        let selection_hg = config.highlight_groups.get("visual").cloned().unwrap_or_default();
 
         let start_line = window.scroll().y;
         let visible_lines = area.height as usize;
@@ -150,6 +154,8 @@ impl EditorLayer {
                     break;
                 };
 
+                let point = Point::new(x as u16, y as u16);
+
                 match ch {
                     '\n' | '\r' => buffer.set_cell(area.x + x as u16, y as u16, ' ', style),
                     _ => buffer.set_cell(area.x + x as u16, area.y + y as u16, ch, style),
@@ -162,7 +168,27 @@ impl EditorLayer {
         }
     }
 
-    pub fn draw_gutter(
+    fn draw_selection(&self, area: Rect, mode: Mode, window: &Window, buffer: &mut Buffer, config: GlyphConfig<'_>) {
+        if !matches!(mode, Mode::Visual | Mode::VisualLine | Mode::VisualBlock) {
+            return;
+        }
+
+        let hg = config.highlight_groups.get("visual").cloned().unwrap_or_default();
+        let selection = window.selection();
+
+        let range = selection.to_range(window.scroll(), area);
+
+        match mode {
+            Mode::Visual => {
+                buffer.set_range_style(CellRange::Range(range), StyleDef::replace(hg), BufferBounds::Area(area));
+            }
+            Mode::VisualLine => {}
+            Mode::VisualBlock => {}
+            _ => unreachable!(),
+        }
+    }
+
+    fn draw_gutter(
         &self,
         area: Rect,
         document: &Document,
@@ -256,6 +282,9 @@ impl EditorLayer {
             }
             // when on command mode, show the command
             Mode::Command => format!(":{}", editor.command),
+            Mode::Visual => Default::default(),
+            Mode::VisualLine => Default::default(),
+            Mode::VisualBlock => Default::default(),
         };
         let style = config.highlight_groups.get("foreground").copied().unwrap_or_default();
         buffer.set_string(area.x, area.y, message, style);
@@ -274,7 +303,7 @@ impl EditorLayer {
         let keymap = format!("{}{}", editor.buffered_keymap, stringify_key(key_event));
         let result = config
             .keymaps
-            .get(&mode)
+            .get(&mode.into())
             .expect("should have keymaps for all modes")
             .find_word(&keymap)
             .map(KeymapResult::from_query_result)
@@ -307,6 +336,9 @@ impl EditorLayer {
         match mode {
             // in normal mode everything is a keymap, if not handled, there is nothing to do here
             Mode::Normal => {}
+            Mode::Visual => {}
+            Mode::VisualLine => {}
+            Mode::VisualBlock => {}
             Mode::Insert => match key_event.code {
                 KeyCode::Char(ch) => {
                     let mut context = CmdContext {
@@ -383,7 +415,7 @@ impl RenderLayer for EditorLayer {
         let statusline_area = area.split_bottom(1);
 
         let style = config.highlight_groups.get("background").copied().unwrap_or_default();
-        buffer.set_range_style(CellRange::<Point>::all(), StyleDef::replace(style));
+        buffer.set_range_style(CellRange::<Point>::all(), StyleDef::replace(style), BufferBounds::All);
 
         self.draw_statusline(buffer, statusline_area, config);
         self.draw_commandline(buffer, ctx, commandline_area, config);
@@ -391,7 +423,15 @@ impl RenderLayer for EditorLayer {
         let editor = ctx.editor.read();
         for window in editor.focused_tab().tree.windows().values() {
             let document = editor.document(window.document);
-            self.draw_window(document, window, buffer, ctx.highlighter, ctx.cursors.clone(), config);
+            self.draw_window(
+                document,
+                window,
+                buffer,
+                ctx.highlighter,
+                ctx.cursors.clone(),
+                ctx.editor.read().mode(),
+                config,
+            );
         }
     }
 
@@ -399,7 +439,7 @@ impl RenderLayer for EditorLayer {
         let editor = ctx.editor.read();
 
         match editor.mode() {
-            Mode::Normal | Mode::Insert => {
+            Mode::Normal | Mode::Insert | Mode::Visual | Mode::VisualBlock | Mode::VisualLine => {
                 let tab = editor.focused_tab();
                 let focused_window = tab.tree.focus();
                 let window = tab.tree.window(focused_window);
@@ -410,7 +450,7 @@ impl RenderLayer for EditorLayer {
 
                 let point = Point {
                     x: window.area.x + ((cursor.x() + gutter_size as usize) - window.scroll().x) as u16,
-                    y: window.area.y + (cursor.y() - window.scroll().y) as u16,
+                    y: window.area.y + (cursor.y().saturating_sub(window.scroll().y)) as u16,
                 };
 
                 (Some(point), CursorKind::Block)

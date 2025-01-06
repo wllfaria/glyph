@@ -1,4 +1,5 @@
 use crate::document::Document;
+use crate::editor::Mode;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cursor {
@@ -35,7 +36,7 @@ impl Cursor {
         self.virtual_x = self.x;
     }
 
-    pub fn move_down(&mut self, document: &Document) {
+    pub fn move_down(&mut self, document: &Document, mode: Mode) {
         let Some(next_line) = document.text().get_line(self.y + 1) else {
             return;
         };
@@ -44,14 +45,22 @@ impl Cursor {
 
         let next_line_len = next_line.len_chars();
 
+        let end_offset = match mode {
+            Mode::Normal => 2,
+            Mode::Insert => 1,
+            Mode::Command => 1,
+            Mode::Visual => 1,
+            Mode::VisualLine => 1,
+            Mode::VisualBlock => 1,
+        };
         if next_line_len <= self.virtual_x {
-            self.x = if next_line_len == 0 { 0 } else { next_line_len - 1 };
+            self.x = if next_line_len == 0 { 0 } else { next_line_len.saturating_sub(end_offset) };
         } else {
             self.x = self.virtual_x;
         }
     }
 
-    pub fn move_up(&mut self, document: &Document) {
+    pub fn move_up(&mut self, document: &Document, mode: Mode) {
         if self.y == 0 {
             return;
         }
@@ -60,16 +69,33 @@ impl Cursor {
         let current_line = document.text().get_line(self.y).unwrap();
         let current_line_len = current_line.len_chars();
 
+        let end_offset = match mode {
+            Mode::Normal => 2,
+            Mode::Insert => 1,
+            Mode::Command => 1,
+            Mode::Visual => 1,
+            Mode::VisualLine => 1,
+            Mode::VisualBlock => 1,
+        };
+
         if current_line_len <= self.virtual_x {
-            self.x = if current_line_len == 0 { 0 } else { current_line_len - 1 };
+            self.x = if current_line_len == 0 { 0 } else { current_line_len.saturating_sub(end_offset) };
         } else {
             self.x = self.virtual_x;
         }
     }
 
-    pub fn move_right(&mut self, document: &Document) {
+    pub fn move_right(&mut self, document: &Document, mode: Mode) {
+        let end_offset = match mode {
+            Mode::Normal => 2,
+            Mode::Insert => 1,
+            Mode::Command => 1,
+            Mode::Visual => 1,
+            Mode::VisualLine => 1,
+            Mode::VisualBlock => 1,
+        };
         if let Some(line) = document.text().get_line(self.y) {
-            self.x = (line.len_chars() - 1).min(self.x + 1);
+            self.x = (line.len_chars().saturating_sub(end_offset)).min(self.x + 1);
             self.virtual_x = self.x;
         }
     }

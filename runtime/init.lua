@@ -9,6 +9,8 @@
 --- @field force? boolean
 --- @field all? boolean
 
+--- @alias glyph.t.mode "n" | "i" | "c" | "v"
+
 --- @class glyph.t.write_opts
 --- @field force? boolean
 --- @field all? boolean
@@ -18,8 +20,8 @@
 --- @field y integer
 
 --- @class glyph.core
---- @field keymap_command_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: string, opts?: KeymapOpts)
---- @field keymap_function_set fun(mode: "n" | "i" | "c" | "v", keys: string, command: function, opts?: KeymapOpts)
+--- @field keymap_command_set fun(mode: glyph.t.mode | glyph.t.mode[], keys: string, command: string, opts?: KeymapOpts)
+--- @field keymap_function_set fun(mode: glyph.t.mode | glyph.t.mode[], keys: string, command: function, opts?: KeymapOpts)
 --- @field set_hl_group fun(name: string, opts: glyph.colors.hl_group)
 --- @field editor_get_mode fun(): string
 --- @field editor_quit fun(opts?: glyph.t.quit_opts)

@@ -54,9 +54,9 @@ impl Highlighter {
         self.trees.get(&document_id)
     }
 
+    #[tracing::instrument(skip_all, target = "ADD_DOCUMENT")]
     pub fn add_document(&mut self, document: &Document) {
         let parser = self.get_or_create_parser(document.language());
-
         let tree = parser.and_then(|p| p.parse(document.text().to_string(), None));
 
         let mut syntax = Syntax {
@@ -67,24 +67,37 @@ impl Highlighter {
         };
 
         if let Some(ref tree) = syntax.tree {
-            // let mut file = std::fs::File::create("tree.sexp").unwrap();
-            // print_highlights_sexp(tree, document.language(), &document.text().to_string(), &mut file).unwrap();
+            let start = std::time::Instant::now();
+            tracing::debug!("document {} parsed, getting syntax captures", document.id);
 
             let mut cursor = tree_sitter::QueryCursor::new();
             let root = tree.root_node();
             let language = get_ts_language(document.language()).expect("if we have a tree, we must have a language");
 
-            let query = self.queries.entry(document.language()).or_insert(
+            tracing::debug!("took {:?}", start.elapsed());
+
+            let start = std::time::Instant::now();
+
+            let query = self.queries.entry(document.language()).or_insert_with(|| {
                 tree_sitter::Query::new(
                     &language.into(),
                     get_ts_query(document.language()).expect("if we have a tree, we must have a query"),
                 )
-                .unwrap(),
+                .unwrap()
+            });
+
+            tracing::debug!("took {:?}", start.elapsed());
+
+            let start = std::time::Instant::now();
+            let text = document.text().to_string();
+            let mut matches = cursor.matches(query, root, text.as_bytes());
+            tracing::debug!(
+                "parsed capture matches for document {}, took {:?}",
+                document.id,
+                start.elapsed()
             );
 
-            let text = document.text().slice(..).to_string();
-            let mut matches = cursor.matches(query, root, text.as_bytes());
-
+            let start = std::time::Instant::now();
             while let Some(m) = matches.next() {
                 for capture in m.captures {
                     let node = capture.node;
@@ -96,6 +109,11 @@ impl Highlighter {
                     entry.push(capture);
                 }
             }
+            tracing::debug!(
+                "building highlight map for document {} took {:?}",
+                document.id,
+                start.elapsed()
+            );
         }
 
         self.trees.insert(document.id, syntax);
@@ -186,50 +204,3 @@ fn get_ts_query(language: LanguageId) -> Option<&'static str> {
         LanguageId::Plain => None,
     }
 }
-
-// fn print_highlights_sexp<W: std::io::Write>(
-//     tree: &Tree,
-//     language_id: LanguageId,
-//     source_code: &str,
-//     writer: &mut W,
-// ) -> std::io::Result<()> {
-//     let Some(language) = get_ts_language(language_id) else {
-//         return Ok(());
-//     };
-//
-//     let Some(query) = get_ts_query(language_id) else {
-//         return Ok(());
-//     };
-//
-//     let Ok(query) = tree_sitter::Query::new(&language.into(), &query) else {
-//         return Ok(());
-//     };
-//
-//     let mut query_cursor = tree_sitter::QueryCursor::new();
-//     let mut matches = query_cursor.matches(&query, tree.root_node(), source_code.as_bytes());
-//
-//     let mut nodes_with_captures = Vec::new();
-//     while let Some(match_) = matches.next() {
-//         for capture in match_.captures {
-//             let node = capture.node;
-//             let capture_name = &query.capture_names()[capture.index as usize];
-//             nodes_with_captures.push((node, capture_name));
-//         }
-//     }
-//
-//     nodes_with_captures.sort_by_key(|(node, _)| (node.start_position(), node.end_position()));
-//
-//     for (node, capture_name) in nodes_with_captures {
-//         let text = &source_code[node.start_byte()..node.end_byte()];
-//         writeln!(
-//             writer,
-//             "({} \"{}\" @{})",
-//             node.kind(),
-//             text.replace('"', "\\\""),
-//             capture_name
-//         )?;
-//         //writeln!(writer, "@{}", capture_name)?;
-//     }
-//
-//     Ok(())
-// }
