@@ -74,8 +74,8 @@ impl LeafView {
 
 #[derive(Debug)]
 pub struct SplitView {
-    rect: Rect,
-    children: Vec<LayoutTreeNode>,
+    pub rect: Rect,
+    pub children: Vec<LayoutTreeNode>,
 }
 
 impl SplitView {
