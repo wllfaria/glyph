@@ -1,27 +1,31 @@
 [workspace]
 resolver = "2"
-members = [
-    "glyph",
-    "glyph-core",
-    "glyph-term",
-    "glyph-runtime",
-    "glyph-trie",
-]
+members = ["glyph-core"]
 
 [workspace.dependencies]
+# Internal dependencies
 glyph-core = { path = "glyph-core" }
-glyph-term = { path = "glyph-term" }
-glyph-runtime = { path = "glyph-runtime" }
-glyph-trie = { path = "glyph-trie" }
 
-thiserror = "2.0.3"
-tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread", "time", "sync"] }
-tracing = { version = "0.1.41" }
-tracing-appender = { version = "0.2.3" }
-tracing-subscriber = { version = "0.3.18" }
-mlua = { version = "0.10.1", features = ["luajit", "vendored", "serialize"] }
-serde = { version = "1.0.215", features = ["derive"] }
-parking_lot = { version = "0.12.3" }
+# External dependencies
+thiserror = "2.0.12"
 
-[workspace.lints.rust]
-rust_2018_idioms = "deny"
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["wiru <hello@wiru.st>"]
+license = "MIT"
+repository = "https://github.com/wllfaria/glyph"
+
+[package]
+name = "scratch"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+glyph-core.workspace = true
+crossterm = "0.29.0"
+eyre = "0.6.12"
+color-eyre = "0.6.5"

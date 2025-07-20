@@ -1,2 +1,0 @@
-luacheck:
-  luacheck runtime
