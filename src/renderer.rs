@@ -1,4 +1,4 @@
-use std::io::stdout;
+use std::io::{Write, stdout};
 
 use crossterm::style::{Attribute, Color, Print, SetAttribute};
 use glyph_core::geometry::{Point, Rect, Size};
@@ -39,11 +39,13 @@ impl Cell {
     }
 }
 
+#[derive(Debug)]
 pub struct Change {
     cell: Cell,
     position: Point,
 }
 
+#[derive(Debug)]
 pub struct ChangeSet {
     pub changes: Vec<Change>,
 }
@@ -52,12 +54,12 @@ pub struct ChangeSet {
 pub struct CellBuffer(Vec<Cell>);
 
 impl CellBuffer {
-    pub fn diff(&self, other: &Self) -> ChangeSet {
+    pub fn diff(&self, other: &Self, size: Size) -> ChangeSet {
         let mut changes = vec![];
 
         for (i, c) in self.0.iter().enumerate() {
-            let x = i % self.0.len();
-            let y = i / self.0.len();
+            let x = i % size.width as usize;
+            let y = i / size.width as usize;
 
             if c != &other.0[i] {
                 changes.push(Change {
@@ -70,9 +72,9 @@ impl CellBuffer {
         ChangeSet { changes }
     }
 
-    pub fn set_cell(&mut self, x: u16, y: u16, cell: Cell) {
-        let len = self.0.len();
-        self.0[y as usize * len + x as usize] = cell;
+    pub fn set_cell(&mut self, x: u16, y: u16, cell: Cell, size: Size) {
+        let index = y as usize * size.width as usize + x as usize;
+        self.0[index] = cell;
     }
 }
 
@@ -96,6 +98,57 @@ impl CrosstermRenderer {
 
     fn swap_buffers(&mut self) {
         self.buffers.swap(0, 1);
+    }
+
+    fn render_layout_node(
+        &mut self,
+        ctx: &RenderContext<'_>,
+        node: &LayoutTreeNode,
+        rect: Rect,
+    ) -> Result<()> {
+        match node {
+            LayoutTreeNode::Leaf(leaf) => {
+                self.render_leaf_view(ctx, leaf, rect)?;
+            }
+            LayoutTreeNode::Split(split) => {
+                for child in split.children.iter() {
+                    self.render_layout_node(ctx, child, split.rect)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn render_leaf_view(
+        &mut self,
+        ctx: &RenderContext<'_>,
+        leaf: &glyph_core::view_manager::LeafView,
+        rect: Rect,
+    ) -> Result<()> {
+        let cell_buffer = &mut self.buffers[0];
+        let view = ctx.views.iter().find(|v| v.id == leaf.view_id).unwrap();
+        let buffer = ctx.buffers.iter().find(|b| b.id == view.buffer_id).unwrap();
+
+        for (y, line) in buffer
+            .content()
+            .lines()
+            .skip(view.scroll_offset.y as usize)
+            .take(rect.height as usize - 1)
+            .enumerate()
+        {
+            for (x, char) in line
+                .chars()
+                .skip(view.scroll_offset.x as usize)
+                .take(rect.width as usize)
+                .enumerate()
+            {
+                let cell = Cell::new(char, Style::default());
+                let screen_x = rect.x + x as u16;
+                let screen_y = rect.y + y as u16;
+                cell_buffer.set_cell(screen_x, screen_y, cell, self.size);
+            }
+        }
+        Ok(())
     }
 
     fn queue_change(&mut self, x: u16, y: u16, change: Change) -> Result<()> {
@@ -131,44 +184,19 @@ pub struct LayoutWalker<'a> {
 
 impl Renderer for CrosstermRenderer {
     fn render(&mut self, ctx: &mut RenderContext<'_>) -> Result<()> {
-        let cell_buffer = &mut self.buffers[0];
         let mut editor_rect = Rect::with_size(0, 0, self.size);
         editor_rect.cut_bottom(1);
 
-        match ctx.layout {
-            LayoutTreeNode::Leaf(leaf) => {
-                let view = ctx.views.iter().find(|v| v.id == leaf.view_id).unwrap();
-                let buffer = ctx.buffers.iter().find(|b| b.id == view.buffer_id).unwrap();
+        self.render_layout_node(ctx, ctx.layout, editor_rect)?;
 
-                for (y, line) in buffer
-                    .content()
-                    .lines()
-                    .skip(view.scroll_offset.y as usize)
-                    .take(leaf.size.height as usize - 1)
-                    .enumerate()
-                {
-                    for (x, char) in line
-                        .chars()
-                        .skip(view.scroll_offset.x as usize)
-                        .take(leaf.size.width as usize - 1)
-                        .enumerate()
-                    {
-                        let cell = Cell::new(char, Style::default());
-                        cell_buffer.set_cell(x as u16, y as u16, cell);
-                    }
-                }
-            }
-            _ => todo!(),
-        }
-
-        println!("{cell_buffer:?}");
-
-        let changes = self.buffers[0].diff(&self.buffers[1]);
+        let changes = self.buffers[0].diff(&self.buffers[1], self.size);
         for change in changes.changes {
             let x = change.position.x;
             let y = change.position.y;
             self.queue_change(x, y, change)?;
         }
+
+        _ = stdout().flush();
 
         self.swap_buffers();
 

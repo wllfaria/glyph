@@ -63,19 +63,19 @@ where
         // self.renderer.setup()?;
 
         loop {
-            self.render_step();
+            self.render_step()?;
 
             if true {
                 break;
             }
         }
 
-        self.renderer.shutdown()?;
+        // self.renderer.shutdown()?;
 
         Ok(())
     }
 
-    fn render_step(&mut self) {
+    fn render_step(&mut self) -> Result<()> {
         let views = self.views.get_visible();
         let buffers = views
             .iter()
@@ -86,6 +86,8 @@ where
             views: &views,
             buffers: &buffers,
             layout: &self.views.layout,
-        });
+        })?;
+
+        Ok(())
     }
 }
