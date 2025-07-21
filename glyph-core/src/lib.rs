@@ -16,7 +16,7 @@ use crate::buffer_manager::{BufferId, BufferManager};
 use crate::config::Config;
 use crate::error::Result;
 use crate::event_loop::EventLoop;
-use crate::key_mapper::{KeyMapper, KeyMapperKind};
+use crate::key_mapper::{Keymapper, KeymapperKind};
 use crate::renderer::{RenderContext, Renderer};
 use crate::startup_options::StartupOptions;
 use crate::view_manager::ViewManager;
@@ -29,7 +29,7 @@ where
 {
     renderer: R,
     event_loop: E,
-    key_mapper: KeyMapperKind,
+    key_mapper: KeymapperKind,
     views: ViewManager,
     buffers: BufferManager,
     config: Config,
@@ -44,7 +44,7 @@ where
         config: Config,
         event_loop: E,
         renderer: R,
-        key_mapper: impl Into<KeyMapperKind>,
+        key_mapper: impl Into<KeymapperKind>,
         options: StartupOptions,
     ) -> Result<Self> {
         let mut buffers = BufferManager::new();
@@ -81,14 +81,16 @@ where
         let mut i = 0;
         loop {
             let event = self.event_loop.maybe_event()?;
-            let _command = self.key_mapper.parse_event(event);
+            let commands = self.key_mapper.parse_event(event);
+
+            tracing::debug!("commands: {commands:?}");
 
             self.render_step()?;
 
             std::thread::sleep(std::time::Duration::from_millis(16));
 
             i += 1;
-            if i == 600 {
+            if i == 60 {
                 break;
             }
         }

@@ -1,17 +1,17 @@
 use crate::event_loop::event::Event;
-use crate::key_mapper::{Command, KeyMapper};
+use crate::key_mapper::{Command, Keymapper};
 
 #[derive(Debug, Default)]
-pub struct VSCodeKeyMapper {}
+pub struct VSCodeKeymapper {}
 
-impl VSCodeKeyMapper {
+impl VSCodeKeymapper {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl KeyMapper for VSCodeKeyMapper {
-    fn parse_event(&mut self, _event: Option<Event>) -> Option<Command> {
+impl Keymapper for VSCodeKeymapper {
+    fn parse_event(&mut self, _event: Option<Event>) -> Option<Vec<Command>> {
         None
     }
 }

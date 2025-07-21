@@ -296,9 +296,14 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "clap",
+ "glyph-trie",
  "thiserror",
  "tracing",
 ]
+
+[[package]]
+name = "glyph-trie"
+version = "0.1.0"
 
 [[package]]
 name = "hashbrown"

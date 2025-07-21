@@ -5,7 +5,7 @@ use std::fs::File;
 
 use glyph_core::Glyph;
 use glyph_core::config::{Config, KeyMapPreset};
-use glyph_core::key_mapper::KeyMapperKind;
+use glyph_core::key_mapper::KeymapperKind;
 use glyph_core::startup_options::StartupOptions;
 use tracing_subscriber::fmt::writer::{BoxMakeWriter, MakeWriterExt};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -35,10 +35,10 @@ fn setup_tracing(verbose: bool) -> eyre::Result<()> {
     Ok(())
 }
 
-fn key_mapper_from_config(config: &Config) -> KeyMapperKind {
+fn key_mapper_from_config(config: &Config) -> KeymapperKind {
     match config.keymap_preset {
-        KeyMapPreset::Vim => glyph_core::key_mapper::VimKeyMapper::new().into(),
-        KeyMapPreset::VSCode => glyph_core::key_mapper::VSCodeKeyMapper::new().into(),
+        KeyMapPreset::Vim => glyph_core::key_mapper::VimKeymapper::new().into(),
+        KeyMapPreset::VSCode => glyph_core::key_mapper::VSCodeKeymapper::new().into(),
     }
 }
 
