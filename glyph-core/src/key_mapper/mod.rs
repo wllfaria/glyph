@@ -1,25 +1,27 @@
 mod vim_key_mapper;
 mod vsc_key_mapper;
 
-pub use vim_key_mapper::VimKeyMapper;
-pub use vsc_key_mapper::VSCodeKeyMapper;
+pub use vim_key_mapper::VimKeymapper;
+pub use vsc_key_mapper::VSCodeKeymapper;
 
 use crate::event_loop::event::Event;
 
-pub enum UiCommand {}
-
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Command {
-    UiCommand(UiCommand),
+    MoveCursorLeft,
+    MoveCursorDown,
+    MoveCursorUp,
+    MoveCursorRight,
 }
 
 #[derive(Debug)]
-pub enum KeyMapperKind {
-    Vim(VimKeyMapper),
-    VSCode(VSCodeKeyMapper),
+pub enum KeymapperKind {
+    Vim(VimKeymapper),
+    VSCode(VSCodeKeymapper),
 }
 
-impl KeyMapper for KeyMapperKind {
-    fn parse_event(&mut self, event: Option<Event>) -> Option<Command> {
+impl Keymapper for KeymapperKind {
+    fn parse_event(&mut self, event: Option<Event>) -> Option<Vec<Command>> {
         match self {
             Self::Vim(vim) => vim.parse_event(event),
             Self::VSCode(vsc) => vsc.parse_event(event),
@@ -27,18 +29,18 @@ impl KeyMapper for KeyMapperKind {
     }
 }
 
-impl From<VimKeyMapper> for KeyMapperKind {
-    fn from(k: VimKeyMapper) -> Self {
+impl From<VimKeymapper> for KeymapperKind {
+    fn from(k: VimKeymapper) -> Self {
         Self::Vim(k)
     }
 }
 
-impl From<VSCodeKeyMapper> for KeyMapperKind {
-    fn from(k: VSCodeKeyMapper) -> Self {
+impl From<VSCodeKeymapper> for KeymapperKind {
+    fn from(k: VSCodeKeymapper) -> Self {
         Self::VSCode(k)
     }
 }
 
-pub trait KeyMapper {
-    fn parse_event(&mut self, event: Option<Event>) -> Option<Command>;
+pub trait Keymapper {
+    fn parse_event(&mut self, event: Option<Event>) -> Option<Vec<Command>>;
 }

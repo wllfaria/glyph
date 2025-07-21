@@ -1,11 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["glyph-core", "glyph-config"]
+members = ["glyph-core", "glyph-config", "glyph-trie"]
 
 [workspace.dependencies]
 # Internal dependencies
 glyph-core = { path = "glyph-core" }
 glyph-config = { path = "glyph-config" }
+glyph-trie = { path = "glyph-trie" }
 
 # External dependencies
 thiserror = "2.0.12"

@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+glyph-trie.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
