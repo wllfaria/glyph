@@ -5,6 +5,8 @@ use clap::Parser;
 pub struct StartupOptions {
     #[arg()]
     pub files: Vec<String>,
+    #[arg(short, long)]
+    pub config: Option<String>,
 }
 
 impl StartupOptions {
