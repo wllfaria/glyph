@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use crate::error::Result;
+use crate::geometry::Size;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum BufferKind {
@@ -125,11 +126,18 @@ impl BufferManager {
         Ok(())
     }
 
-    pub fn load_startup_buffer(&mut self) -> Result<()> {
-        let content = r#"
-        Welcome to Glyph!
-        "#
-        .to_string();
+    pub fn load_startup_buffer(&mut self, size: Size) -> Result<()> {
+        let message = [
+            horizontal_center("Welcome to Glyph!", size.width),
+            "".into(),
+            horizontal_center("Lorem ipsum dolor sit amet", size.width),
+            horizontal_center(
+                "consectetur adipiscing elit. In semper condimentum orci",
+                size.width,
+            ),
+            horizontal_center("eu vulputate. Fusce eget lectus leo. Integer", size.width),
+        ];
+        let content = vertical_center(&message.join("\n"), size.height);
 
         let id = BufferId::new(0);
         let buffer = Buffer::new(
@@ -148,4 +156,34 @@ impl BufferManager {
     pub fn get(&self, id: BufferId) -> Option<&Buffer> {
         self.buffers.get(&id)
     }
+}
+
+fn vertical_center(s: &str, height: u16) -> String {
+    let center = (height / 2) as usize;
+    let top_padding = center - s.lines().count() / 2;
+    pad_top(s, top_padding)
+}
+
+fn horizontal_center(s: &str, width: u16) -> String {
+    let center = (width / 2) as usize;
+    let left_padding = center - s.len() / 2;
+    pad_left(s, left_padding)
+}
+
+fn pad_left(s: &str, pad: usize) -> String {
+    let mut result = String::new();
+    for _ in 0..pad {
+        result.push(' ');
+    }
+    result.push_str(s);
+    result
+}
+
+fn pad_top(s: &str, pad: usize) -> String {
+    let mut result = String::new();
+    for _ in 0..pad {
+        result.push('\n');
+    }
+    result.push_str(s);
+    result
 }

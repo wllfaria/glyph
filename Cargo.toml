@@ -1,10 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["glyph-core"]
+members = ["glyph-core", "glyph-config"]
 
 [workspace.dependencies]
 # Internal dependencies
 glyph-core = { path = "glyph-core" }
+glyph-config = { path = "glyph-config" }
 
 # External dependencies
 thiserror = "2.0.12"
@@ -26,6 +27,7 @@ repository.workspace = true
 
 [dependencies]
 glyph-core.workspace = true
+glyph-config.workspace = true
 crossterm = "0.29.0"
 eyre = "0.6.12"
 color-eyre = "0.6.5"

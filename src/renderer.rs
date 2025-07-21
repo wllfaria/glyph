@@ -87,8 +87,8 @@ pub struct CrosstermRenderer {
 impl CrosstermRenderer {
     pub fn new() -> Result<Self> {
         let mut renderer = Self {
-            buffers: [CellBuffer::default(), CellBuffer::default()],
             size: Size::default(),
+            buffers: [CellBuffer::default(), CellBuffer::default()],
         };
 
         renderer.resize(renderer.get_size()?)?;
@@ -100,23 +100,14 @@ impl CrosstermRenderer {
         self.buffers.swap(0, 1);
     }
 
-    fn render_layout_node(
-        &mut self,
-        ctx: &RenderContext<'_>,
-        node: &LayoutTreeNode,
-        rect: Rect,
-    ) -> Result<()> {
+    fn render_layout_node(&mut self, ctx: &RenderContext<'_>, node: &LayoutTreeNode, rect: Rect) {
         match node {
-            LayoutTreeNode::Leaf(leaf) => {
-                self.render_leaf_view(ctx, leaf, rect)?;
-            }
-            LayoutTreeNode::Split(split) => {
-                for child in split.children.iter() {
-                    self.render_layout_node(ctx, child, split.rect)?;
-                }
-            }
+            LayoutTreeNode::Leaf(leaf) => self.render_leaf_view(ctx, leaf, rect),
+            LayoutTreeNode::Split(split) => split
+                .children
+                .iter()
+                .for_each(|c| self.render_layout_node(ctx, c, split.rect)),
         }
-        Ok(())
     }
 
     fn render_leaf_view(
@@ -124,7 +115,7 @@ impl CrosstermRenderer {
         ctx: &RenderContext<'_>,
         leaf: &glyph_core::view_manager::LeafView,
         rect: Rect,
-    ) -> Result<()> {
+    ) {
         let cell_buffer = &mut self.buffers[0];
         let view = ctx.views.iter().find(|v| v.id == leaf.view_id).unwrap();
         let buffer = ctx.buffers.iter().find(|b| b.id == view.buffer_id).unwrap();
@@ -133,7 +124,7 @@ impl CrosstermRenderer {
             .content()
             .lines()
             .skip(view.scroll_offset.y as usize)
-            .take(rect.height as usize - 1)
+            .take(rect.height as usize)
             .enumerate()
         {
             for (x, char) in line
@@ -143,12 +134,11 @@ impl CrosstermRenderer {
                 .enumerate()
             {
                 let cell = Cell::new(char, Style::default());
-                let screen_x = rect.x + x as u16;
-                let screen_y = rect.y + y as u16;
+                let screen_x = rect.x + leaf.rect.x + x as u16;
+                let screen_y = rect.y + leaf.rect.y + y as u16;
                 cell_buffer.set_cell(screen_x, screen_y, cell, self.size);
             }
         }
-        Ok(())
     }
 
     fn queue_change(&mut self, x: u16, y: u16, change: Change) -> Result<()> {
@@ -178,16 +168,12 @@ impl CrosstermRenderer {
     }
 }
 
-pub struct LayoutWalker<'a> {
-    foo: &'a mut u8,
-}
-
 impl Renderer for CrosstermRenderer {
     fn render(&mut self, ctx: &mut RenderContext<'_>) -> Result<()> {
         let mut editor_rect = Rect::with_size(0, 0, self.size);
         editor_rect.cut_bottom(1);
 
-        self.render_layout_node(ctx, ctx.layout, editor_rect)?;
+        self.render_layout_node(ctx, ctx.layout, editor_rect);
 
         let changes = self.buffers[0].diff(&self.buffers[1], self.size);
         for change in changes.changes {
@@ -196,7 +182,9 @@ impl Renderer for CrosstermRenderer {
             self.queue_change(x, y, change)?;
         }
 
-        _ = stdout().flush();
+        if let Err(e) = stdout().flush() {
+            return Err(RendererError::FailedToFlushRenderer(e));
+        }
 
         self.swap_buffers();
 
@@ -233,7 +221,6 @@ impl Renderer for CrosstermRenderer {
             Ok(size) => size,
             Err(_) => return Err(RendererError::FailedToGetEditorSize),
         };
-
         Ok(Size::new(width, height))
     }
 

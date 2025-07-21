@@ -10,4 +10,7 @@ pub enum RendererError {
 
     #[error("Failed to shutdown renderer")]
     FailedToShutdownRenderer,
+
+    #[error("Failed to flush renderer")]
+    FailedToFlushRenderer(#[source] std::io::Error),
 }

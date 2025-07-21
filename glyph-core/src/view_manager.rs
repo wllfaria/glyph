@@ -60,7 +60,7 @@ impl View {
 #[derive(Debug)]
 pub struct LeafView {
     pub view_id: ViewId,
-    pub size: Size,
+    pub rect: Rect,
 }
 
 impl LeafView {
@@ -144,10 +144,12 @@ impl ViewManager {
         let view = View::new(view_id, initial_buffer);
         views.insert(view_id, view);
 
+        let rect: Rect = size.into();
+
         Self {
             views,
             next_view_id: ViewId::new(1),
-            layout: LayoutTreeNode::Leaf(LeafView { view_id, size }),
+            layout: LayoutTreeNode::Leaf(LeafView { view_id, rect }),
         }
     }
 
