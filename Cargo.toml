@@ -9,6 +9,8 @@ glyph-config = { path = "glyph-config" }
 
 # External dependencies
 thiserror = "2.0.12"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["fmt", "env-filter"] }
 
 [workspace.package]
 version = "0.1.0"
@@ -28,6 +30,8 @@ repository.workspace = true
 [dependencies]
 glyph-core.workspace = true
 glyph-config.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 crossterm = "0.29.0"
 eyre = "0.6.12"
 color-eyre = "0.6.5"
