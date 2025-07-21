@@ -7,6 +7,8 @@ pub struct StartupOptions {
     pub files: Vec<String>,
     #[arg(short, long)]
     pub config: Option<String>,
+    #[arg(long)]
+    pub verbose: bool,
 }
 
 impl StartupOptions {

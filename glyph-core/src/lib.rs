@@ -78,15 +78,17 @@ where
     pub fn run(&mut self) -> Result<()> {
         self.renderer.setup()?;
 
+        let mut i = 0;
         loop {
             let event = self.event_loop.maybe_event()?;
             let _command = self.key_mapper.parse_event(event);
 
             self.render_step()?;
 
-            std::thread::sleep(std::time::Duration::from_secs(2));
+            std::thread::sleep(std::time::Duration::from_millis(16));
 
-            if true {
+            i += 1;
+            if i == 600 {
                 break;
             }
         }

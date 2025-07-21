@@ -15,7 +15,8 @@ impl VimKeyMapper {
 }
 
 impl KeyMapper for VimKeyMapper {
-    fn parse_event(&mut self, _event: Option<Event>) -> Option<Command> {
+    fn parse_event(&mut self, event: Option<Event>) -> Option<Command> {
+        tracing::debug!("event is {event:?}");
         None
     }
 }
