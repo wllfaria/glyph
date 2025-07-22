@@ -45,6 +45,8 @@ pub struct View {
     pub id: ViewId,
     pub buffer_id: BufferId,
     pub scroll_offset: Point,
+    // TODO: probably want to make a Cursor struct
+    pub cursors: Vec<Point>,
 }
 
 impl View {
@@ -53,6 +55,7 @@ impl View {
             id,
             buffer_id,
             scroll_offset: Point::default(),
+            cursors: vec![Point::default()],
         }
     }
 }
@@ -134,6 +137,7 @@ pub struct ViewManager {
     next_view_id: ViewId,
     pub(crate) views: BTreeMap<ViewId, View>,
     pub(crate) layout: LayoutTreeNode,
+    pub(crate) active_view: ViewId,
 }
 
 impl ViewManager {
@@ -150,6 +154,7 @@ impl ViewManager {
             views,
             next_view_id: ViewId::new(1),
             layout: LayoutTreeNode::Leaf(LeafView { view_id, rect }),
+            active_view: view_id,
         }
     }
 
@@ -163,5 +168,17 @@ impl ViewManager {
             .iter()
             .map(|id| self.views.get(id).unwrap())
             .collect()
+    }
+
+    pub fn get_active_view(&self) -> &View {
+        self.views
+            .get(&self.active_view)
+            .expect("editor must have at least one view")
+    }
+
+    pub fn get_mut_active_view(&mut self) -> &mut View {
+        self.views
+            .get_mut(&self.active_view)
+            .expect("editor must have at least one view")
     }
 }

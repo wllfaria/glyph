@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod buffer_manager;
+mod command_handler;
 pub mod config;
 pub mod error;
 pub mod event_loop;
@@ -11,6 +12,9 @@ pub mod startup_options;
 pub mod view_manager;
 
 use std::fmt::Debug;
+
+use command_handler::buffer_command_handler::BufferCommandHandler;
+use command_handler::{CommandContext, CommandHandler, CommandHandlerChain};
 
 use crate::buffer_manager::{BufferId, BufferManager};
 use crate::config::Config;
@@ -33,6 +37,8 @@ where
     views: ViewManager,
     buffers: BufferManager,
     config: Config,
+    command_handler: CommandHandlerChain,
+    should_quit: bool,
 }
 
 impl<E, R> Glyph<E, R>
@@ -47,6 +53,7 @@ where
         key_mapper: impl Into<KeymapperKind>,
         options: StartupOptions,
     ) -> Result<Self> {
+        let key_mapper = key_mapper.into();
         let mut buffers = BufferManager::new();
         let size = renderer.get_size()?;
 
@@ -65,34 +72,37 @@ where
         // directory view.
         let views = ViewManager::new(BufferId::new(0), size);
 
+        let mut command_handler = CommandHandlerChain::default();
+        command_handler.add_handler(BufferCommandHandler::default());
+
         Ok(Self {
             views,
             config,
             buffers,
             renderer,
             event_loop,
-            key_mapper: key_mapper.into(),
+            key_mapper,
+            command_handler,
+            should_quit: false,
         })
     }
 
     pub fn run(&mut self) -> Result<()> {
         self.renderer.setup()?;
 
-        let mut i = 0;
-        loop {
+        while !self.should_quit {
             let event = self.event_loop.maybe_event()?;
-            let commands = self.key_mapper.parse_event(event);
 
-            tracing::debug!("commands: {commands:?}");
+            if let Some(commands) = self.key_mapper.parse_event(event) {
+                self.command_handler.handle_commands(&mut CommandContext {
+                    commands: &commands,
+                    buffers: &mut self.buffers.buffers,
+                    views: &mut self.views,
+                    should_quit: &mut self.should_quit,
+                });
+            }
 
             self.render_step()?;
-
-            std::thread::sleep(std::time::Duration::from_millis(16));
-
-            i += 1;
-            if i == 60 {
-                break;
-            }
         }
 
         self.renderer.shutdown()?;
@@ -108,7 +118,7 @@ where
             .collect::<Vec<_>>();
 
         self.renderer.render(&mut RenderContext {
-            views: &views,
+            views: &self.views,
             buffers: &buffers,
             layout: &self.views.layout,
         })?;

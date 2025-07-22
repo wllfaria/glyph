@@ -1,13 +1,13 @@
 use crate::buffer_manager::Buffer;
 use crate::geometry::Size;
 use crate::renderer::error::Result;
-use crate::view_manager::{LayoutTreeNode, View};
+use crate::view_manager::{LayoutTreeNode, ViewManager};
 
 pub mod error;
 
 #[derive(Debug)]
 pub struct RenderContext<'ctx> {
-    pub views: &'ctx [&'ctx View],
+    pub views: &'ctx ViewManager,
     pub layout: &'ctx LayoutTreeNode,
     pub buffers: &'ctx [&'ctx Buffer],
 }

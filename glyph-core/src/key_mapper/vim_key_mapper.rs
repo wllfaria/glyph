@@ -81,7 +81,9 @@ fn load_vim_keymaps() -> Trie<Keymap> {
     let move_cursor_down = Command::MoveCursorDown;
     let move_cursor_up = Command::MoveCursorUp;
     let move_cursor_right = Command::MoveCursorRight;
+    let quit = Command::Quit;
 
+    keymaps.insert("q", Keymap::new(normal_mode, vec![quit]));
     keymaps.insert("h", Keymap::new(normal_mode, vec![move_cursor_left]));
     keymaps.insert("j", Keymap::new(normal_mode, vec![move_cursor_down]));
     keymaps.insert("k", Keymap::new(normal_mode, vec![move_cursor_up]));

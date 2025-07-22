@@ -1,6 +1,7 @@
 use std::io::{Write, stdout};
 
 use crossterm::style::{Attribute, Color, Print, SetAttribute};
+use crossterm::{cursor, queue};
 use glyph_core::geometry::{Point, Rect, Size};
 use glyph_core::renderer::error::{RendererError, Result};
 use glyph_core::renderer::{RenderContext, Renderer};
@@ -117,7 +118,8 @@ impl CrosstermRenderer {
         rect: Rect,
     ) {
         let cell_buffer = &mut self.buffers[0];
-        let view = ctx.views.iter().find(|v| v.id == leaf.view_id).unwrap();
+        let visible_views = ctx.views.get_visible();
+        let view = visible_views.iter().find(|v| v.id == leaf.view_id).unwrap();
         let buffer = ctx.buffers.iter().find(|b| b.id == view.buffer_id).unwrap();
 
         for (y, line) in buffer
@@ -166,10 +168,18 @@ impl CrosstermRenderer {
 
         Ok(())
     }
+
+    fn position_cursor(&self, ctx: &mut RenderContext<'_>) {
+        let view = ctx.views.get_active_view();
+        let cursor = view.cursors.first().unwrap();
+        _ = queue!(stdout(), cursor::MoveTo(cursor.x, cursor.y));
+    }
 }
 
 impl Renderer for CrosstermRenderer {
     fn render(&mut self, ctx: &mut RenderContext<'_>) -> Result<()> {
+        _ = queue!(stdout(), cursor::Hide);
+
         let mut editor_rect = Rect::with_size(0, 0, self.size);
         editor_rect.cut_bottom(1);
 
@@ -181,6 +191,10 @@ impl Renderer for CrosstermRenderer {
             let y = change.position.y;
             self.queue_change(x, y, change)?;
         }
+
+        self.position_cursor(ctx);
+
+        _ = queue!(stdout(), cursor::Show);
 
         if let Err(e) = stdout().flush() {
             return Err(RendererError::FailedToFlushRenderer(e));

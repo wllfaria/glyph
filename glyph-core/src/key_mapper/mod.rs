@@ -12,6 +12,7 @@ pub enum Command {
     MoveCursorDown,
     MoveCursorUp,
     MoveCursorRight,
+    Quit,
 }
 
 #[derive(Debug)]
