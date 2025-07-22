@@ -10,14 +10,26 @@ pub enum EditorMode {
     Insert,
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+enum CommandWrapper {
+    General(Command),
+    Vim(VimCommand),
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub enum VimCommand {
+    InsertMode,
+    NormalMode,
+}
+
 #[derive(Debug)]
 pub struct Keymap {
     mode: EditorMode,
-    commands: Vec<Command>,
+    commands: Vec<CommandWrapper>,
 }
 
 impl Keymap {
-    pub fn new(mode: EditorMode, commands: Vec<Command>) -> Self {
+    fn new(mode: EditorMode, commands: Vec<CommandWrapper>) -> Self {
         Self { mode, commands }
     }
 }
@@ -44,9 +56,9 @@ impl VimKeymapper {
 impl Keymapper for VimKeymapper {
     fn parse_event(&mut self, event: Option<Event>) -> Option<Vec<Command>> {
         let Event::Key(key) = event?;
-        let KeyCode::Char(c) = key.code else { return None };
+        let key_str = key.to_string();
 
-        let full_key = format!("{}{}", self.buffered_key, c);
+        let full_key = format!("{}{}", self.buffered_key, key_str);
         let Some(query) = self.keymaps.get(&full_key) else {
             self.buffered_key.clear();
             return None;
@@ -56,7 +68,7 @@ impl Keymapper for VimKeymapper {
         // and continue buffering until either a timeout is reached (triggering the action)
         // or the user presses another key.
         if query.continues {
-            self.buffered_key.push(c);
+            self.buffered_key.push_str(&key_str);
         }
 
         let Some(keymap) = query.value else {
@@ -68,7 +80,18 @@ impl Keymapper for VimKeymapper {
             return None;
         }
 
-        Some(keymap.commands.clone())
+        let mut commands = vec![];
+        for command in keymap.commands.iter() {
+            match command {
+                CommandWrapper::General(command) => commands.push(command.clone()),
+                CommandWrapper::Vim(command) => match command {
+                    VimCommand::InsertMode => self.editor_mode = EditorMode::Insert,
+                    VimCommand::NormalMode => self.editor_mode = EditorMode::Normal,
+                },
+            }
+        }
+
+        Some(commands)
     }
 }
 
@@ -76,18 +99,25 @@ fn load_vim_keymaps() -> Trie<Keymap> {
     let mut keymaps = Trie::new();
 
     let normal_mode = EditorMode::Normal;
+    let insert_mode = EditorMode::Insert;
 
-    let move_cursor_left = Command::MoveCursorLeft;
-    let move_cursor_down = Command::MoveCursorDown;
-    let move_cursor_up = Command::MoveCursorUp;
-    let move_cursor_right = Command::MoveCursorRight;
-    let quit = Command::Quit;
+    let move_cursor_left = CommandWrapper::General(Command::MoveCursorLeft);
+    let move_cursor_down = CommandWrapper::General(Command::MoveCursorDown);
+    let move_cursor_up = CommandWrapper::General(Command::MoveCursorUp);
+    let move_cursor_right = CommandWrapper::General(Command::MoveCursorRight);
+    let quit = CommandWrapper::General(Command::Quit);
 
+    let enter_insert_mode = CommandWrapper::Vim(VimCommand::InsertMode);
+    let enter_normal_mode = CommandWrapper::Vim(VimCommand::NormalMode);
+
+    keymaps.insert("i", Keymap::new(normal_mode, vec![enter_insert_mode]));
     keymaps.insert("q", Keymap::new(normal_mode, vec![quit]));
     keymaps.insert("h", Keymap::new(normal_mode, vec![move_cursor_left]));
     keymaps.insert("j", Keymap::new(normal_mode, vec![move_cursor_down]));
     keymaps.insert("k", Keymap::new(normal_mode, vec![move_cursor_up]));
     keymaps.insert("l", Keymap::new(normal_mode, vec![move_cursor_right]));
+
+    keymaps.insert("<esc>", Keymap::new(insert_mode, vec![enter_normal_mode]));
 
     keymaps
 }
