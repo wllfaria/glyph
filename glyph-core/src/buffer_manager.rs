@@ -130,12 +130,9 @@ impl BufferManager {
         let message = [
             horizontal_center("Welcome to Glyph!", size.width),
             "".into(),
-            horizontal_center("Lorem ipsum dolor sit amet", size.width),
-            horizontal_center(
-                "consectetur adipiscing elit. In semper condimentum orci",
-                size.width,
-            ),
-            horizontal_center("eu vulputate. Fusce eget lectus leo. Integer", size.width),
+            horizontal_center("Some info about how to use here", size.width),
+            horizontal_center("or something like that..", size.width),
+            horizontal_center("idk man", size.width),
         ];
         let content = vertical_center(&message.join("\n"), size.height);
 
