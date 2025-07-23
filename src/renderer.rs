@@ -172,7 +172,7 @@ impl CrosstermRenderer {
     fn position_cursor(&self, ctx: &mut RenderContext<'_>) {
         let view = ctx.views.get_active_view();
         let cursor = view.cursors.first().unwrap();
-        _ = queue!(stdout(), cursor::MoveTo(cursor.x, cursor.y));
+        _ = queue!(stdout(), cursor::MoveTo(cursor.x as u16, cursor.y as u16));
     }
 }
 

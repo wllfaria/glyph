@@ -4,9 +4,11 @@ mod renderer;
 use std::fs::File;
 
 use glyph_core::Glyph;
+use glyph_core::command_handler::CommandHandler;
 use glyph_core::config::{Config, KeyMapPreset};
-use glyph_core::key_mapper::KeymapperKind;
+use glyph_core::key_mapper::Keymapper;
 use glyph_core::startup_options::StartupOptions;
+use glyph_vim::{VimBufferCommandHandler, VimKeymapper};
 use tracing_subscriber::fmt::writer::{BoxMakeWriter, MakeWriterExt};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -35,10 +37,17 @@ fn setup_tracing(verbose: bool) -> eyre::Result<()> {
     Ok(())
 }
 
-fn key_mapper_from_config(config: &Config) -> KeymapperKind {
+fn key_mapper_from_config(config: &Config) -> Box<dyn Keymapper> {
     match config.keymap_preset {
-        KeyMapPreset::Vim => glyph_core::key_mapper::VimKeymapper::new().into(),
-        KeyMapPreset::VSCode => glyph_core::key_mapper::VSCodeKeymapper::new().into(),
+        KeyMapPreset::Vim => Box::new(VimKeymapper::new()),
+        KeyMapPreset::VSCode => todo!(),
+    }
+}
+
+fn handler_from_config(config: &Config) -> Box<dyn CommandHandler> {
+    match config.keymap_preset {
+        KeyMapPreset::Vim => Box::new(VimBufferCommandHandler),
+        KeyMapPreset::VSCode => todo!(),
     }
 }
 
@@ -53,8 +62,17 @@ fn main() -> eyre::Result<()> {
     let event_loop = event_loop::CrosstermEventLoop;
     let renderer = renderer::CrosstermRenderer::new()?;
     let key_mapper = key_mapper_from_config(&config);
+    let command_handler = handler_from_config(&config);
 
-    Glyph::new(config, event_loop, renderer, key_mapper, startup_options)?.run()?;
+    Glyph::new(
+        config,
+        event_loop,
+        renderer,
+        key_mapper,
+        command_handler,
+        startup_options,
+    )?
+    .run()?;
 
     Ok(())
 }

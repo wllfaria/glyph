@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use crate::error::Result;
 use crate::geometry::Size;
+use crate::text_object::TextObject;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum BufferKind {
@@ -20,7 +21,7 @@ pub enum FileStatus {
 pub struct Buffer {
     pub id: BufferId,
     is_dirty: bool,
-    content: String,
+    content: TextObject,
     file_status: FileStatus,
     buffer_kind: BufferKind,
     path: Option<PathBuf>,
@@ -39,20 +40,20 @@ impl Buffer {
         Self {
             id,
             path,
-            content,
             file_status,
             buffer_kind,
             absolute_path,
             is_dirty: false,
+            content: TextObject::new(content),
         }
     }
 
-    pub fn content(&self) -> &str {
+    pub fn content(&self) -> &TextObject {
         &self.content
     }
 }
 
-#[derive(Debug, Hash, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Hash, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BufferId(u64);
 
 impl BufferId {
@@ -89,7 +90,7 @@ impl From<u8> for BufferId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct BufferManager {
     next_buffer_id: BufferId,
     pub(crate) buffers: BTreeMap<BufferId, Buffer>,

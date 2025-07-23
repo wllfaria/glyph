@@ -40,13 +40,19 @@ impl From<u8> for ViewId {
     }
 }
 
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Cursor {
+    pub x: usize,
+    pub y: usize,
+    pub virtual_x: usize,
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct View {
     pub id: ViewId,
     pub buffer_id: BufferId,
     pub scroll_offset: Point,
-    // TODO: probably want to make a Cursor struct
-    pub cursors: Vec<Point>,
+    pub cursors: Vec<Cursor>,
 }
 
 impl View {
@@ -55,7 +61,7 @@ impl View {
             id,
             buffer_id,
             scroll_offset: Point::default(),
-            cursors: vec![Point::default()],
+            cursors: vec![Cursor::default()],
         }
     }
 }
