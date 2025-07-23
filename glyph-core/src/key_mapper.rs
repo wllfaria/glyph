@@ -33,12 +33,21 @@ pub enum Command {
     MoveCursorDown,
     MoveCursorUp,
     MoveCursorRight,
+    MoveCursorLineStart,
+    MoveCursorLineEnd,
+    DeleteWholeLine,
     Quit,
 }
 
 pub struct ResolvedKeymap {
     pub commands: Vec<Command>,
     pub mode: Option<EditorMode>,
+}
+
+impl ResolvedKeymap {
+    pub fn new(commands: Vec<Command>, mode: Option<EditorMode>) -> Self {
+        Self { commands, mode }
+    }
 }
 
 pub trait Keymapper: Debug {

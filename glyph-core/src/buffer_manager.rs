@@ -51,6 +51,10 @@ impl Buffer {
     pub fn content(&self) -> &TextObject {
         &self.content
     }
+
+    pub fn content_mut(&mut self) -> &mut TextObject {
+        &mut self.content
+    }
 }
 
 #[derive(Debug, Default, Hash, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

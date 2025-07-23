@@ -3,6 +3,7 @@
 pub mod buffer_manager;
 pub mod command_handler;
 pub mod config;
+pub mod cursor;
 pub mod error;
 pub mod event_loop;
 pub mod geometry;

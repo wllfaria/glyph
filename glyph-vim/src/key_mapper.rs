@@ -61,6 +61,7 @@ impl Keymapper for VimKeymapper {
         // or the user presses another key.
         if query.continues {
             self.buffered_key.push_str(&key_str);
+            return None;
         }
 
         let Some(keymap) = query.value else {
@@ -69,6 +70,7 @@ impl Keymapper for VimKeymapper {
         };
 
         if keymap.mode != self.editor_mode {
+            self.buffered_key.clear();
             return None;
         }
 
@@ -83,36 +85,44 @@ impl Keymapper for VimKeymapper {
             }
         }
 
-        Some(ResolvedKeymap {
+        self.buffered_key.clear();
+
+        Some(ResolvedKeymap::new(
             commands,
-            mode: Some(EditorMode::Vim(self.editor_mode)),
-        })
+            Some(EditorMode::Vim(self.editor_mode)),
+        ))
     }
 }
 
 fn load_vim_keymaps() -> Trie<Keymap> {
     let mut keymaps = Trie::new();
 
-    let normal_mode = VimMode::Normal;
-    let insert_mode = VimMode::Insert;
+    let normal = VimMode::Normal;
+    let insert = VimMode::Insert;
 
     let move_cursor_left = CommandWrapper::General(Command::MoveCursorLeft);
     let move_cursor_down = CommandWrapper::General(Command::MoveCursorDown);
     let move_cursor_up = CommandWrapper::General(Command::MoveCursorUp);
     let move_cursor_right = CommandWrapper::General(Command::MoveCursorRight);
+    let move_cursor_to_line_start = CommandWrapper::General(Command::MoveCursorLineStart);
+    let move_cursor_to_line_end = CommandWrapper::General(Command::MoveCursorLineEnd);
+    let delete_line = CommandWrapper::General(Command::DeleteWholeLine);
     let quit = CommandWrapper::General(Command::Quit);
 
     let enter_insert_mode = CommandWrapper::Vim(VimCommand::InsertMode);
     let enter_normal_mode = CommandWrapper::Vim(VimCommand::NormalMode);
 
-    keymaps.insert("i", Keymap::new(normal_mode, vec![enter_insert_mode]));
-    keymaps.insert("q", Keymap::new(normal_mode, vec![quit]));
-    keymaps.insert("h", Keymap::new(normal_mode, vec![move_cursor_left]));
-    keymaps.insert("j", Keymap::new(normal_mode, vec![move_cursor_down]));
-    keymaps.insert("k", Keymap::new(normal_mode, vec![move_cursor_up]));
-    keymaps.insert("l", Keymap::new(normal_mode, vec![move_cursor_right]));
+    keymaps.insert("i", Keymap::new(normal, vec![enter_insert_mode]));
+    keymaps.insert("q", Keymap::new(normal, vec![quit]));
+    keymaps.insert("h", Keymap::new(normal, vec![move_cursor_left]));
+    keymaps.insert("j", Keymap::new(normal, vec![move_cursor_down]));
+    keymaps.insert("k", Keymap::new(normal, vec![move_cursor_up]));
+    keymaps.insert("l", Keymap::new(normal, vec![move_cursor_right]));
+    keymaps.insert("0", Keymap::new(normal, vec![move_cursor_to_line_start]));
+    keymaps.insert("$", Keymap::new(normal, vec![move_cursor_to_line_end]));
+    keymaps.insert("dd", Keymap::new(normal, vec![delete_line]));
 
-    keymaps.insert("<esc>", Keymap::new(insert_mode, vec![enter_normal_mode]));
+    keymaps.insert("<esc>", Keymap::new(insert, vec![enter_normal_mode]));
 
     keymaps
 }

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::buffer_manager::BufferId;
+use crate::cursor::Cursor;
 use crate::geometry::{Point, Rect, Size};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -38,13 +39,6 @@ impl From<u8> for ViewId {
     fn from(id: u8) -> Self {
         Self(id as u64)
     }
-}
-
-#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Cursor {
-    pub x: usize,
-    pub y: usize,
-    pub virtual_x: usize,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]

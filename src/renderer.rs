@@ -5,7 +5,7 @@ use crossterm::{cursor, queue};
 use glyph_core::geometry::{Point, Rect, Size};
 use glyph_core::renderer::error::{RendererError, Result};
 use glyph_core::renderer::{RenderContext, Renderer};
-use glyph_core::view_manager::LayoutTreeNode;
+use glyph_core::view_manager::{LayoutTreeNode, LeafView};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Style {
@@ -24,6 +24,62 @@ impl Default for Style {
             bold: false,
             italic: false,
             underline: false,
+        }
+    }
+}
+
+impl Style {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_fg(self, fg: Color) -> Self {
+        Self {
+            fg,
+            bg: self.bg,
+            bold: self.bold,
+            italic: self.italic,
+            underline: self.underline,
+        }
+    }
+
+    pub fn with_bg(self, bg: Color) -> Self {
+        Self {
+            fg: self.fg,
+            bg,
+            bold: self.bold,
+            italic: self.italic,
+            underline: self.underline,
+        }
+    }
+
+    pub fn bold(self) -> Self {
+        Self {
+            fg: self.fg,
+            bg: self.bg,
+            bold: true,
+            italic: self.italic,
+            underline: self.underline,
+        }
+    }
+
+    pub fn italic(self) -> Self {
+        Self {
+            fg: self.fg,
+            bg: self.bg,
+            bold: self.bold,
+            italic: true,
+            underline: self.underline,
+        }
+    }
+
+    pub fn underline(self) -> Self {
+        Self {
+            fg: self.fg,
+            bg: self.bg,
+            bold: self.bold,
+            italic: self.italic,
+            underline: true,
         }
     }
 }
@@ -111,30 +167,25 @@ impl CrosstermRenderer {
         }
     }
 
-    fn render_leaf_view(
-        &mut self,
-        ctx: &RenderContext<'_>,
-        leaf: &glyph_core::view_manager::LeafView,
-        rect: Rect,
-    ) {
+    fn render_leaf_view(&mut self, ctx: &RenderContext<'_>, leaf: &LeafView, rect: Rect) {
         let cell_buffer = &mut self.buffers[0];
         let visible_views = ctx.views.get_visible();
         let view = visible_views.iter().find(|v| v.id == leaf.view_id).unwrap();
         let buffer = ctx.buffers.iter().find(|b| b.id == view.buffer_id).unwrap();
+        let content = buffer.content();
 
-        for (y, line) in buffer
-            .content()
-            .lines()
-            .skip(view.scroll_offset.y as usize)
-            .take(rect.height as usize)
-            .enumerate()
-        {
-            for (x, char) in line
-                .chars()
-                .skip(view.scroll_offset.x as usize)
-                .take(rect.width as usize)
-                .enumerate()
-            {
+        for y in 0..leaf.rect.height as usize {
+            let line = content.get_line(y + view.scroll_offset.y as usize);
+
+            for x in 0..leaf.rect.width as usize {
+                let char = line.and_then(|line| line.get_char(x)).unwrap_or(' ');
+                let char = match char {
+                    '\n' => ' ',
+                    '\t' => ' ',
+                    '\r' => ' ',
+                    _ => char,
+                };
+
                 let cell = Cell::new(char, Style::default());
                 let screen_x = rect.x + leaf.rect.x + x as u16;
                 let screen_y = rect.y + leaf.rect.y + y as u16;
