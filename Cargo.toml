@@ -1,12 +1,18 @@
 [workspace]
 resolver = "2"
-members = ["glyph-core", "glyph-config", "glyph-trie"]
+members = [
+    "glyph-core",
+    "glyph-config",
+    "glyph-trie",
+    "glyph-vim",
+]
 
 [workspace.dependencies]
 # Internal dependencies
 glyph-core = { path = "glyph-core" }
 glyph-config = { path = "glyph-config" }
 glyph-trie = { path = "glyph-trie" }
+glyph-vim = { path = "glyph-vim" }
 
 # External dependencies
 thiserror = "2.0.12"
@@ -31,6 +37,7 @@ repository.workspace = true
 [dependencies]
 glyph-core.workspace = true
 glyph-config.workspace = true
+glyph-vim.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 crossterm = "0.29.0"

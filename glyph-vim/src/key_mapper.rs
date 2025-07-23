@@ -1,14 +1,6 @@
+use glyph_core::event_loop::Event;
+use glyph_core::key_mapper::{Command, EditorMode, Keymapper, ResolvedKeymap, VimMode};
 use glyph_trie::Trie;
-
-use crate::event_loop::event::{Event, KeyCode};
-use crate::key_mapper::{Command, Keymapper};
-
-#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
-pub enum EditorMode {
-    #[default]
-    Normal,
-    Insert,
-}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 enum CommandWrapper {
@@ -24,12 +16,12 @@ pub enum VimCommand {
 
 #[derive(Debug)]
 pub struct Keymap {
-    mode: EditorMode,
+    mode: VimMode,
     commands: Vec<CommandWrapper>,
 }
 
 impl Keymap {
-    fn new(mode: EditorMode, commands: Vec<CommandWrapper>) -> Self {
+    fn new(mode: VimMode, commands: Vec<CommandWrapper>) -> Self {
         Self { mode, commands }
     }
 }
@@ -38,7 +30,7 @@ impl Keymap {
 pub struct VimKeymapper {
     buffered_key: String,
     keymaps: Trie<Keymap>,
-    editor_mode: EditorMode,
+    editor_mode: VimMode,
 }
 
 impl VimKeymapper {
@@ -48,13 +40,13 @@ impl VimKeymapper {
         Self {
             keymaps,
             buffered_key: String::new(),
-            editor_mode: EditorMode::Normal,
+            editor_mode: VimMode::Normal,
         }
     }
 }
 
 impl Keymapper for VimKeymapper {
-    fn parse_event(&mut self, event: Option<Event>) -> Option<Vec<Command>> {
+    fn parse_event(&mut self, event: Option<Event>) -> Option<ResolvedKeymap> {
         let Event::Key(key) = event?;
         let key_str = key.to_string();
 
@@ -85,21 +77,24 @@ impl Keymapper for VimKeymapper {
             match command {
                 CommandWrapper::General(command) => commands.push(command.clone()),
                 CommandWrapper::Vim(command) => match command {
-                    VimCommand::InsertMode => self.editor_mode = EditorMode::Insert,
-                    VimCommand::NormalMode => self.editor_mode = EditorMode::Normal,
+                    VimCommand::InsertMode => self.editor_mode = VimMode::Insert,
+                    VimCommand::NormalMode => self.editor_mode = VimMode::Normal,
                 },
             }
         }
 
-        Some(commands)
+        Some(ResolvedKeymap {
+            commands,
+            mode: Some(EditorMode::Vim(self.editor_mode)),
+        })
     }
 }
 
 fn load_vim_keymaps() -> Trie<Keymap> {
     let mut keymaps = Trie::new();
 
-    let normal_mode = EditorMode::Normal;
-    let insert_mode = EditorMode::Insert;
+    let normal_mode = VimMode::Normal;
+    let insert_mode = VimMode::Insert;
 
     let move_cursor_left = CommandWrapper::General(Command::MoveCursorLeft);
     let move_cursor_down = CommandWrapper::General(Command::MoveCursorDown);

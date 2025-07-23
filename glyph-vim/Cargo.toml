@@ -1,5 +1,5 @@
 [package]
-name = "glyph-core"
+name = "glyph-vim"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -7,10 +7,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+glyph-core.workspace = true
 glyph-trie.workspace = true
-thiserror.workspace = true
 tracing.workspace = true
-
-bitflags = "2.9.1"
-clap = { version = "4.5.41", features = ["derive"] }
-ropey = { version = "1.6.1" }

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::ops::{Index, IndexMut};
 
 pub type SlotKey = usize;
@@ -24,10 +26,6 @@ impl<T> Default for Slab<T> {
 }
 
 impl<T> Slab<T> {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn insert(&mut self, value: T) -> SlotKey {
         let mut item = SlotStatus::Occupied(value);
 
@@ -136,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_insert() {
-        let mut slab = Slab::new();
+        let mut slab = Slab::default();
         let a = slab.insert(1);
         let b = slab.insert(2);
         let c = slab.insert(3);
@@ -148,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let mut slab = Slab::new();
+        let mut slab = Slab::default();
         let a = slab.insert(1);
         let b = slab.insert(2);
         let c = slab.insert(3);
@@ -181,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_add_take_empty_slots() {
-        let mut slab = Slab::new();
+        let mut slab = Slab::default();
         slab.insert(1);
         let b = slab.insert(2);
         slab.insert(3);

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-mod buffer_manager;
-mod command_handler;
+pub mod buffer_manager;
+pub mod command_handler;
 pub mod config;
 pub mod error;
 pub mod event_loop;
@@ -9,21 +9,26 @@ pub mod geometry;
 pub mod key_mapper;
 pub mod renderer;
 pub mod startup_options;
+pub mod text_object;
 pub mod view_manager;
 
 use std::fmt::Debug;
 
-use command_handler::buffer_command_handler::BufferCommandHandler;
 use command_handler::{CommandContext, CommandHandler, CommandHandlerChain};
 
 use crate::buffer_manager::{BufferId, BufferManager};
 use crate::config::Config;
 use crate::error::Result;
 use crate::event_loop::EventLoop;
-use crate::key_mapper::{Keymapper, KeymapperKind};
+use crate::key_mapper::Keymapper;
 use crate::renderer::{RenderContext, Renderer};
 use crate::startup_options::StartupOptions;
 use crate::view_manager::ViewManager;
+
+pub enum EditorKind {
+    Modal,
+    NonModal,
+}
 
 #[derive(Debug)]
 pub struct Glyph<E, R>
@@ -33,12 +38,12 @@ where
 {
     renderer: R,
     event_loop: E,
-    key_mapper: KeymapperKind,
+    config: Config,
+    should_quit: bool,
     views: ViewManager,
     buffers: BufferManager,
-    config: Config,
-    command_handler: CommandHandlerChain,
-    should_quit: bool,
+    key_mapper: Box<dyn Keymapper>,
+    command_handler_chain: CommandHandlerChain,
 }
 
 impl<E, R> Glyph<E, R>
@@ -50,10 +55,10 @@ where
         config: Config,
         event_loop: E,
         renderer: R,
-        key_mapper: impl Into<KeymapperKind>,
+        key_mapper: Box<dyn Keymapper>,
+        command_handler: Box<dyn CommandHandler>,
         options: StartupOptions,
     ) -> Result<Self> {
-        let key_mapper = key_mapper.into();
         let mut buffers = BufferManager::new();
         let size = renderer.get_size()?;
 
@@ -72,8 +77,8 @@ where
         // directory view.
         let views = ViewManager::new(BufferId::new(0), size);
 
-        let mut command_handler = CommandHandlerChain::default();
-        command_handler.add_handler(BufferCommandHandler::default());
+        let mut command_handler_chain = CommandHandlerChain::default();
+        command_handler_chain.add_handler(command_handler);
 
         Ok(Self {
             views,
@@ -82,8 +87,8 @@ where
             renderer,
             event_loop,
             key_mapper,
-            command_handler,
             should_quit: false,
+            command_handler_chain,
         })
     }
 
@@ -93,13 +98,14 @@ where
         while !self.should_quit {
             let event = self.event_loop.maybe_event()?;
 
-            if let Some(commands) = self.key_mapper.parse_event(event) {
-                self.command_handler.handle_commands(&mut CommandContext {
-                    commands: &commands,
-                    buffers: &mut self.buffers.buffers,
-                    views: &mut self.views,
-                    should_quit: &mut self.should_quit,
-                });
+            if let Some(resolved_keymap) = self.key_mapper.parse_event(event) {
+                self.command_handler_chain
+                    .handle_commands(&mut CommandContext {
+                        resolved_keymap: &resolved_keymap,
+                        buffers: &mut self.buffers.buffers,
+                        views: &mut self.views,
+                        should_quit: &mut self.should_quit,
+                    });
             }
 
             self.render_step()?;
