@@ -35,6 +35,7 @@ pub enum Command {
     MoveCursorRight,
     MoveCursorLineStart,
     MoveCursorLineEnd,
+    MoveToMatchingPair,
     DeleteWholeLine,
     MoveToTop,
     MoveToBottom,

@@ -13,6 +13,19 @@ impl Cursor {
         self.virtual_x = self.x;
     }
 
+    pub fn move_to(&mut self, buffer: &Buffer, x: usize, y: usize) {
+        let content = buffer.content();
+        let total_lines = content.len_lines();
+        assert!(y < total_lines);
+
+        let line_len = content.line_len(y);
+        assert!(x < line_len);
+
+        self.x = x;
+        self.y = y;
+        self.virtual_x = self.x;
+    }
+
     pub fn move_down_by(&mut self, buffer: &Buffer, amount: usize) {
         let content = buffer.content();
         let total_lines = content.len_lines();

@@ -111,6 +111,7 @@ fn load_vim_keymaps() -> Trie<Keymap> {
     let move_to_bottom = CommandWrapper::General(Command::MoveToBottom);
     let page_up = CommandWrapper::General(Command::PageUp);
     let page_down = CommandWrapper::General(Command::PageDown);
+    let move_to_matching_pair = CommandWrapper::General(Command::MoveToMatchingPair);
     let quit = CommandWrapper::General(Command::Quit);
 
     let enter_insert_mode = CommandWrapper::Vim(VimCommand::InsertMode);
@@ -125,6 +126,7 @@ fn load_vim_keymaps() -> Trie<Keymap> {
     keymaps.insert("$", Keymap::new(normal, vec![move_cursor_to_line_end]));
     keymaps.insert("gg", Keymap::new(normal, vec![move_to_top]));
     keymaps.insert("G", Keymap::new(normal, vec![move_to_bottom]));
+    keymaps.insert("%", Keymap::new(normal, vec![move_to_matching_pair]));
 
     keymaps.insert("i", Keymap::new(normal, vec![enter_insert_mode]));
     keymaps.insert("q", Keymap::new(normal, vec![quit]));

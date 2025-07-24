@@ -1,9 +1,46 @@
 use ropey::iter::Lines;
 use ropey::{Rope, RopeSlice};
 
+use crate::geometry::Point;
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TextObject {
     inner: Rope,
+}
+
+const OPENING_PAIRS: &[char] = &['(', '{', '[', '<'];
+const CLOSING_PAIRS: &[char] = &[')', '}', ']', '>'];
+
+fn is_pairable_character(char: &char) -> bool {
+    OPENING_PAIRS.contains(char) || CLOSING_PAIRS.contains(char)
+}
+
+fn is_matching_pair(needle: char, char: char) -> bool {
+    match (needle, char) {
+        ('(', ')') => true,
+        ('{', '}') => true,
+        ('[', ']') => true,
+        ('<', '>') => true,
+        (')', '(') => true,
+        ('}', '{') => true,
+        (']', '[') => true,
+        ('>', '<') => true,
+        _ => false,
+    }
+}
+
+fn find_pair_search_direction(char: char) -> SearchDirection {
+    if OPENING_PAIRS.contains(&char) {
+        return SearchDirection::Forward;
+    }
+
+    SearchDirection::Backward
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum SearchDirection {
+    Forward,
+    Backward,
 }
 
 impl TextObject {
@@ -41,5 +78,100 @@ impl TextObject {
         let line_start = self.inner.line_to_char(line);
         let line_end = self.inner.line_to_char(line + 1);
         self.inner.remove(line_start.saturating_sub(1)..line_end);
+    }
+
+    pub fn find_matching_pair(&self, point: Point<usize>) -> Point<usize> {
+        let line = self.line(point.y);
+        assert!(point.x < line.len_chars());
+
+        let Some((start_offset, pair_to_match)) = line
+            .chars_at(point.x)
+            .enumerate()
+            .find(|(_, ch)| is_pairable_character(ch))
+        else {
+            return point;
+        };
+
+        let search_direction = find_pair_search_direction(pair_to_match);
+        let search_start_char = self.inner.line_to_char(point.y) + point.x + start_offset;
+        let mut open_pairs = 0;
+
+        match search_direction {
+            SearchDirection::Forward => {
+                for (idx, ch) in self.inner.chars_at(search_start_char).enumerate() {
+                    if ch == pair_to_match {
+                        open_pairs += 1;
+                    }
+
+                    if is_matching_pair(pair_to_match, ch) {
+                        open_pairs -= 1;
+                    }
+
+                    if open_pairs == 0 {
+                        let pair_char_idx = search_start_char + idx;
+                        let pair_line_idx = self.inner.char_to_line(pair_char_idx);
+                        let pair_line_start_char = self.inner.line_to_char(pair_line_idx);
+                        let pair_line_col = pair_char_idx - pair_line_start_char;
+                        return Point::new(pair_line_col, pair_line_idx);
+                    }
+                }
+            }
+            SearchDirection::Backward => {
+                for idx in (0..=search_start_char).rev() {
+                    let ch = self.inner.char(idx);
+
+                    if ch == pair_to_match {
+                        open_pairs += 1;
+                    }
+
+                    if is_matching_pair(pair_to_match, ch) {
+                        open_pairs -= 1;
+                    }
+
+                    if open_pairs == 0 {
+                        let pair_line_idx = self.inner.char_to_line(idx);
+                        let pair_line_start_char = self.inner.line_to_char(pair_line_idx);
+                        let pair_line_col = idx - pair_line_start_char;
+                        return Point::new(pair_line_col, pair_line_idx);
+                    }
+                }
+            }
+        }
+
+        point
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_pair() {
+        let code_sample = [
+            "let (a, (b, c, d)) = match foo {",
+            "    Ok(result) => result",
+            "    Err(e) => unreachable!()",
+            "}",
+        ]
+        .join("\n");
+
+        let text_object = TextObject::new(code_sample);
+
+        // matching on forward pair
+        let pair_position = text_object.find_matching_pair(Point::new(0, 0));
+        assert_eq!(pair_position, Point::new(17, 0));
+
+        // matching on forward pair multiline
+        let pair_position = text_object.find_matching_pair(Point::new(23, 0));
+        assert_eq!(pair_position, Point::new(0, 3));
+
+        // matching on backward pair
+        let pair_position = text_object.find_matching_pair(Point::new(12, 0));
+        assert_eq!(pair_position, Point::new(8, 0));
+
+        // matching on backward pair multiline
+        let pair_position = text_object.find_matching_pair(Point::new(0, 3));
+        assert_eq!(pair_position, Point::new(31, 0));
     }
 }

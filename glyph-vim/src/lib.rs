@@ -3,6 +3,7 @@ mod key_mapper;
 use glyph_core::buffer_manager::Buffer;
 use glyph_core::command_handler::{CommandContext, CommandHandler, CommandHandlerResult};
 use glyph_core::cursor::Cursor;
+use glyph_core::geometry::Point;
 use glyph_core::key_mapper::{Command, VimMode};
 
 pub use crate::key_mapper::VimKeymapper;
@@ -31,6 +32,7 @@ impl CommandHandler for VimBufferCommandHandler {
                 Command::MoveToBottom => move_to_bottom(ctx, mode),
                 Command::PageUp => page_up(ctx, mode),
                 Command::PageDown => page_down(ctx, mode),
+                Command::MoveToMatchingPair => move_to_matching_pair(ctx, mode),
 
                 // TODO: this should be temporary
                 Command::Quit => *ctx.should_quit = true,
@@ -202,6 +204,22 @@ fn page_down(ctx: &mut CommandContext<'_>, mode: VimMode) {
 
     let half_page = layout.rect.height / 2;
     cursor.move_down_by(buffer, half_page as usize);
+    adjust_cursor_after_vertical_move(cursor, buffer, mode);
+}
+
+fn move_to_matching_pair(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let matching_pair = buffer
+        .content()
+        .find_matching_pair(Point::new(cursor.x, cursor.y));
+
+    cursor.move_to(buffer, matching_pair.x, matching_pair.y);
     adjust_cursor_after_vertical_move(cursor, buffer, mode);
 }
 
