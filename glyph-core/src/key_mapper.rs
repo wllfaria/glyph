@@ -33,6 +33,13 @@ pub enum Command {
     MoveCursorDown,
     MoveCursorUp,
     MoveCursorRight,
+    MoveCursorLineStart,
+    MoveCursorLineEnd,
+    DeleteWholeLine,
+    MoveToTop,
+    MoveToBottom,
+    PageUp,
+    PageDown,
     Quit,
 }
 

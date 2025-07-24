@@ -2,8 +2,8 @@ mod key_mapper;
 
 use glyph_core::buffer_manager::Buffer;
 use glyph_core::command_handler::{CommandContext, CommandHandler, CommandHandlerResult};
+use glyph_core::cursor::Cursor;
 use glyph_core::key_mapper::{Command, VimMode};
-use glyph_core::view_manager::Cursor;
 
 pub use crate::key_mapper::VimKeymapper;
 
@@ -12,13 +12,6 @@ pub struct VimBufferCommandHandler;
 
 impl CommandHandler for VimBufferCommandHandler {
     fn handle_commands(&mut self, ctx: &mut CommandContext<'_>) -> CommandHandlerResult {
-        let view = ctx.views.get_mut_active_view();
-        let cursor = view.cursors.first_mut().unwrap();
-        let buffer = ctx
-            .buffers
-            .get_mut(&view.buffer_id)
-            .expect("view references non-existing buffer");
-
         let mode = ctx
             .resolved_keymap
             .mode
@@ -27,43 +20,74 @@ impl CommandHandler for VimBufferCommandHandler {
 
         for command in ctx.resolved_keymap.commands.iter() {
             match command {
-                Command::MoveCursorLeft => move_cursor_left(cursor),
-                Command::MoveCursorDown => move_cursor_down(cursor, buffer, mode),
-                Command::MoveCursorUp => move_cursor_up(cursor, buffer, mode),
-                Command::MoveCursorRight => move_cursor_right(cursor, buffer, mode),
+                Command::MoveCursorLeft => move_cursor_left(ctx),
+                Command::MoveCursorDown => move_cursor_down(ctx, mode),
+                Command::MoveCursorUp => move_cursor_up(ctx, mode),
+                Command::MoveCursorRight => move_cursor_right(ctx, mode),
+                Command::MoveCursorLineStart => move_cursor_to_line_start(ctx),
+                Command::MoveCursorLineEnd => move_cursor_to_line_end(ctx, mode),
+                Command::DeleteWholeLine => delete_whole_line(ctx, mode),
+                Command::MoveToTop => move_to_top(ctx, mode),
+                Command::MoveToBottom => move_to_bottom(ctx, mode),
+                Command::PageUp => page_up(ctx, mode),
+                Command::PageDown => page_down(ctx, mode),
 
                 // TODO: this should be temporary
                 Command::Quit => *ctx.should_quit = true,
             }
         }
 
+        scroll_view_to_cursor(ctx);
+
         CommandHandlerResult::Consumed
     }
 }
 
-fn move_cursor_left(cursor: &mut Cursor) {
-    cursor.x = cursor.x.saturating_sub(1);
-    cursor.virtual_x = cursor.x;
+fn move_cursor_left(ctx: &mut CommandContext<'_>) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    cursor.move_left_by(1);
 }
 
-fn move_cursor_down(cursor: &mut Cursor, buffer: &Buffer, mode: VimMode) {
-    let content = buffer.content();
-    let total_lines = content.len_lines();
-    cursor.y = usize::min(cursor.y + 1, total_lines.saturating_sub(1));
+fn move_cursor_down(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    cursor.move_down_by(buffer, 1);
     adjust_cursor_after_vertical_move(cursor, buffer, mode);
 }
 
-fn move_cursor_up(cursor: &mut Cursor, buffer: &Buffer, mode: VimMode) {
-    cursor.y = cursor.y.saturating_sub(1);
+fn move_cursor_up(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    cursor.move_up_by(1);
     adjust_cursor_after_vertical_move(cursor, buffer, mode);
 }
 
-fn move_cursor_right(cursor: &mut Cursor, buffer: &Buffer, mode: VimMode) {
-    let content = buffer.content();
-    let line_len = content.line_len(cursor.y);
-    let last_char = content.line(cursor.y).chars().last().unwrap_or_default();
+fn move_cursor_right(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let last_char = buffer
+        .content()
+        .line(cursor.y)
+        .chars()
+        .last()
+        .unwrap_or_default();
     let has_newline = matches!(last_char, '\n');
-
     let offset_from_eol = match mode {
         VimMode::Normal if has_newline => 2,
         VimMode::Normal => 1,
@@ -71,9 +95,114 @@ fn move_cursor_right(cursor: &mut Cursor, buffer: &Buffer, mode: VimMode) {
         VimMode::Visual => 0,
     };
 
-    let max_x = line_len.saturating_sub(offset_from_eol);
-    cursor.x = usize::min(cursor.x.saturating_add(1), max_x);
-    cursor.virtual_x = cursor.x;
+    cursor.move_right_by_with_offset(buffer, 1, offset_from_eol);
+}
+
+fn move_cursor_to_line_start(ctx: &mut CommandContext<'_>) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    cursor.move_to_line_start();
+}
+
+fn move_cursor_to_line_end(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let last_char = buffer
+        .content()
+        .line(cursor.y)
+        .chars()
+        .last()
+        .unwrap_or_default();
+
+    let has_newline = matches!(last_char, '\n');
+    let offset_from_eol = match mode {
+        VimMode::Normal if has_newline => 2,
+        VimMode::Normal => 1,
+        VimMode::Insert => 0,
+        VimMode::Visual => 0,
+    };
+
+    cursor.move_to_line_end_with_offset(buffer, offset_from_eol);
+}
+
+fn delete_whole_line(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let content = buffer.content_mut();
+
+    let len_lines = content.len_lines();
+    let is_last_line = cursor.y == len_lines.saturating_sub(1);
+    content.delete_whole_line(cursor.y);
+
+    // When deleting the last line of text, the cursor should move to the line above to not be
+    // out-of-bounds from the text buffer
+    if is_last_line {
+        move_cursor_up(ctx, mode);
+    }
+}
+
+fn move_to_top(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    cursor.move_up_by(usize::MAX);
+    adjust_cursor_after_vertical_move(cursor, buffer, mode);
+}
+
+fn move_to_bottom(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    cursor.move_down_by(buffer, usize::MAX);
+    adjust_cursor_after_vertical_move(cursor, buffer, mode);
+}
+
+fn page_up(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view_id = ctx.views.get_active_view_id();
+    let layout = ctx.views.get_layout_for_view(view_id);
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let half_page = layout.rect.height / 2;
+    cursor.move_up_by(half_page as usize);
+    adjust_cursor_after_vertical_move(cursor, buffer, mode);
+}
+
+fn page_down(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view_id = ctx.views.get_active_view_id();
+    let layout = ctx.views.get_layout_for_view(view_id);
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let half_page = layout.rect.height / 2;
+    cursor.move_down_by(buffer, half_page as usize);
+    adjust_cursor_after_vertical_move(cursor, buffer, mode);
 }
 
 fn adjust_cursor_after_vertical_move(cursor: &mut Cursor, buffer: &Buffer, mode: VimMode) {
@@ -90,8 +219,7 @@ fn adjust_cursor_after_vertical_move(cursor: &mut Cursor, buffer: &Buffer, mode:
     };
 
     let max_x = line_len.saturating_sub(offset_from_eol);
-
-    if cursor.x >= line_len && cursor.x >= cursor.virtual_x {
+    if cursor.x >= max_x && cursor.x >= cursor.virtual_x {
         cursor.virtual_x = cursor.x;
         cursor.x = max_x;
         return;
@@ -99,5 +227,33 @@ fn adjust_cursor_after_vertical_move(cursor: &mut Cursor, buffer: &Buffer, mode:
 
     if cursor.x < cursor.virtual_x {
         cursor.x = usize::min(cursor.virtual_x, max_x);
+    }
+}
+
+fn scroll_view_to_cursor(ctx: &mut CommandContext<'_>) {
+    let active_view_id = ctx.views.get_active_view_id();
+    let layout = ctx.views.get_layout_for_view(active_view_id);
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+
+    let view_height = layout.rect.height as usize;
+    let view_width = layout.rect.width as usize;
+
+    if cursor.y.saturating_sub(view.scroll_offset.y) > view_height - 1 {
+        view.scroll_offset.y = cursor.y - (view_height - 1)
+    }
+
+    if cursor.y.saturating_sub(view.scroll_offset.y) == 0 {
+        let vertical_offset = view.scroll_offset.y.saturating_sub(cursor.y);
+        view.scroll_offset.y = view.scroll_offset.y.saturating_sub(vertical_offset);
+    }
+
+    if cursor.x.saturating_sub(view.scroll_offset.x) == 0 {
+        let horizontal_offset = view.scroll_offset.x.saturating_sub(cursor.x);
+        view.scroll_offset.x = view.scroll_offset.x.saturating_sub(horizontal_offset);
+    }
+
+    if cursor.x.saturating_sub(view.scroll_offset.x) > view_width - 1 {
+        view.scroll_offset.x = cursor.x - (view_width - 1);
     }
 }

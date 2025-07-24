@@ -13,6 +13,10 @@ impl TextObject {
         }
     }
 
+    pub fn get_line(&self, line_idx: usize) -> Option<RopeSlice<'_>> {
+        self.inner.get_line(line_idx)
+    }
+
     pub fn line(&self, line_idx: usize) -> RopeSlice<'_> {
         assert!(line_idx < self.len_lines());
         self.inner.line(line_idx)
@@ -28,5 +32,14 @@ impl TextObject {
 
     pub fn lines(&self) -> Lines<'_> {
         self.inner.lines()
+    }
+
+    pub fn delete_whole_line(&mut self, line: usize) {
+        let len_lines = self.len_lines();
+        assert!(line < len_lines);
+
+        let line_start = self.inner.line_to_char(line);
+        let line_end = self.inner.line_to_char(line + 1);
+        self.inner.remove(line_start.saturating_sub(1)..line_end);
     }
 }

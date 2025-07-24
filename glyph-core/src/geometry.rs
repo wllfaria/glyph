@@ -89,25 +89,19 @@ impl From<Size> for Rect {
 }
 
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct Point {
-    pub x: u16,
-    pub y: u16,
+pub struct Point<T: Default> {
+    pub x: T,
+    pub y: T,
 }
 
-impl Point {
-    pub fn new(x: u16, y: u16) -> Self {
+impl<T: Default> Point<T> {
+    pub fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
 }
 
-impl From<(u16, u16)> for Point {
-    fn from((x, y): (u16, u16)) -> Self {
+impl<T: Default> From<(T, T)> for Point<T> {
+    fn from((x, y): (T, T)) -> Self {
         Self::new(x, y)
-    }
-}
-
-impl From<(u8, u8)> for Point {
-    fn from((x, y): (u8, u8)) -> Self {
-        Self::new(x as u16, y as u16)
     }
 }

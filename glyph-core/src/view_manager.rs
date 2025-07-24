@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
 use crate::buffer_manager::BufferId;
+use crate::cursor::Cursor;
 use crate::geometry::{Point, Rect, Size};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ViewId(u64);
 
 impl ViewId {
@@ -40,18 +41,11 @@ impl From<u8> for ViewId {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Cursor {
-    pub x: usize,
-    pub y: usize,
-    pub virtual_x: usize,
-}
-
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct View {
     pub id: ViewId,
     pub buffer_id: BufferId,
-    pub scroll_offset: Point,
+    pub scroll_offset: Point<usize>,
     pub cursors: Vec<Cursor>,
 }
 
@@ -66,7 +60,7 @@ impl View {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct LeafView {
     pub view_id: ViewId,
     pub rect: Rect,
@@ -146,6 +140,26 @@ pub struct ViewManager {
     pub(crate) active_view: ViewId,
 }
 
+#[derive(Debug)]
+struct LayoutFinder {
+    needle: ViewId,
+    leaf: LeafView,
+}
+
+impl LayoutFinder {
+    pub fn new(needle: ViewId, leaf: LeafView) -> Self {
+        Self { needle, leaf }
+    }
+}
+
+impl LayoutTreeVisitor for LayoutFinder {
+    fn visit_leaf(&mut self, leaf: &LeafView) {
+        if leaf.view_id == self.needle {
+            self.leaf = *leaf;
+        }
+    }
+}
+
 impl ViewManager {
     pub fn new(initial_buffer: BufferId, size: impl Into<Size>) -> Self {
         let size = size.into();
@@ -176,6 +190,10 @@ impl ViewManager {
             .collect()
     }
 
+    pub fn get_active_view_id(&self) -> ViewId {
+        self.active_view
+    }
+
     pub fn get_active_view(&self) -> &View {
         self.views
             .get(&self.active_view)
@@ -186,5 +204,12 @@ impl ViewManager {
         self.views
             .get_mut(&self.active_view)
             .expect("editor must have at least one view")
+    }
+
+    pub fn get_layout_for_view(&self, view_id: ViewId) -> LeafView {
+        assert!(self.views.contains_key(&view_id));
+        let mut finder = LayoutFinder::new(view_id, LeafView::default());
+        self.layout.accept(&mut finder);
+        finder.leaf
     }
 }

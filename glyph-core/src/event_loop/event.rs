@@ -19,8 +19,33 @@ pub struct KeyEvent {
 
 impl std::fmt::Display for KeyEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut line = String::new();
+        let has_any_modifier_but_shift = !(self.modifiers & !KeyModifiers::SHIFT).is_empty();
+
+        if has_any_modifier_but_shift {
+            line.push('<');
+        }
+
+        if self.modifiers.contains(KeyModifiers::CONTROL) {
+            line.push_str("c-");
+        }
+
+        if self.modifiers.contains(KeyModifiers::ALT) {
+            line.push_str("a-");
+        }
+
+        if self.modifiers.contains(KeyModifiers::META) {
+            line.push_str("a-");
+        }
+
         match self.code {
-            KeyCode::Char(c) => write!(f, "{c}"),
+            KeyCode::Char(c) => {
+                line.push(c);
+                if has_any_modifier_but_shift {
+                    line.push('>');
+                }
+                write!(f, "{line}")
+            }
             KeyCode::Backspace => write!(f, "<bs>"),
             KeyCode::Enter => write!(f, "<cr>"),
             KeyCode::Left => write!(f, "<left>"),
