@@ -16,17 +16,17 @@ fn is_pairable_character(char: &char) -> bool {
 }
 
 fn is_matching_pair(needle: char, char: char) -> bool {
-    match (needle, char) {
-        ('(', ')') => true,
-        ('{', '}') => true,
-        ('[', ']') => true,
-        ('<', '>') => true,
-        (')', '(') => true,
-        ('}', '{') => true,
-        (']', '[') => true,
-        ('>', '<') => true,
-        _ => false,
-    }
+    matches!(
+        (needle, char),
+        ('(', ')')
+            | ('{', '}')
+            | ('[', ']')
+            | ('<', '>')
+            | (')', '(')
+            | ('}', '{')
+            | (']', '[')
+            | ('>', '<')
+    )
 }
 
 fn find_pair_search_direction(char: char) -> SearchDirection {
@@ -139,6 +139,50 @@ impl TextObject {
         }
 
         point
+    }
+
+    pub fn find_first_non_space_character(&self, line_idx: usize) -> Point<usize> {
+        let line = self.line(line_idx);
+        let first_non_space_char_idx = line.chars().position(|ch| !ch.is_whitespace()).unwrap_or(0);
+        Point::new(first_non_space_char_idx, line_idx)
+    }
+
+    pub fn find_last_non_space_character(&self, line_idx: usize) -> Point<usize> {
+        let line = self.line(line_idx);
+
+        let last_non_space_char_idx = (0..line.len_chars())
+            .rev()
+            .find(|&idx| !line.char(idx).is_whitespace())
+            .unwrap_or(0);
+
+        Point::new(last_non_space_char_idx, line_idx)
+    }
+
+    pub fn find_next_paragraph(&self, line_idx: usize) -> Point<usize> {
+        let is_on_last_line = line_idx == self.len_lines().saturating_sub(1);
+        if is_on_last_line {
+            let line_len = self.line(line_idx).len_chars().saturating_sub(1);
+            return Point::new(line_len, line_idx);
+        }
+
+        let line_idx = self
+            .inner
+            .lines_at(line_idx + 1)
+            .enumerate()
+            .find(|(_, line)| line.len_chars() == 1 && line.char(0) == '\n')
+            .map(|(idx, _)| line_idx + idx + 1)
+            .unwrap_or(self.len_lines().saturating_sub(1));
+
+        Point::new(0, line_idx)
+    }
+
+    pub fn find_prev_paragraph(&self, line_idx: usize) -> Point<usize> {
+        let line_idx = (0..line_idx)
+            .rev()
+            .find(|&idx| self.line(idx).len_chars() == 1 && self.line(idx).char(0) == '\n')
+            .unwrap_or(0);
+
+        Point::new(0, line_idx)
     }
 }
 

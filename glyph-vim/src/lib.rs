@@ -33,6 +33,10 @@ impl CommandHandler for VimBufferCommandHandler {
                 Command::PageUp => page_up(ctx, mode),
                 Command::PageDown => page_down(ctx, mode),
                 Command::MoveToMatchingPair => move_to_matching_pair(ctx, mode),
+                Command::MoveToFirstNonSpace => move_to_first_non_space(ctx),
+                Command::MoveToLastNonSpace => move_to_last_non_space(ctx),
+                Command::MoveToNextParagraph => move_to_next_paragraph(ctx),
+                Command::MoveToPrevParagraph => move_to_prev_paragraph(ctx),
 
                 // TODO: this should be temporary
                 Command::Quit => *ctx.should_quit = true,
@@ -205,6 +209,54 @@ fn page_down(ctx: &mut CommandContext<'_>, mode: VimMode) {
     let half_page = layout.rect.height / 2;
     cursor.move_down_by(buffer, half_page as usize);
     adjust_cursor_after_vertical_move(cursor, buffer, mode);
+}
+
+fn move_to_first_non_space(ctx: &mut CommandContext<'_>) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let position = buffer.content().find_first_non_space_character(cursor.y);
+    cursor.move_to(buffer, position.x, position.y);
+}
+
+fn move_to_last_non_space(ctx: &mut CommandContext<'_>) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let position = buffer.content().find_last_non_space_character(cursor.y);
+    cursor.move_to(buffer, position.x, position.y);
+}
+
+fn move_to_next_paragraph(ctx: &mut CommandContext<'_>) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let position = buffer.content().find_next_paragraph(cursor.y);
+    cursor.move_to(buffer, position.x, position.y);
+}
+
+fn move_to_prev_paragraph(ctx: &mut CommandContext<'_>) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let position = buffer.content().find_prev_paragraph(cursor.y);
+    cursor.move_to(buffer, position.x, position.y);
 }
 
 fn move_to_matching_pair(ctx: &mut CommandContext<'_>, mode: VimMode) {

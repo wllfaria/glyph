@@ -112,6 +112,10 @@ fn load_vim_keymaps() -> Trie<Keymap> {
     let page_up = CommandWrapper::General(Command::PageUp);
     let page_down = CommandWrapper::General(Command::PageDown);
     let move_to_matching_pair = CommandWrapper::General(Command::MoveToMatchingPair);
+    let move_to_first_non_space = CommandWrapper::General(Command::MoveToFirstNonSpace);
+    let move_to_last_non_space = CommandWrapper::General(Command::MoveToLastNonSpace);
+    let move_to_next_paragraph = CommandWrapper::General(Command::MoveToNextParagraph);
+    let move_to_prev_paragraph = CommandWrapper::General(Command::MoveToPrevParagraph);
     let quit = CommandWrapper::General(Command::Quit);
 
     let enter_insert_mode = CommandWrapper::Vim(VimCommand::InsertMode);
@@ -127,6 +131,10 @@ fn load_vim_keymaps() -> Trie<Keymap> {
     keymaps.insert("gg", Keymap::new(normal, vec![move_to_top]));
     keymaps.insert("G", Keymap::new(normal, vec![move_to_bottom]));
     keymaps.insert("%", Keymap::new(normal, vec![move_to_matching_pair]));
+    keymaps.insert("^", Keymap::new(normal, vec![move_to_first_non_space]));
+    keymaps.insert("g_", Keymap::new(normal, vec![move_to_last_non_space]));
+    keymaps.insert("}", Keymap::new(normal, vec![move_to_next_paragraph]));
+    keymaps.insert("{", Keymap::new(normal, vec![move_to_prev_paragraph]));
 
     keymaps.insert("i", Keymap::new(normal, vec![enter_insert_mode]));
     keymaps.insert("q", Keymap::new(normal, vec![quit]));
