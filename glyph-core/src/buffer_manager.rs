@@ -55,6 +55,14 @@ impl Buffer {
     pub fn content_mut(&mut self) -> &mut TextObject {
         &mut self.content
     }
+
+    pub fn path(&self) -> Option<&PathBuf> {
+        self.path.as_ref()
+    }
+
+    pub fn absolute_path(&self) -> Option<&PathBuf> {
+        self.absolute_path.as_ref()
+    }
 }
 
 #[derive(Debug, Default, Hash, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

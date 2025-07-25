@@ -2,13 +2,15 @@ mod event_loop;
 mod renderer;
 
 use std::fs::File;
+use std::sync::Arc;
 
 use glyph_core::Glyph;
 use glyph_core::command_handler::CommandHandler;
 use glyph_core::config::{Config, KeyMapPreset};
 use glyph_core::key_mapper::Keymapper;
 use glyph_core::startup_options::StartupOptions;
-use glyph_vim::{VimBufferCommandHandler, VimKeymapper};
+use glyph_core::status_provider::StatuslineProvider;
+use glyph_vim::{VimBufferCommandHandler, VimKeymapper, VimStatusline};
 use tracing_subscriber::fmt::writer::{BoxMakeWriter, MakeWriterExt};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -51,6 +53,13 @@ fn handler_from_config(config: &Config) -> Box<dyn CommandHandler> {
     }
 }
 
+fn statusline_provider_from_config(config: &Config) -> Box<dyn StatuslineProvider> {
+    match config.keymap_preset {
+        KeyMapPreset::Vim => Box::new(VimStatusline),
+        KeyMapPreset::VSCode => todo!(),
+    }
+}
+
 fn main() -> eyre::Result<()> {
     color_eyre::install()?;
 
@@ -58,11 +67,12 @@ fn main() -> eyre::Result<()> {
 
     setup_tracing(startup_options.verbose)?;
 
-    let config = glyph_config::load()?;
+    let config = Arc::new(glyph_config::load()?);
     let event_loop = event_loop::CrosstermEventLoop;
-    let renderer = renderer::CrosstermRenderer::new()?;
+    let renderer = renderer::CrosstermRenderer::new(config.clone())?;
     let key_mapper = key_mapper_from_config(&config);
     let command_handler = handler_from_config(&config);
+    let statusline_provider = statusline_provider_from_config(&config);
 
     Glyph::new(
         config,
@@ -70,6 +80,7 @@ fn main() -> eyre::Result<()> {
         renderer,
         key_mapper,
         command_handler,
+        statusline_provider,
         startup_options,
     )?
     .run()?;

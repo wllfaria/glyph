@@ -1,10 +1,13 @@
 use std::io::{Write, stdout};
+use std::sync::Arc;
 
 use crossterm::style::{Attribute, Color, Print, SetAttribute};
 use crossterm::{cursor, queue};
+use glyph_core::config::{Config, StatuslineMode};
 use glyph_core::geometry::{Point, Rect, Size};
 use glyph_core::renderer::error::{RendererError, Result};
 use glyph_core::renderer::{RenderContext, Renderer};
+use glyph_core::status_provider::StatuslineContext;
 use glyph_core::view_manager::{LayoutTreeNode, LeafView};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -102,6 +105,12 @@ pub struct Change {
     position: Point<u16>,
 }
 
+impl Change {
+    pub fn new(cell: Cell, position: Point<u16>) -> Self {
+        Self { cell, position }
+    }
+}
+
 #[derive(Debug)]
 pub struct ChangeSet {
     pub changes: Vec<Change>,
@@ -119,10 +128,7 @@ impl CellBuffer {
             let y = i / size.width as usize;
 
             if c != &other.0[i] {
-                changes.push(Change {
-                    cell: *c,
-                    position: Point::new(x as u16, y as u16),
-                });
+                changes.push(Change::new(*c, Point::new(x as u16, y as u16)));
             }
         }
 
@@ -138,12 +144,14 @@ impl CellBuffer {
 #[derive(Debug)]
 pub struct CrosstermRenderer {
     size: Size,
+    config: Arc<Config>,
     buffers: [CellBuffer; 2],
 }
 
 impl CrosstermRenderer {
-    pub fn new() -> Result<Self> {
+    pub fn new(config: Arc<Config>) -> Result<Self> {
         let mut renderer = Self {
+            config,
             size: Size::default(),
             buffers: [CellBuffer::default(), CellBuffer::default()],
         };
@@ -174,10 +182,10 @@ impl CrosstermRenderer {
         let buffer = ctx.buffers.iter().find(|b| b.id == view.buffer_id).unwrap();
         let content = buffer.content();
 
-        for y in 0..leaf.rect.height as usize {
+        for y in 0..leaf.usable_rect.height as usize {
             let line = content.get_line(y + view.scroll_offset.y);
 
-            for x in 0..leaf.rect.width as usize {
+            for x in 0..leaf.usable_rect.width as usize {
                 let char = line
                     .and_then(|line| line.get_char(x + view.scroll_offset.x))
                     .unwrap_or(' ');
@@ -190,11 +198,38 @@ impl CrosstermRenderer {
                 };
 
                 let cell = Cell::new(char, Style::default());
-                let screen_x = rect.x + leaf.rect.x + x as u16;
-                let screen_y = rect.y + leaf.rect.y + y as u16;
+                let screen_x = rect.x + leaf.usable_rect.x + x as u16;
+                let screen_y = rect.y + leaf.usable_rect.y + y as u16;
                 cell_buffer.set_cell(screen_x, screen_y, cell, self.size);
             }
         }
+
+        self.maybe_render_view_statusline(ctx, leaf);
+    }
+
+    fn maybe_render_view_statusline(&self, ctx: &RenderContext<'_>, leaf: &LeafView) {
+        let view = ctx.views.get_active_view();
+        // TODO: maybe this search is not very good
+        let buffer_info = ctx.buffers.iter().find(|b| b.id == view.buffer_id).unwrap();
+        let cursor = view.cursors.first().unwrap();
+        let cursor_position = Point::new(cursor.x, cursor.y);
+
+        let statusline_str = ctx
+            .statusline_provider
+            .render_statusline(&StatuslineContext {
+                buffer_info,
+                cursor_position,
+                current_mode: ctx.mode,
+                width: leaf.rect.width as usize,
+            });
+
+        let y = leaf.rect.bottom();
+
+        _ = crossterm::queue!(
+            stdout(),
+            crossterm::cursor::MoveTo(0, y),
+            Print(statusline_str),
+        );
     }
 
     fn queue_change(&mut self, x: u16, y: u16, change: Change) -> Result<()> {
@@ -236,8 +271,7 @@ impl Renderer for CrosstermRenderer {
     fn render(&mut self, ctx: &mut RenderContext<'_>) -> Result<()> {
         _ = queue!(stdout(), cursor::Hide);
 
-        let mut editor_rect = Rect::with_size(0, 0, self.size);
-        editor_rect.cut_bottom(1);
+        let editor_rect = Rect::with_size(0, 0, self.size);
 
         self.render_layout_node(ctx, ctx.layout, editor_rect);
 
@@ -291,7 +325,13 @@ impl Renderer for CrosstermRenderer {
             Ok(size) => size,
             Err(_) => return Err(RendererError::FailedToGetEditorSize),
         };
-        Ok(Size::new(width, height))
+
+        let statusline_offset = match self.config.statusline.mode {
+            StatuslineMode::Global => 1,
+            StatuslineMode::Local => 0,
+        };
+
+        Ok(Size::new(width, height - statusline_offset))
     }
 
     fn resize(&mut self, size: Size) -> Result<()> {

@@ -5,6 +5,7 @@ members = [
     "glyph-config",
     "glyph-trie",
     "glyph-vim",
+    "glyph-plugin",
 ]
 
 [workspace.dependencies]
@@ -13,6 +14,7 @@ glyph-core = { path = "glyph-core" }
 glyph-config = { path = "glyph-config" }
 glyph-trie = { path = "glyph-trie" }
 glyph-vim = { path = "glyph-vim" }
+glyph-plugin = { path = "glyph-plugin" }
 
 # External dependencies
 thiserror = "2.0.12"

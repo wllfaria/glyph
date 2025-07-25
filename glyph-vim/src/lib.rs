@@ -1,4 +1,5 @@
 mod key_mapper;
+mod statusline;
 
 use glyph_core::buffer_manager::Buffer;
 use glyph_core::command_handler::{CommandContext, CommandHandler, CommandHandlerResult};
@@ -7,6 +8,7 @@ use glyph_core::geometry::Point;
 use glyph_core::key_mapper::{Command, VimMode};
 
 pub use crate::key_mapper::VimKeymapper;
+pub use crate::statusline::VimStatusline;
 
 #[derive(Debug)]
 pub struct VimBufferCommandHandler;
@@ -37,6 +39,9 @@ impl CommandHandler for VimBufferCommandHandler {
                 Command::MoveToLastNonSpace => move_to_last_non_space(ctx),
                 Command::MoveToNextParagraph => move_to_next_paragraph(ctx),
                 Command::MoveToPrevParagraph => move_to_prev_paragraph(ctx),
+                Command::DeletePrevChar => delete_prev_char(ctx, mode),
+                Command::DeleteCurrChar => delete_prev_char(ctx, mode),
+                Command::TypeChar(c) => insert_character(ctx, mode, *c),
 
                 // TODO: this should be temporary
                 Command::Quit => *ctx.should_quit = true,
@@ -97,7 +102,7 @@ fn move_cursor_right(ctx: &mut CommandContext<'_>, mode: VimMode) {
     let offset_from_eol = match mode {
         VimMode::Normal if has_newline => 2,
         VimMode::Normal => 1,
-        VimMode::Insert => 0,
+        VimMode::Insert => 1,
         VimMode::Visual => 0,
     };
 
@@ -129,7 +134,7 @@ fn move_cursor_to_line_end(ctx: &mut CommandContext<'_>, mode: VimMode) {
     let offset_from_eol = match mode {
         VimMode::Normal if has_newline => 2,
         VimMode::Normal => 1,
-        VimMode::Insert => 0,
+        VimMode::Insert => 1,
         VimMode::Visual => 0,
     };
 
@@ -191,7 +196,7 @@ fn page_up(ctx: &mut CommandContext<'_>, mode: VimMode) {
         .get_mut(&view.buffer_id)
         .expect("view references non-existing buffer");
 
-    let half_page = layout.rect.height / 2;
+    let half_page = layout.usable_rect.height / 2;
     cursor.move_up_by(half_page as usize);
     adjust_cursor_after_vertical_move(cursor, buffer, mode);
 }
@@ -206,7 +211,7 @@ fn page_down(ctx: &mut CommandContext<'_>, mode: VimMode) {
         .get_mut(&view.buffer_id)
         .expect("view references non-existing buffer");
 
-    let half_page = layout.rect.height / 2;
+    let half_page = layout.usable_rect.height / 2;
     cursor.move_down_by(buffer, half_page as usize);
     adjust_cursor_after_vertical_move(cursor, buffer, mode);
 }
@@ -254,9 +259,60 @@ fn move_to_prev_paragraph(ctx: &mut CommandContext<'_>) {
         .buffers
         .get_mut(&view.buffer_id)
         .expect("view references non-existing buffer");
-
     let position = buffer.content().find_prev_paragraph(cursor.y);
     cursor.move_to(buffer, position.x, position.y);
+}
+
+fn delete_prev_char(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let buffer_id = view.buffer_id;
+    let cursor = view.cursors.first_mut().unwrap();
+    let position = Point::new(cursor.x, cursor.y);
+    let is_cursor_on_line_start = cursor.x == 0;
+
+    match mode {
+        VimMode::Insert if !is_cursor_on_line_start => {
+            ctx.buffers
+                .get_mut(&buffer_id)
+                .expect("view references non-existing buffer")
+                .content_mut()
+                .delete_prev_char(Point::new(cursor.x, cursor.y));
+            move_cursor_left(ctx);
+        }
+        VimMode::Insert => {
+            move_cursor_up(ctx, mode);
+            move_cursor_to_line_end(ctx, mode);
+            move_cursor_left(ctx);
+            ctx.buffers
+                .get_mut(&buffer_id)
+                .expect("view references non-existing buffer")
+                .content_mut()
+                .delete_prev_char(position);
+        }
+        VimMode::Normal if !is_cursor_on_line_start => {
+            ctx.buffers
+                .get_mut(&buffer_id)
+                .expect("view references non-existing buffer")
+                .content_mut()
+                .delete_prev_char(Point::new(cursor.x, cursor.y));
+            move_cursor_left(ctx);
+        }
+        VimMode::Normal => (),
+        VimMode::Visual => (),
+    }
+}
+
+fn insert_character(ctx: &mut CommandContext<'_>, mode: VimMode, ch: char) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let position = Point::new(cursor.x, cursor.y);
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    buffer.content_mut().insert_char_at(position, ch);
+    move_cursor_right(ctx, mode);
 }
 
 fn move_to_matching_pair(ctx: &mut CommandContext<'_>, mode: VimMode) {
@@ -284,7 +340,7 @@ fn adjust_cursor_after_vertical_move(cursor: &mut Cursor, buffer: &Buffer, mode:
     let offset_from_eol = match mode {
         VimMode::Normal if has_newline => 2,
         VimMode::Normal => 1,
-        VimMode::Insert => 0,
+        VimMode::Insert => 1,
         VimMode::Visual => 0,
     };
 
@@ -306,8 +362,8 @@ fn scroll_view_to_cursor(ctx: &mut CommandContext<'_>) {
     let view = ctx.views.get_mut_active_view();
     let cursor = view.cursors.first_mut().unwrap();
 
-    let view_height = layout.rect.height as usize;
-    let view_width = layout.rect.width as usize;
+    let view_height = layout.usable_rect.height as usize;
+    let view_width = layout.usable_rect.width as usize;
 
     if cursor.y.saturating_sub(view.scroll_offset.y) > view_height - 1 {
         view.scroll_offset.y = cursor.y - (view_height - 1)

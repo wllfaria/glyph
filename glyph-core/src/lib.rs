@@ -10,10 +10,12 @@ pub mod geometry;
 pub mod key_mapper;
 pub mod renderer;
 pub mod startup_options;
+pub mod status_provider;
 pub mod text_object;
 pub mod view_manager;
 
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use command_handler::{CommandContext, CommandHandler, CommandHandlerChain};
 
@@ -24,6 +26,7 @@ use crate::event_loop::EventLoop;
 use crate::key_mapper::Keymapper;
 use crate::renderer::{RenderContext, Renderer};
 use crate::startup_options::StartupOptions;
+use crate::status_provider::StatuslineProvider;
 use crate::view_manager::ViewManager;
 
 pub enum EditorKind {
@@ -39,11 +42,12 @@ where
 {
     renderer: R,
     event_loop: E,
-    config: Config,
+    config: Arc<Config>,
     should_quit: bool,
     views: ViewManager,
     buffers: BufferManager,
     key_mapper: Box<dyn Keymapper>,
+    statusline_provider: Box<dyn StatuslineProvider>,
     command_handler_chain: CommandHandlerChain,
 }
 
@@ -53,11 +57,12 @@ where
     R: Renderer + Debug,
 {
     pub fn new(
-        config: Config,
+        config: Arc<Config>,
         event_loop: E,
         renderer: R,
         key_mapper: Box<dyn Keymapper>,
         command_handler: Box<dyn CommandHandler>,
+        statusline_provider: Box<dyn StatuslineProvider>,
         options: StartupOptions,
     ) -> Result<Self> {
         let mut buffers = BufferManager::new();
@@ -76,7 +81,7 @@ where
         // When the editor starts, it is guaranteed to have at least one buffer. Which will either
         // be a scratch buffer with a welcome message, the first user specified file or the
         // directory view.
-        let views = ViewManager::new(BufferId::new(0), size);
+        let views = ViewManager::new(config.clone(), BufferId::new(0), size);
 
         let mut command_handler_chain = CommandHandlerChain::default();
         command_handler_chain.add_handler(command_handler);
@@ -89,6 +94,7 @@ where
             event_loop,
             key_mapper,
             should_quit: false,
+            statusline_provider,
             command_handler_chain,
         })
     }
@@ -125,9 +131,11 @@ where
             .collect::<Vec<_>>();
 
         self.renderer.render(&mut RenderContext {
+            mode: self.key_mapper.mode(),
             views: &self.views,
             buffers: &buffers,
             layout: &self.views.layout,
+            statusline_provider: self.statusline_provider.as_ref(),
         })?;
 
         Ok(())

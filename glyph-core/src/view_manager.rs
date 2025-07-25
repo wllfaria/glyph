@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::buffer_manager::BufferId;
+use crate::config::{Config, StatuslineMode};
 use crate::cursor::Cursor;
 use crate::geometry::{Point, Rect, Size};
 
@@ -62,11 +64,28 @@ impl View {
 
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct LeafView {
-    pub view_id: ViewId,
     pub rect: Rect,
+    pub view_id: ViewId,
+    pub usable_rect: Rect,
 }
 
 impl LeafView {
+    pub fn new(config: &Config, view_id: ViewId, rect: Rect) -> Self {
+        let mut usable_rect = rect;
+        match config.statusline.mode {
+            // when the statusline mode is global, the renderer is responsible for cutting out the
+            // chunk necessary for the statusline, so we don't need to do anything here
+            StatuslineMode::Global => {}
+            StatuslineMode::Local => usable_rect.cut_bottom(1),
+        }
+
+        Self {
+            rect,
+            view_id,
+            usable_rect,
+        }
+    }
+
     pub fn accept<V>(&self, visitor: &mut V)
     where
         V: LayoutTreeVisitor,
@@ -134,6 +153,7 @@ impl LayoutTreeVisitor for ViewCollector<'_> {
 
 #[derive(Debug)]
 pub struct ViewManager {
+    config: Arc<Config>,
     next_view_id: ViewId,
     pub(crate) views: BTreeMap<ViewId, View>,
     pub(crate) layout: LayoutTreeNode,
@@ -161,20 +181,21 @@ impl LayoutTreeVisitor for LayoutFinder {
 }
 
 impl ViewManager {
-    pub fn new(initial_buffer: BufferId, size: impl Into<Size>) -> Self {
+    pub fn new(config: Arc<Config>, initial_buffer: BufferId, size: impl Into<Size>) -> Self {
         let size = size.into();
         let mut views = BTreeMap::new();
         let view_id = ViewId::new(0);
         let view = View::new(view_id, initial_buffer);
         views.insert(view_id, view);
 
-        let rect: Rect = size.into();
+        let layout = LayoutTreeNode::Leaf(LeafView::new(&config, view_id, size.into()));
 
         Self {
             views,
-            next_view_id: ViewId::new(1),
-            layout: LayoutTreeNode::Leaf(LeafView { view_id, rect }),
+            config,
+            layout,
             active_view: view_id,
+            next_view_id: ViewId::new(1),
         }
     }
 

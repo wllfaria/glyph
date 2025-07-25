@@ -5,9 +5,7 @@ use crossterm::event::{
 };
 use glyph_core::event_loop::EventLoop;
 use glyph_core::event_loop::error::{EventLoopError, Result};
-use glyph_core::event_loop::event::{
-    Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MediaKeyCode, ModifierKeyCode,
-};
+use glyph_core::event_loop::event::*;
 
 trait IntoEvent {
     type Target;

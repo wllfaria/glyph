@@ -75,6 +75,22 @@ impl Rect {
         assert!(amount <= self.width);
         self.width -= amount;
     }
+
+    pub fn left(&self) -> u16 {
+        self.x
+    }
+
+    pub fn bottom(&self) -> u16 {
+        self.y + self.height
+    }
+
+    pub fn up(&self) -> u16 {
+        self.y
+    }
+
+    pub fn right(&self) -> u16 {
+        self.x + self.width
+    }
 }
 
 impl From<Size> for Rect {

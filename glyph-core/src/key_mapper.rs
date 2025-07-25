@@ -27,6 +27,16 @@ pub enum VimMode {
     Visual,
 }
 
+impl std::fmt::Display for VimMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Normal => write!(f, "normal"),
+            Self::Insert => write!(f, "insert"),
+            Self::Visual => write!(f, "visual"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Command {
     MoveCursorLeft,
@@ -43,6 +53,9 @@ pub enum Command {
     MoveToLastNonSpace,
     MoveToNextParagraph,
     MoveToPrevParagraph,
+    DeletePrevChar,
+    DeleteCurrChar,
+    TypeChar(char),
     PageUp,
     PageDown,
     Quit,
@@ -55,4 +68,5 @@ pub struct ResolvedKeymap {
 
 pub trait Keymapper: Debug {
     fn parse_event(&mut self, event: Option<Event>) -> Option<ResolvedKeymap>;
+    fn mode(&self) -> EditorMode;
 }
