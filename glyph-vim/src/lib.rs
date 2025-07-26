@@ -40,8 +40,9 @@ impl CommandHandler for VimBufferCommandHandler {
                 Command::MoveToNextParagraph => move_to_next_paragraph(ctx),
                 Command::MoveToPrevParagraph => move_to_prev_paragraph(ctx),
                 Command::DeletePrevChar => delete_prev_char(ctx, mode),
-                Command::DeleteCurrChar => delete_prev_char(ctx, mode),
+                Command::DeleteCurrChar => delete_curr_char(ctx, mode),
                 Command::TypeChar(c) => insert_character(ctx, mode, *c),
+                Command::MoveToNextWord => move_to_next_word(ctx),
 
                 // TODO: this should be temporary
                 Command::Quit => *ctx.should_quit = true,
@@ -99,14 +100,18 @@ fn move_cursor_right(ctx: &mut CommandContext<'_>, mode: VimMode) {
         .last()
         .unwrap_or_default();
     let has_newline = matches!(last_char, '\n');
-    let offset_from_eol = match mode {
+    let offset_from_eol = get_offset_from_eol(mode, has_newline);
+
+    cursor.move_right_by_with_offset(buffer, 1, offset_from_eol);
+}
+
+fn get_offset_from_eol(mode: VimMode, has_newline: bool) -> usize {
+    match mode {
         VimMode::Normal if has_newline => 2,
         VimMode::Normal => 1,
         VimMode::Insert => 1,
         VimMode::Visual => 0,
-    };
-
-    cursor.move_right_by_with_offset(buffer, 1, offset_from_eol);
+    }
 }
 
 fn move_cursor_to_line_start(ctx: &mut CommandContext<'_>) {
@@ -131,12 +136,7 @@ fn move_cursor_to_line_end(ctx: &mut CommandContext<'_>, mode: VimMode) {
         .unwrap_or_default();
 
     let has_newline = matches!(last_char, '\n');
-    let offset_from_eol = match mode {
-        VimMode::Normal if has_newline => 2,
-        VimMode::Normal => 1,
-        VimMode::Insert => 1,
-        VimMode::Visual => 0,
-    };
+    let offset_from_eol = get_offset_from_eol(mode, has_newline);
 
     cursor.move_to_line_end_with_offset(buffer, offset_from_eol);
 }
@@ -302,6 +302,39 @@ fn delete_prev_char(ctx: &mut CommandContext<'_>, mode: VimMode) {
     }
 }
 
+fn delete_curr_char(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let content = buffer.content_mut();
+    let line_len = content.line_len(cursor.y);
+    let last_char = content.line(cursor.y).chars().last().unwrap_or_default();
+    let has_newline = matches!(last_char, '\n');
+    let is_empty_line = line_len == 1 && has_newline;
+    let offset_from_eol = get_offset_from_eol(mode, has_newline);
+
+    match mode {
+        VimMode::Normal => {
+            if is_empty_line {
+                return;
+            }
+
+            let is_on_last_char = cursor.x == line_len.saturating_sub(offset_from_eol);
+            content.delete_curr_char(Point::new(cursor.x, cursor.y));
+
+            if is_on_last_char {
+                move_cursor_left(ctx);
+            }
+        }
+        VimMode::Insert => content.delete_curr_char(Point::new(cursor.x, cursor.y)),
+        VimMode::Visual => {}
+    }
+}
+
 fn insert_character(ctx: &mut CommandContext<'_>, mode: VimMode, ch: char) {
     let view = ctx.views.get_mut_active_view();
     let cursor = view.cursors.first_mut().unwrap();
@@ -313,6 +346,19 @@ fn insert_character(ctx: &mut CommandContext<'_>, mode: VimMode, ch: char) {
 
     buffer.content_mut().insert_char_at(position, ch);
     move_cursor_right(ctx, mode);
+}
+
+// TODO: finish this, lol
+fn move_to_next_word(ctx: &mut CommandContext<'_>) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let _position = Point::new(cursor.x, cursor.y);
+    let _buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+    // let position = buffer.content().find_next_word();
+    // cursor.move_to(buffer, position.x, position.y);
 }
 
 fn move_to_matching_pair(ctx: &mut CommandContext<'_>, mode: VimMode) {
@@ -337,13 +383,7 @@ fn adjust_cursor_after_vertical_move(cursor: &mut Cursor, buffer: &Buffer, mode:
     let last_char = content.line(cursor.y).chars().last().unwrap_or_default();
     let has_newline = matches!(last_char, '\n');
 
-    let offset_from_eol = match mode {
-        VimMode::Normal if has_newline => 2,
-        VimMode::Normal => 1,
-        VimMode::Insert => 1,
-        VimMode::Visual => 0,
-    };
-
+    let offset_from_eol = get_offset_from_eol(mode, has_newline);
     let max_x = line_len.saturating_sub(offset_from_eol);
     if cursor.x >= max_x && cursor.x >= cursor.virtual_x {
         cursor.virtual_x = cursor.x;

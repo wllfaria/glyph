@@ -55,6 +55,7 @@ pub enum Command {
     MoveToPrevParagraph,
     DeletePrevChar,
     DeleteCurrChar,
+    MoveToNextWord,
     TypeChar(char),
     PageUp,
     PageDown,

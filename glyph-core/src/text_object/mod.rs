@@ -191,6 +191,12 @@ impl TextObject {
         self.inner.remove(position_char - 1..position_char);
     }
 
+    pub fn delete_curr_char(&mut self, position: Point<usize>) {
+        let line_start_char = self.inner.line_to_char(position.y);
+        let position_char = line_start_char + position.x;
+        self.inner.remove(position_char..position_char + 1);
+    }
+
     pub fn insert_char_at(&mut self, position: Point<usize>, ch: char) {
         let line_start_char = self.inner.line_to_char(position.y);
         let position_char = line_start_char + position.x;

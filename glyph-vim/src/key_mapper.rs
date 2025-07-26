@@ -178,6 +178,7 @@ fn load_vim_keymaps() -> LoadedKeymaps {
     let move_to_prev_paragraph = CommandWrapper::General(Command::MoveToPrevParagraph);
     let delete_prev_char = CommandWrapper::General(Command::DeletePrevChar);
     let delete_curr_char = CommandWrapper::General(Command::DeleteCurrChar);
+    let move_to_next_word = CommandWrapper::General(Command::MoveToNextWord);
     let quit = CommandWrapper::General(Command::Quit);
 
     let enter_insert_mode = CommandWrapper::Vim(VimCommand::InsertMode);
@@ -197,6 +198,7 @@ fn load_vim_keymaps() -> LoadedKeymaps {
     normal_keymaps.insert("g_", Keymap::new(normal, vec![move_to_last_non_space]));
     normal_keymaps.insert("}", Keymap::new(normal, vec![move_to_next_paragraph]));
     normal_keymaps.insert("{", Keymap::new(normal, vec![move_to_prev_paragraph]));
+    normal_keymaps.insert("w", Keymap::new(normal, vec![move_to_next_word]));
 
     normal_keymaps.insert("X", Keymap::new(normal, vec![delete_prev_char]));
     normal_keymaps.insert("x", Keymap::new(normal, vec![delete_curr_char]));
