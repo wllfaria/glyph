@@ -60,6 +60,8 @@ pub enum Command {
     DeleteCurrChar,
     MoveToNextWord,
     TypeChar(char),
+    Save,
+    SaveAll,
     PageUp,
     PageDown,
     Quit,

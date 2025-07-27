@@ -1,10 +1,13 @@
+mod command_mode_key_mapper;
 mod insert_mode_key_mapper;
 mod normal_mode_key_mapper;
 
 use glyph_core::key_mapper::{Command, VimMode};
 use glyph_trie::Trie;
-pub use insert_mode_key_mapper::InsertModeKeymapper;
-pub use normal_mode_key_mapper::NormalModeKeymapper;
+
+pub use self::command_mode_key_mapper::CommandModeKeymapper;
+pub use self::insert_mode_key_mapper::InsertModeKeymapper;
+pub use self::normal_mode_key_mapper::NormalModeKeymapper;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum CommandWrapper {
@@ -98,11 +101,12 @@ pub fn load_vim_keymaps() -> LoadedKeymaps {
     normal_keymaps.insert("x", Keymap::new(normal, vec![delete_curr_char]));
 
     normal_keymaps.insert("i", Keymap::new(normal, vec![enter_insert_mode]));
-    normal_keymaps.insert("q", Keymap::new(normal, vec![quit]));
     normal_keymaps.insert("dd", Keymap::new(normal, vec![delete_whole_line]));
     normal_keymaps.insert("<c-u>", Keymap::new(normal, vec![page_up]));
     normal_keymaps.insert("<c-d>", Keymap::new(normal, vec![page_down]));
     normal_keymaps.insert(":", Keymap::new(normal, vec![enter_command_mode]));
+
+    normal_keymaps.insert("q", Keymap::new(normal, vec![quit]));
 
     // insert mode keymaps
     insert_keymaps.insert("<esc>", Keymap::new(insert, vec![enter_normal_mode]));

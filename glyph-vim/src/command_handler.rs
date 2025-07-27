@@ -15,6 +15,8 @@ impl CommandHandler for VimBufferCommandHandler {
             .expect("editor mode must be defined in vim mode")
             .expect_vim();
 
+        let mut status = CommandHandlerResult::Consumed;
+
         for command in ctx.resolved_keymap.commands.iter() {
             match command {
                 Command::MoveCursorLeft => move_cursor_left(ctx),
@@ -38,15 +40,15 @@ impl CommandHandler for VimBufferCommandHandler {
                 Command::DeleteCurrChar => delete_curr_char(ctx, mode),
                 Command::TypeChar(c) => insert_character(ctx, mode, *c),
                 Command::MoveToNextWord => move_to_next_word(ctx, mode),
-
-                // TODO: this should be temporary
-                Command::Quit => *ctx.should_quit = true,
+                Command::Save => status = CommandHandlerResult::NotConsumed,
+                Command::SaveAll => status = CommandHandlerResult::NotConsumed,
+                Command::Quit => status = CommandHandlerResult::NotConsumed,
             }
         }
 
         scroll_view_to_cursor(ctx);
 
-        CommandHandlerResult::Consumed
+        status
     }
 }
 

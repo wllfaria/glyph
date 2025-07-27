@@ -63,7 +63,7 @@ where
         options: StartupOptions,
     ) -> Result<Self> {
         let mut buffers = BufferManager::new();
-        let size = renderer.get_size()?;
+        let size = renderer.get_size(editing_plugin.dock_height())?;
 
         if !options.files.is_empty() {
             for file in options.files.iter() {
@@ -81,7 +81,9 @@ where
         let views = ViewManager::new(config.clone(), BufferId::new(0), size);
 
         let command_handler = editing_plugin.create_command_handler();
+        let file_command_handler = command_handler::FileCommandHandler;
         let mut command_handler_chain = CommandHandlerChain::default();
+        command_handler_chain.add_handler(Box::new(file_command_handler));
         command_handler_chain.add_handler(command_handler);
 
         Ok(Self {

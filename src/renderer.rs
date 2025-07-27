@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::io::{Write, stdout};
 use std::sync::Arc;
 
@@ -156,7 +158,7 @@ impl CrosstermRenderer {
             buffers: [CellBuffer::default(), CellBuffer::default()],
         };
 
-        renderer.resize(renderer.get_size()?)?;
+        renderer.resize(renderer.get_size(0)?)?;
 
         Ok(renderer)
     }
@@ -165,13 +167,18 @@ impl CrosstermRenderer {
         self.buffers.swap(0, 1);
     }
 
-    fn render_layout_node(&mut self, ctx: &RenderContext<'_>, node: &LayoutTreeNode, rect: Rect) {
+    fn render_layout_node(
+        &mut self,
+        ctx: &RenderContext<'_>,
+        node: &LayoutTreeNode,
+        editor_rect: Rect,
+    ) {
         match node {
-            LayoutTreeNode::Leaf(leaf) => self.render_leaf_view(ctx, leaf, rect),
+            LayoutTreeNode::Leaf(leaf) => self.render_leaf_view(ctx, leaf, editor_rect),
             LayoutTreeNode::Split(split) => split
                 .children
                 .iter()
-                .for_each(|c| self.render_layout_node(ctx, c, split.rect)),
+                .for_each(|c| self.render_layout_node(ctx, c, editor_rect)),
         }
     }
 
@@ -208,6 +215,22 @@ impl CrosstermRenderer {
     }
 
     fn maybe_render_view_statusline(&self, ctx: &RenderContext<'_>, leaf: &LeafView) {
+        if !matches!(self.config.statusline.mode, StatuslineMode::Local) {
+            return;
+        };
+
+        self.render_statusline(ctx, leaf.rect);
+    }
+
+    fn maybe_render_global_statusline(&self, ctx: &RenderContext<'_>, editor_rect: Rect) {
+        if !matches!(self.config.statusline.mode, StatuslineMode::Global) {
+            return;
+        };
+
+        self.render_statusline(ctx, editor_rect);
+    }
+
+    fn render_statusline(&self, ctx: &RenderContext<'_>, rect: Rect) {
         let view = ctx.views.get_active_view();
         // TODO: maybe this search is not very good
         let buffer_info = ctx.buffers.iter().find(|b| b.id == view.buffer_id).unwrap();
@@ -218,10 +241,10 @@ impl CrosstermRenderer {
             buffer_info,
             cursor_position,
             current_mode: ctx.mode,
-            width: leaf.rect.width as usize,
+            width: rect.width as usize,
         });
 
-        let y = leaf.rect.bottom();
+        let y = rect.bottom();
 
         _ = crossterm::queue!(
             stdout(),
@@ -269,7 +292,8 @@ impl Renderer for CrosstermRenderer {
     fn render(&mut self, ctx: &mut RenderContext<'_>) -> Result<()> {
         _ = queue!(stdout(), cursor::Hide);
 
-        let editor_rect = Rect::with_size(0, 0, self.size);
+        let mut editor_rect = Rect::with_size(0, 0, self.size);
+        editor_rect.cut_bottom(ctx.editing_plugin.dock_height());
 
         self.render_layout_node(ctx, ctx.layout, editor_rect);
 
@@ -280,6 +304,7 @@ impl Renderer for CrosstermRenderer {
             self.queue_change(x, y, change)?;
         }
 
+        self.maybe_render_global_statusline(ctx, editor_rect);
         self.position_cursor(ctx);
 
         _ = queue!(stdout(), cursor::Show);
@@ -318,7 +343,7 @@ impl Renderer for CrosstermRenderer {
         Ok(())
     }
 
-    fn get_size(&self) -> Result<Size> {
+    fn get_size(&self, dock_height: u16) -> Result<Size> {
         let (width, height) = match crossterm::terminal::size() {
             Ok(size) => size,
             Err(_) => return Err(RendererError::FailedToGetEditorSize),
@@ -329,7 +354,7 @@ impl Renderer for CrosstermRenderer {
             StatuslineMode::Local => 0,
         };
 
-        Ok(Size::new(width, height - statusline_offset))
+        Ok(Size::new(width, height - statusline_offset - dock_height))
     }
 
     fn resize(&mut self, size: Size) -> Result<()> {

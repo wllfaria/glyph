@@ -17,6 +17,7 @@ pub struct VimEditingPlugin {
     statusline: VimStatusline,
     normal_mode_keymapper: NormalModeKeymapper,
     insert_mode_keymapper: InsertModeKeymapper,
+    command_mode_keymapper: CommandModeKeymapper,
     mode: VimMode,
 }
 
@@ -35,6 +36,7 @@ impl VimEditingPlugin {
             mode: VimMode::Normal,
             normal_mode_keymapper: NormalModeKeymapper::new(loaded_keymaps.normal),
             insert_mode_keymapper: InsertModeKeymapper::new(loaded_keymaps.insert),
+            command_mode_keymapper: CommandModeKeymapper::new(),
         }
     }
 }
@@ -46,7 +48,7 @@ impl Keymapper for VimEditingPlugin {
         let commands = match self.mode {
             VimMode::Normal => self.normal_mode_keymapper.handle_key(key),
             VimMode::Insert => self.insert_mode_keymapper.handle_key(key),
-            VimMode::Command => todo!(),
+            VimMode::Command => self.command_mode_keymapper.handle_key(key),
             VimMode::Visual => todo!(),
         };
 
@@ -82,5 +84,9 @@ impl StatuslineProvider for VimEditingPlugin {
 impl EditingPlugin for VimEditingPlugin {
     fn create_command_handler(&self) -> Box<dyn CommandHandler> {
         Box::new(VimBufferCommandHandler)
+    }
+
+    fn dock_height(&self) -> u16 {
+        self.command_mode_keymapper.dock_height()
     }
 }

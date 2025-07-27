@@ -18,7 +18,7 @@ pub struct RenderContext<'ctx> {
 
 pub trait Renderer {
     fn render(&mut self, ctx: &mut RenderContext<'_>) -> Result<()>;
-    fn get_size(&self) -> Result<Size>;
+    fn get_size(&self, dock_height: u16) -> Result<Size>;
     fn resize(&mut self, size: Size) -> Result<()>;
     fn setup(&self) -> Result<()>;
     fn shutdown(&self) -> Result<()>;

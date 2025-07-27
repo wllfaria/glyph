@@ -1,5 +1,9 @@
+mod file_command_handler;
+
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt::Debug;
+
+pub use file_command_handler::FileCommandHandler;
 
 use crate::buffer_manager::{Buffer, BufferId};
 use crate::key_mapper::ResolvedKeymap;
@@ -46,6 +50,6 @@ impl CommandHandler for CommandHandlerChain {
             }
         }
 
-        CommandHandlerResult::NotConsumed
+        CommandHandlerResult::Consumed
     }
 }

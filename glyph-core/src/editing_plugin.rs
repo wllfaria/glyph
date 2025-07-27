@@ -6,4 +6,5 @@ use crate::status_provider::StatuslineProvider;
 
 pub trait EditingPlugin: StatuslineProvider + Keymapper + Debug {
     fn create_command_handler(&self) -> Box<dyn CommandHandler>;
+    fn dock_height(&self) -> u16;
 }
