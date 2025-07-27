@@ -4,6 +4,7 @@ pub mod buffer_manager;
 pub mod command_handler;
 pub mod config;
 pub mod cursor;
+pub mod editing_plugin;
 pub mod error;
 pub mod event_loop;
 pub mod geometry;
@@ -21,12 +22,11 @@ use command_handler::{CommandContext, CommandHandler, CommandHandlerChain};
 
 use crate::buffer_manager::{BufferId, BufferManager};
 use crate::config::Config;
+use crate::editing_plugin::EditingPlugin;
 use crate::error::Result;
 use crate::event_loop::EventLoop;
-use crate::key_mapper::Keymapper;
 use crate::renderer::{RenderContext, Renderer};
 use crate::startup_options::StartupOptions;
-use crate::status_provider::StatuslineProvider;
 use crate::view_manager::ViewManager;
 
 pub enum EditorKind {
@@ -46,8 +46,7 @@ where
     should_quit: bool,
     views: ViewManager,
     buffers: BufferManager,
-    key_mapper: Box<dyn Keymapper>,
-    statusline_provider: Box<dyn StatuslineProvider>,
+    editing_plugin: Box<dyn EditingPlugin>,
     command_handler_chain: CommandHandlerChain,
 }
 
@@ -60,9 +59,7 @@ where
         config: Arc<Config>,
         event_loop: E,
         renderer: R,
-        key_mapper: Box<dyn Keymapper>,
-        command_handler: Box<dyn CommandHandler>,
-        statusline_provider: Box<dyn StatuslineProvider>,
+        editing_plugin: Box<dyn EditingPlugin>,
         options: StartupOptions,
     ) -> Result<Self> {
         let mut buffers = BufferManager::new();
@@ -83,6 +80,7 @@ where
         // directory view.
         let views = ViewManager::new(config.clone(), BufferId::new(0), size);
 
+        let command_handler = editing_plugin.create_command_handler();
         let mut command_handler_chain = CommandHandlerChain::default();
         command_handler_chain.add_handler(command_handler);
 
@@ -92,9 +90,8 @@ where
             buffers,
             renderer,
             event_loop,
-            key_mapper,
+            editing_plugin,
             should_quit: false,
-            statusline_provider,
             command_handler_chain,
         })
     }
@@ -105,7 +102,7 @@ where
         while !self.should_quit {
             let event = self.event_loop.maybe_event()?;
 
-            if let Some(resolved_keymap) = self.key_mapper.parse_event(event) {
+            if let Some(resolved_keymap) = self.editing_plugin.parse_event(event) {
                 self.command_handler_chain
                     .handle_commands(&mut CommandContext {
                         resolved_keymap: &resolved_keymap,
@@ -131,11 +128,11 @@ where
             .collect::<Vec<_>>();
 
         self.renderer.render(&mut RenderContext {
-            mode: self.key_mapper.mode(),
+            mode: self.editing_plugin.mode(),
             views: &self.views,
             buffers: &buffers,
             layout: &self.views.layout,
-            statusline_provider: self.statusline_provider.as_ref(),
+            editing_plugin: self.editing_plugin.as_ref(),
         })?;
 
         Ok(())

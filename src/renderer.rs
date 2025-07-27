@@ -214,14 +214,12 @@ impl CrosstermRenderer {
         let cursor = view.cursors.first().unwrap();
         let cursor_position = Point::new(cursor.x, cursor.y);
 
-        let statusline_str = ctx
-            .statusline_provider
-            .render_statusline(&StatuslineContext {
-                buffer_info,
-                cursor_position,
-                current_mode: ctx.mode,
-                width: leaf.rect.width as usize,
-            });
+        let statusline_str = ctx.editing_plugin.render_statusline(&StatuslineContext {
+            buffer_info,
+            cursor_position,
+            current_mode: ctx.mode,
+            width: leaf.rect.width as usize,
+        });
 
         let y = leaf.rect.bottom();
 
