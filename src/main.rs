@@ -15,7 +15,8 @@ use tracing_subscriber::fmt::writer::{BoxMakeWriter, MakeWriterExt};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 fn setup_tracing(verbose: bool) -> eyre::Result<()> {
-    let file = File::create("glyph.log")?;
+    let file = std::fs::OpenOptions::new().append(true).open("glyph.log")?;
+    // let file = File::open("glyph.log")?;
     let writer = BoxMakeWriter::new(file);
 
     #[cfg(debug_assertions)]

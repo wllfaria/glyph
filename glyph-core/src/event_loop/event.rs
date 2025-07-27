@@ -38,70 +38,80 @@ impl std::fmt::Display for KeyEvent {
             line.push_str("a-");
         }
 
-        match self.code {
-            KeyCode::Char(c) => {
-                line.push(c);
-                if has_any_modifier_but_shift {
-                    line.push('>');
-                }
-                write!(f, "{line}")
+        let (base_str, always_wrap) = match self.code {
+            KeyCode::Char(c) => (c.to_string(), false),
+
+            KeyCode::Backspace => ("bs".into(), true),
+            KeyCode::Enter => ("cr".into(), true),
+            KeyCode::Left => ("left".into(), true),
+            KeyCode::Right => ("right".into(), true),
+            KeyCode::Up => ("up".into(), true),
+            KeyCode::Down => ("down".into(), true),
+            KeyCode::Home => ("home".into(), true),
+            KeyCode::End => ("end".into(), true),
+            KeyCode::PageUp => ("pgup".into(), true),
+            KeyCode::PageDown => ("pgdn".into(), true),
+            KeyCode::Tab => ("tab".into(), true),
+            KeyCode::BackTab => ("btab".into(), true),
+            KeyCode::Delete => ("del".into(), true),
+            KeyCode::Insert => ("ins".into(), true),
+            KeyCode::F(n) => (format!("f{n}"), true),
+            KeyCode::Null => ("null".into(), true),
+            KeyCode::Esc => ("esc".into(), true),
+            KeyCode::CapsLock => ("caps".into(), true),
+            KeyCode::ScrollLock => ("scroll".into(), true),
+            KeyCode::NumLock => ("num".into(), true),
+            KeyCode::PrintScreen => ("print".into(), true),
+            KeyCode::Pause => ("pause".into(), true),
+            KeyCode::Menu => ("menu".into(), true),
+            KeyCode::KeypadBegin => ("begin".into(), true),
+
+            KeyCode::Media(media) => {
+                let label = match media {
+                    MediaKeyCode::Play => "play",
+                    MediaKeyCode::Pause => "pause",
+                    MediaKeyCode::PlayPause => "playpause",
+                    MediaKeyCode::Reverse => "reverse",
+                    MediaKeyCode::Stop => "stop",
+                    MediaKeyCode::FastForward => "ffwd",
+                    MediaKeyCode::Rewind => "rewind",
+                    MediaKeyCode::TrackNext => "next",
+                    MediaKeyCode::TrackPrevious => "prev",
+                    MediaKeyCode::Record => "record",
+                    MediaKeyCode::LowerVolume => "vol-down",
+                    MediaKeyCode::RaiseVolume => "vol-up",
+                    MediaKeyCode::MuteVolume => "mute",
+                };
+                (label.into(), true)
             }
-            KeyCode::Backspace => write!(f, "<bs>"),
-            KeyCode::Enter => write!(f, "<cr>"),
-            KeyCode::Left => write!(f, "<left>"),
-            KeyCode::Right => write!(f, "<right>"),
-            KeyCode::Up => write!(f, "<up>"),
-            KeyCode::Down => write!(f, "<down>"),
-            KeyCode::Home => write!(f, "<home>"),
-            KeyCode::End => write!(f, "<end>"),
-            KeyCode::PageUp => write!(f, "<pgup>"),
-            KeyCode::PageDown => write!(f, "<pgdn>"),
-            KeyCode::Tab => write!(f, "<tab>"),
-            KeyCode::BackTab => write!(f, "<btab>"),
-            KeyCode::Delete => write!(f, "<del>"),
-            KeyCode::Insert => write!(f, "<ins>"),
-            KeyCode::F(n) => write!(f, "<f{n}>"),
-            KeyCode::Null => write!(f, "<null>"),
-            KeyCode::Esc => write!(f, "<esc>"),
-            KeyCode::CapsLock => write!(f, "<caps>"),
-            KeyCode::ScrollLock => write!(f, "<scroll>"),
-            KeyCode::NumLock => write!(f, "<num>"),
-            KeyCode::PrintScreen => write!(f, "<print>"),
-            KeyCode::Pause => write!(f, "<pause>"),
-            KeyCode::Menu => write!(f, "<menu>"),
-            KeyCode::KeypadBegin => write!(f, "<begin>"),
-            KeyCode::Media(media) => match media {
-                MediaKeyCode::Play => write!(f, "<play>"),
-                MediaKeyCode::Pause => write!(f, "<pause>"),
-                MediaKeyCode::PlayPause => write!(f, "<playpause>"),
-                MediaKeyCode::Reverse => write!(f, "<reverse>"),
-                MediaKeyCode::Stop => write!(f, "<stop>"),
-                MediaKeyCode::FastForward => write!(f, "<ffwd>"),
-                MediaKeyCode::Rewind => write!(f, "<rewind>"),
-                MediaKeyCode::TrackNext => write!(f, "<next>"),
-                MediaKeyCode::TrackPrevious => write!(f, "<prev>"),
-                MediaKeyCode::Record => write!(f, "<record>"),
-                MediaKeyCode::LowerVolume => write!(f, "<vol-down>"),
-                MediaKeyCode::RaiseVolume => write!(f, "<vol-up>"),
-                MediaKeyCode::MuteVolume => write!(f, "<mute>"),
-            },
-            KeyCode::Modifier(modifier) => match modifier {
-                ModifierKeyCode::LeftShift => write!(f, "<shift>"),
-                ModifierKeyCode::LeftControl => write!(f, "<ctrl>"),
-                ModifierKeyCode::LeftAlt => write!(f, "<alt>"),
-                ModifierKeyCode::LeftSuper => write!(f, "<super>"),
-                ModifierKeyCode::LeftHyper => write!(f, "<hyper>"),
-                ModifierKeyCode::LeftMeta => write!(f, "<meta>"),
-                ModifierKeyCode::RightShift => write!(f, "<shift>"),
-                ModifierKeyCode::RightControl => write!(f, "<ctrl>"),
-                ModifierKeyCode::RightAlt => write!(f, "<alt>"),
-                ModifierKeyCode::RightSuper => write!(f, "<super>"),
-                ModifierKeyCode::RightHyper => write!(f, "<hyper>"),
-                ModifierKeyCode::RightMeta => write!(f, "<meta>"),
-                ModifierKeyCode::IsoLevel3Shift => write!(f, "<shift>"),
-                ModifierKeyCode::IsoLevel5Shift => write!(f, "<shift>"),
-            },
+
+            KeyCode::Modifier(modifier) => {
+                let label = match modifier {
+                    ModifierKeyCode::LeftShift
+                    | ModifierKeyCode::RightShift
+                    | ModifierKeyCode::IsoLevel3Shift
+                    | ModifierKeyCode::IsoLevel5Shift => "shift",
+                    ModifierKeyCode::LeftControl | ModifierKeyCode::RightControl => "ctrl",
+                    ModifierKeyCode::LeftAlt | ModifierKeyCode::RightAlt => "alt",
+                    ModifierKeyCode::LeftSuper | ModifierKeyCode::RightSuper => "super",
+                    ModifierKeyCode::LeftHyper | ModifierKeyCode::RightHyper => "hyper",
+                    ModifierKeyCode::LeftMeta | ModifierKeyCode::RightMeta => "meta",
+                };
+                (label.into(), true)
+            }
+        };
+
+        line.push_str(&base_str);
+
+        // only close the '>' if a modifier opened it
+        if has_any_modifier_but_shift {
+            line.push('>');
+        } else if always_wrap {
+            // If no modifier, but the key is one of the "always wrapped" ones, wrap it
+            line = format!("<{line}>");
         }
+
+        write!(f, "{line}")
     }
 }
 

@@ -25,6 +25,7 @@ pub enum VimMode {
     Normal,
     Insert,
     Visual,
+    Command,
 }
 
 impl std::fmt::Display for VimMode {
@@ -33,16 +34,18 @@ impl std::fmt::Display for VimMode {
             Self::Normal => write!(f, "normal"),
             Self::Insert => write!(f, "insert"),
             Self::Visual => write!(f, "visual"),
+            Self::Command => write!(f, "command"),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
 pub enum Command {
     MoveCursorLeft,
     MoveCursorDown,
     MoveCursorUp,
     MoveCursorRight,
+    MoveCursorRightOverLines,
     MoveCursorLineStart,
     MoveCursorLineEnd,
     MoveToMatchingPair,

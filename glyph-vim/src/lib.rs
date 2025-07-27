@@ -27,6 +27,7 @@ impl CommandHandler for VimBufferCommandHandler {
                 Command::MoveCursorDown => move_cursor_down(ctx, mode),
                 Command::MoveCursorUp => move_cursor_up(ctx, mode),
                 Command::MoveCursorRight => move_cursor_right(ctx, mode),
+                Command::MoveCursorRightOverLines => move_cursor_right_over_lines(ctx, mode),
                 Command::MoveCursorLineStart => move_cursor_to_line_start(ctx),
                 Command::MoveCursorLineEnd => move_cursor_to_line_end(ctx, mode),
                 Command::DeleteWholeLine => delete_whole_line(ctx, mode),
@@ -42,7 +43,7 @@ impl CommandHandler for VimBufferCommandHandler {
                 Command::DeletePrevChar => delete_prev_char(ctx, mode),
                 Command::DeleteCurrChar => delete_curr_char(ctx, mode),
                 Command::TypeChar(c) => insert_character(ctx, mode, *c),
-                Command::MoveToNextWord => move_to_next_word(ctx),
+                Command::MoveToNextWord => move_to_next_word(ctx, mode),
 
                 // TODO: this should be temporary
                 Command::Quit => *ctx.should_quit = true,
@@ -105,12 +106,33 @@ fn move_cursor_right(ctx: &mut CommandContext<'_>, mode: VimMode) {
     cursor.move_right_by_with_offset(buffer, 1, offset_from_eol);
 }
 
+fn move_cursor_right_over_lines(ctx: &mut CommandContext<'_>, mode: VimMode) {
+    let view = ctx.views.get_mut_active_view();
+    let cursor = view.cursors.first_mut().unwrap();
+    let buffer = ctx
+        .buffers
+        .get_mut(&view.buffer_id)
+        .expect("view references non-existing buffer");
+
+    let last_char = buffer
+        .content()
+        .line(cursor.y)
+        .chars()
+        .last()
+        .unwrap_or_default();
+    let has_newline = matches!(last_char, '\n');
+    let offset_from_eol = get_offset_from_eol(mode, has_newline);
+
+    cursor.move_right_by_with_offset(buffer, 1, offset_from_eol);
+}
+
 fn get_offset_from_eol(mode: VimMode, has_newline: bool) -> usize {
     match mode {
         VimMode::Normal if has_newline => 2,
         VimMode::Normal => 1,
         VimMode::Insert => 1,
         VimMode::Visual => 0,
+        VimMode::Command => 0,
     }
 }
 
@@ -299,6 +321,7 @@ fn delete_prev_char(ctx: &mut CommandContext<'_>, mode: VimMode) {
         }
         VimMode::Normal => (),
         VimMode::Visual => (),
+        VimMode::Command => (),
     }
 }
 
@@ -332,6 +355,7 @@ fn delete_curr_char(ctx: &mut CommandContext<'_>, mode: VimMode) {
         }
         VimMode::Insert => content.delete_curr_char(Point::new(cursor.x, cursor.y)),
         VimMode::Visual => {}
+        VimMode::Command => {}
     }
 }
 
@@ -348,17 +372,24 @@ fn insert_character(ctx: &mut CommandContext<'_>, mode: VimMode, ch: char) {
     move_cursor_right(ctx, mode);
 }
 
-// TODO: finish this, lol
-fn move_to_next_word(ctx: &mut CommandContext<'_>) {
+fn move_to_next_word(ctx: &mut CommandContext<'_>, mode: VimMode) {
     let view = ctx.views.get_mut_active_view();
     let cursor = view.cursors.first_mut().unwrap();
-    let _position = Point::new(cursor.x, cursor.y);
-    let _buffer = ctx
+    let position = Point::new(cursor.x, cursor.y);
+    let buffer = ctx
         .buffers
         .get_mut(&view.buffer_id)
         .expect("view references non-existing buffer");
-    // let position = buffer.content().find_next_word();
-    // cursor.move_to(buffer, position.x, position.y);
+
+    let content = buffer.content();
+    let position = content.find_next_word_boundary(position);
+
+    let last_char = content.line(position.y).chars().last().unwrap_or_default();
+    // TODO: this should also work when EOL is \r or \r\n
+    let has_newline = matches!(last_char, '\n');
+    let offset_from_eol = get_offset_from_eol(mode, has_newline);
+
+    cursor.move_to_with_offset(buffer, position.x, position.y, offset_from_eol);
 }
 
 fn move_to_matching_pair(ctx: &mut CommandContext<'_>, mode: VimMode) {

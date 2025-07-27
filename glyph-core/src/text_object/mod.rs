@@ -15,6 +15,14 @@ fn is_pairable_character(char: &char) -> bool {
     OPENING_PAIRS.contains(char) || CLOSING_PAIRS.contains(char)
 }
 
+fn is_word_char(ch: char) -> bool {
+    ch.is_alphanumeric() || ch == '_'
+}
+
+fn is_punctuation_char(ch: char) -> bool {
+    !ch.is_whitespace() && !is_word_char(ch)
+}
+
 fn is_matching_pair(needle: char, char: char) -> bool {
     matches!(
         (needle, char),
@@ -201,6 +209,78 @@ impl TextObject {
         let line_start_char = self.inner.line_to_char(position.y);
         let position_char = line_start_char + position.x;
         self.inner.insert_char(position_char, ch);
+    }
+
+    pub fn find_next_word_boundary(&self, point: Point<usize>) -> Point<usize> {
+        if point.y >= self.len_lines() {
+            return point;
+        }
+
+        let line = self.line(point.y);
+        if point.x >= line.len_chars().saturating_sub(2) {
+            return self.find_next_line_start(point.y + 1);
+        }
+
+        let current_char = line.char(point.x);
+        let line_start_char = self.inner.line_to_char(point.y);
+        let mut char_idx = line_start_char + point.x;
+
+        // Step 1: Skip current word/punctuation group
+        if is_word_char(current_char) {
+            // Skip all word characters
+            for ch in self.inner.chars_at(char_idx) {
+                if !is_word_char(ch) {
+                    break;
+                }
+                char_idx += 1;
+            }
+        } else if is_punctuation_char(current_char) {
+            // Skip all punctuation characters
+            for ch in self.inner.chars_at(char_idx) {
+                if !is_punctuation_char(ch) {
+                    break;
+                }
+                char_idx += 1;
+            }
+        }
+
+        // Step 2: Skip whitespace
+        for ch in self.inner.chars_at(char_idx) {
+            if !ch.is_whitespace() {
+                break;
+            }
+            char_idx += 1;
+        }
+
+        // Convert back to line/column coordinates
+        if char_idx >= self.inner.len_chars() {
+            // At EOF
+            let last_line = self.len_lines().saturating_sub(1);
+            let last_line_len = self.line_len(last_line).saturating_sub(1);
+            return Point::new(last_line_len, last_line);
+        }
+
+        let result_line = self.inner.char_to_line(char_idx);
+        let result_line_start = self.inner.line_to_char(result_line);
+        let result_col = char_idx - result_line_start;
+
+        Point::new(result_col, result_line)
+    }
+
+    fn find_next_line_start(&self, line_idx: usize) -> Point<usize> {
+        if line_idx >= self.len_lines() {
+            // At EOF
+            let last_line = self.len_lines().saturating_sub(1);
+            let last_line_len = self.line_len(last_line).saturating_sub(1);
+            return Point::new(last_line_len, last_line);
+        }
+
+        self.line(line_idx)
+            .chars()
+            .enumerate()
+            .find(|(_, ch)| !ch.is_whitespace()) // find first non-whitespace character
+            .map(|(col, _)| Point::new(col, line_idx)) // that's where the cursor should move
+            .unwrap_or(Point::new(0, line_idx)) // if only whitespace, then return start of line
     }
 }
 

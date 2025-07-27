@@ -37,6 +37,12 @@ pub struct TrieQuery<'a, T> {
     pub continues: bool,
 }
 
+impl<T> Default for TrieQuery<'_, T> {
+    fn default() -> Self {
+        Self::new(None, false)
+    }
+}
+
 impl<'a, T> TrieQuery<'a, T> {
     pub fn new(value: Option<&'a T>, continues: bool) -> Self {
         Self { value, continues }
@@ -93,10 +99,10 @@ impl<T> Trie<T> {
         self.nodes[current_idx].value = Some(value);
     }
 
-    pub fn get<S: AsRef<str>>(&self, needle: S) -> Option<TrieQuery<'_, T>> {
+    pub fn get<S: AsRef<str>>(&self, needle: S) -> TrieQuery<'_, T> {
         let needle = needle.as_ref();
         if needle.is_empty() {
-            return None;
+            return Default::default();
         }
 
         assert!(self.nodes.get(0).is_some());
@@ -114,19 +120,14 @@ impl<T> Trie<T> {
 
             match found_child {
                 Some(child_idx) => current_idx = child_idx,
-                None => return None,
+                None => return Default::default(),
             }
         }
 
         let node = &self.nodes[current_idx];
         let continues = !node.children.is_empty();
 
-        let query = TrieQuery {
-            value: node.value.as_ref(),
-            continues,
-        };
-
-        Some(query)
+        TrieQuery::new(node.value.as_ref(), continues)
     }
 }
 
@@ -140,9 +141,9 @@ mod tests {
         trie.insert("foo", 1);
         trie.insert("bar", 2);
 
-        assert_eq!(trie.get("foo").unwrap(), TrieQuery::new(Some(&1), false));
-        assert_eq!(trie.get("f").unwrap(), TrieQuery::new(None, true));
-        assert_eq!(trie.get("x"), None);
+        assert_eq!(trie.get("foo"), TrieQuery::new(Some(&1), false));
+        assert_eq!(trie.get("f"), TrieQuery::new(None, true));
+        assert_eq!(trie.get("x"), TrieQuery::default());
     }
 
     #[test]
@@ -153,19 +154,19 @@ mod tests {
         trie.insert("card", 3);
         trie.insert("care", 4);
 
-        assert_eq!(trie.get("cat").unwrap(), TrieQuery::new(Some(&1), false));
-        assert_eq!(trie.get("car").unwrap(), TrieQuery::new(Some(&2), true));
-        assert_eq!(trie.get("card").unwrap(), TrieQuery::new(Some(&3), false));
-        assert_eq!(trie.get("care").unwrap(), TrieQuery::new(Some(&4), false));
-        assert_eq!(trie.get("ca").unwrap(), TrieQuery::new(None, true));
-        assert_eq!(trie.get("cards"), None);
+        assert_eq!(trie.get("cat"), TrieQuery::new(Some(&1), false));
+        assert_eq!(trie.get("car"), TrieQuery::new(Some(&2), true));
+        assert_eq!(trie.get("card"), TrieQuery::new(Some(&3), false));
+        assert_eq!(trie.get("care"), TrieQuery::new(Some(&4), false));
+        assert_eq!(trie.get("ca"), TrieQuery::new(None, true));
+        assert_eq!(trie.get("cards"), TrieQuery::default());
     }
 
     #[test]
     fn test_empty_string() {
         let mut trie = Trie::new();
         trie.insert("", 42);
-        assert_eq!(trie.get(""), None);
+        assert_eq!(trie.get(""), TrieQuery::default());
     }
 
     #[test]
@@ -174,6 +175,6 @@ mod tests {
         trie.insert("key", 1);
         trie.insert("key", 2);
 
-        assert_eq!(trie.get("key").unwrap(), TrieQuery::new(Some(&2), false));
+        assert_eq!(trie.get("key"), TrieQuery::new(Some(&2), false));
     }
 }

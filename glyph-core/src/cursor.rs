@@ -26,6 +26,17 @@ impl Cursor {
         self.virtual_x = self.x;
     }
 
+    pub fn move_to_with_offset(&mut self, buffer: &Buffer, x: usize, y: usize, offset: usize) {
+        let content = buffer.content();
+        let total_lines = content.len_lines();
+        assert!(y < total_lines);
+
+        let line_len = content.line_len(y).saturating_sub(offset);
+        self.x = usize::min(x, line_len);
+        self.y = y;
+        self.virtual_x = self.x;
+    }
+
     pub fn move_down_by(&mut self, buffer: &Buffer, amount: usize) {
         let content = buffer.content();
         let total_lines = content.len_lines();
